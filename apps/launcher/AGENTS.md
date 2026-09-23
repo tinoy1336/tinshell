@@ -113,8 +113,8 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 - `types.ts` — shared `Result` types; every source returns `Result[]`
   (`emojiEntries` marks the emoji row for the grid).
 - `log.ts` — the `[launcher]`-tagged logger (`createLogger`).
-- `prime-run*.png` — prime-run button icons (paths built from
-  `ags/apps/launcher/…` — keep in sync with the layout).
+- `prime-run*.png` — prime-run button icons, resolved through `treeRoot()`
+  (`common/path/tree-root.ts`): they live in the tree, not in `~/.config`.
 
 ### The shared emoji layer (`common/emoji/*`)
 

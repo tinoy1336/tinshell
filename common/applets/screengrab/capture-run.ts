@@ -17,6 +17,7 @@ import type { AppletConfig } from "@common/applets/config"
 import { copyImageFile } from "@common/clipboard"
 import { shq } from "@common/subprocess/quote"
 import { runCb, spawnDetached } from "@common/subprocess/run"
+import { treeRoot } from "@common/path/tree-root"
 
 function notify(config: AppletConfig, title: string, body: string): void {
   if (!config.screengrab.notify) return
@@ -82,7 +83,7 @@ export async function runCapture(
       actionLabel: "Annotate",
       onInvoke: (body) => {
         if (!body) return
-        spawnDetached([`${GLib.get_home_dir()}/dev/tinshell/apps/annotate/ensure-open.sh`, body])
+        spawnDetached([`${treeRoot()}/apps/annotate/ensure-open.sh`, body])
       },
     })
   }

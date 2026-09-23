@@ -32,6 +32,7 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { log } from "@common/log/logger"
+import { treeRoot } from "@common/path/tree-root"
 
 // ── Types ──
 
@@ -304,10 +305,7 @@ export function setDottedPath(root: any, path: string, value: any): boolean {
  *  config.defaults.json. The tree root comes from the launcher (TINSHELL_HOME,
  *  exported by the host scripts); the dev fallback is ~/dev/tinshell. */
 export function appSchemaDir(name: string): string {
-  const root =
-    GLib.getenv("TINSHELL_HOME") ??
-    GLib.build_filenamev([GLib.get_home_dir(), "dev", "tinshell"])
-  return GLib.build_filenamev([root, "apps", name])
+  return GLib.build_filenamev([treeRoot(), "apps", name])
 }
 
 /** This machine's live config file: ~/.config/tinshell/<name>.json — flat, one

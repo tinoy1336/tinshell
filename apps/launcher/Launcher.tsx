@@ -58,6 +58,7 @@ import { Astal, Gdk, Gtk } from "ags/gtk4"
 import { Combiner } from "./combiner"
 import type { LauncherControl } from "./commands"
 import { get } from "./config"
+import { treeRoot } from "@common/path/tree-root"
 import {
   EMOJI_ROW_PITCH,
   emojiBeginPick,
@@ -103,14 +104,11 @@ import type { Result } from "./types"
 // NVIDIA logos for the prime-run button (48×48 png, ~1KB — shrunk from the
 // icons8 512² source via ImageMagick resize + palette reduction). Grey at
 // rest; the original green version swaps in on hover.
-/** The tree root: the launcher exports TINSHELL_HOME; the dev default matches the
- *  checkout. These assets belong to the app and travel with the tree, so they are
- *  no longer read from ~/.config. */
-const TREE_ROOT =
-  GLib.getenv("TINSHELL_HOME") ?? GLib.build_filenamev([GLib.get_home_dir(), "dev", "tinshell"])
-const PRIME_ICON = GLib.build_filenamev([TREE_ROOT, "apps", "launcher", "prime-run.png"])
+/** These assets belong to the app and travel with the tree, so they are read
+ *  from the resolved tree root, never from ~/.config. */
+const PRIME_ICON = GLib.build_filenamev([treeRoot(), "apps", "launcher", "prime-run.png"])
 const PRIME_ICON_GREEN = GLib.build_filenamev([
-  TREE_ROOT,
+  treeRoot(),
   "apps",
   "launcher",
   "prime-run-green.png",

@@ -58,6 +58,7 @@ import { storeFilePath } from "@common/applets/store-paths"
 import type { GpuColour } from "@common/applets/types"
 import { log } from "@common/log/logger"
 import type { StateStore } from "@common/state"
+import { treeRoot } from "@common/path/tree-root"
 import { run } from "@common/subprocess/run"
 import { Accessor } from "gnim"
 import type {
@@ -86,12 +87,7 @@ type TransportedBackend = Omit<AppletBackend, "screengrab" | "screengrabNaming">
 /** The generic router: it probes the map's instances, then every live instance,
  *  for one serving the `applets` namespace. The namespace has no instance of its
  *  own — the dock hosts it — so the router is the only resolver. */
-const ROUTE_SCRIPT = GLib.build_filenamev([
-  GLib.getenv("TINSHELL_HOME") ?? GLib.build_filenamev([GLib.get_home_dir(), "dev", "tinshell"]),
-  "common",
-  "shell",
-  "tinshell-route.sh",
-])
+const ROUTE_SCRIPT = GLib.build_filenamev([treeRoot(), "common", "shell", "tinshell-route.sh"])
 /** The router probes live instances (a spawn + probe round trip per call, and a
  *  slow OS call may take seconds: an nmcli scan, or the backend's first
  *  reactive answer while it waits for its own poll). */

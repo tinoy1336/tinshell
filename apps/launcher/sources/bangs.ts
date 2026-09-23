@@ -58,6 +58,7 @@ import { isStillImage } from "@common/media/classify"
 import { expandPath, globPath, isGlobQuery } from "@common/path/complete"
 import { run, spawnDetached } from "@common/subprocess/run"
 import { get } from "../config"
+import { treeRoot } from "@common/path/tree-root"
 import { log } from "../log"
 import type { Result, SourceResponse } from "../types"
 import { fileTypeAt } from "./apps"
@@ -184,7 +185,7 @@ function playRow(path: string): Result {
     run: () => {
       // ensure-open.sh: warm → request `open <path>`; cold → run.sh with the
       // args (the app loads the media directly — no double open).
-      spawnDetached([`${GLib.get_user_config_dir()}/tinshell/apps/media/ensure-open.sh`, path])
+      spawnDetached([`${treeRoot()}/apps/media/ensure-open.sh`, path])
       return true
     },
   }
@@ -202,7 +203,7 @@ function annotateRow(path: string): Result {
       // router (tinshell-route) — the LIVE instance hosting the app serves it,
       // the shell in production. Never `ags -i annotate` (the app usually
       // has no instance of its own) and never a per-app bundle.
-      spawnDetached([`${GLib.get_user_config_dir()}/tinshell/apps/annotate/ensure-open.sh`, path])
+      spawnDetached([`${treeRoot()}/apps/annotate/ensure-open.sh`, path])
       return true
     },
   }
@@ -291,7 +292,7 @@ function serviceTable(): ServiceTable {
  *  not be frozen into a cached object. */
 function bangEnvironment(): BangEnv {
   return {
-    tinshellDir: `${GLib.get_user_config_dir()}/ags`,
+    tinshellDir: treeRoot(),
     browserFirefox: get<string>("bangs.browserFirefox", "firefox"),
     browserChromium: get<string>("bangs.browserChromium", "chromium"),
     searchUrl: get<string>("bangs.searchUrl", "https://www.google.com/search?q="),
@@ -355,7 +356,7 @@ export function bangs(input: string, onBusy: (busy: boolean) => void): SourceRes
       run: () => {
         // ensure-new.sh: warm → request `open <name>`; cold → run.sh with the
         // args (the app opens the note directly — no default extra note).
-        spawnDetached([`${GLib.get_user_config_dir()}/tinshell/apps/notes/ensure-new.sh`, "open", query])
+        spawnDetached([`${treeRoot()}/apps/notes/ensure-new.sh`, "open", query])
         return true
       },
     })
