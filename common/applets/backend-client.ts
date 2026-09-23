@@ -87,8 +87,7 @@ type TransportedBackend = Omit<AppletBackend, "screengrab" | "screengrabNaming">
  *  for one serving the `applets` namespace. The namespace has no instance of its
  *  own — the dock hosts it — so the router is the only resolver. */
 const ROUTE_SCRIPT = GLib.build_filenamev([
-  GLib.get_user_config_dir(),
-  "ags",
+  GLib.getenv("TINSHELL_HOME") ?? GLib.build_filenamev([GLib.get_home_dir(), "dev", "tinshell"]),
   "common",
   "shell",
   "tinshell-route.sh",

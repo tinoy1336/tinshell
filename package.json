@@ -1,4 +1,5 @@
 {
+  "name": "tinshell",
   "private": true,
   "workspaces": [
     "apps/*"

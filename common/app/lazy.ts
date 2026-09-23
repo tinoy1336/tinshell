@@ -180,7 +180,7 @@ interface LoadedState {
  *  and is the only place lazy apps are registered.) */
 function loadedStatePath(): string {
   const file = isProductionShell ? LOADED_STATE_FILE : `lazy-loaded-${instanceName}.json`
-  return GLib.build_filenamev([GLib.get_user_runtime_dir(), "ags", file])
+  return GLib.build_filenamev([GLib.get_user_runtime_dir(), "tinshell", file])
 }
 
 /** Read this instance's loaded-state file. `fileExisted` tells the caller
@@ -420,7 +420,7 @@ interface RestoreClaim {
 }
 
 function restoreClaimPath(name: string): string {
-  return GLib.build_filenamev([GLib.get_user_runtime_dir(), "ags", `restore-claim-${name}`])
+  return GLib.build_filenamev([GLib.get_user_runtime_dir(), "tinshell", `restore-claim-${name}`])
 }
 
 /** This process's pid. gjs exposes no process.pid; /proc/self resolves to the

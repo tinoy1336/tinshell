@@ -46,7 +46,7 @@ import { writeFileSync } from "@common/fs/files"
 
 /** App state dir: ~/.local/state/tinshell/apps/<app>. */
 function appStateDir(app: string): string {
-  return GLib.build_filenamev([GLib.get_user_state_dir(), "ags", "apps", app])
+  return GLib.build_filenamev([GLib.get_user_state_dir(), "tinshell", "apps", app])
 }
 
 /** Canonical state file of an app (default state.json). Registry restoreIf

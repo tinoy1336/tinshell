@@ -103,16 +103,14 @@ import type { Result } from "./types"
 // NVIDIA logos for the prime-run button (48×48 png, ~1KB — shrunk from the
 // icons8 512² source via ImageMagick resize + palette reduction). Grey at
 // rest; the original green version swaps in on hover.
-const PRIME_ICON = GLib.build_filenamev([
-  GLib.get_user_config_dir(),
-  "ags",
-  "apps",
-  "launcher",
-  "prime-run.png",
-])
+/** The tree root: the launcher exports TINSHELL_HOME; the dev default matches the
+ *  checkout. These assets belong to the app and travel with the tree, so they are
+ *  no longer read from ~/.config. */
+const TREE_ROOT =
+  GLib.getenv("TINSHELL_HOME") ?? GLib.build_filenamev([GLib.get_home_dir(), "dev", "tinshell"])
+const PRIME_ICON = GLib.build_filenamev([TREE_ROOT, "apps", "launcher", "prime-run.png"])
 const PRIME_ICON_GREEN = GLib.build_filenamev([
-  GLib.get_user_config_dir(),
-  "ags",
+  TREE_ROOT,
   "apps",
   "launcher",
   "prime-run-green.png",
