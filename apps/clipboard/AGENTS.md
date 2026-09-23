@@ -50,6 +50,7 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   sized to the full natural height of every entry is an impossible layer
   surface (shm reports "too big", the GL renderer segfaults in Mesa).
 - `store.ts` — the app's state hub (history, pins, visibility) and the OWNER of
+  the payload-size measurement the request surface reports (`payloadSize`),
   the storage layout under `~/.local/share/clipboard`: `history.jsonl`,
   `img/<id>.png`, `thumbs/<id>.png`, `pinned.json` (the GC sweeps `img/` and
   `thumbs/` alike; `deleteImage()` drops both). Every entry carries a `hash`
@@ -93,7 +94,19 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   tick, so a large legacy history never stalls the loop). A row whose thumbnail
   is still missing renders an empty picture rather than falling back to the full
   PNG.
-- `commands.ts` — request handlers (prefixed `["clipboard", …]`).
+- `commands.ts` — request handlers (prefixed `["clipboard", …]`), the
+  METADATA-ONLY surface described under §Request contract below. Every refusal
+  is a single `error: …` line, so a client can map it to a non-zero exit.
+- `commands.probe.ts` — headless probe for that contract, the one place its
+  safety property is checked: `history` / `entry <id>` / `debug` answer entry
+  metadata and never a payload, `entry <id> --reveal` answers exactly the named
+  entry and none of another's, an undeclared token (unknown flag, extra
+  argument, non-numeric limit) is answered with the path's usage line, an
+  unknown subcommand is refused, and a refused mutator changes nothing. Its
+  paylods are fixtures it generates itself, and it REFUSES to run without
+  `XDG_DATA_HOME` (or when the store dir resolves to `~/.local/share/clipboard`),
+  so it can never read or write the real history:
+  `ags bundle --gtk 4 apps/clipboard/commands.probe.ts /tmp/c.sh && XDG_DATA_HOME=$(mktemp -d) bash /tmp/c.sh`.
 - `config.ts` — owns the app's config store + facade (`createConfigStore`
   via `common/config/facade.ts`; no shared surface registry).
 - `style.ts` — dynamic CSS builder; `log.ts` — the `[clipboard]`-tagged logger.
@@ -112,23 +125,57 @@ The clipboard app's OWN config (apps/clipboard/config.{defaults,schema,json}) vi
 
 ## Command surface
 
-All registered PREFIXED (`["clipboard", …]`):
+All registered PREFIXED (`["clipboard", …]`). Every path answers the request
+contract below — METADATA only, payload behind one explicit opt-in.
 
-| Path | Purpose |
+| Path | Answers |
 | --- | --- |
 | `clipboard toggle/show/hide` | picker visibility |
 | `clipboard focus-search` | focus the search entry |
-| `clipboard history` | list history |
-| `clipboard clear/delete` | clear all / delete one entry |
-| `clipboard pin/unpin` | pin an entry (survives clearing) |
+| `clipboard history [<limit>]` | entry METADATA, newest first (default 20) |
+| `clipboard entry <id> [--reveal]` | one entry's METADATA; with `--reveal`, that entry's payload |
+| `clipboard clear` | clear all (pins survive by design) |
+| `clipboard delete <id>` | delete one entry |
+| `clipboard pin/unpin <id>` | pin an entry (survives clearing) |
+| `clipboard debug` | capture-loop state + entry/pin COUNTS |
+| `clipboard config get/set/reload` | live config via facade |
 
 There is NO command for the row preview: the preview button calls the MEDIA
 app's own request surface in process (`media open <path>` through
 `common/commands/registry`, with the lazy pre-step `common/app/lazy`'s
 `ensureLoaded` runs for a routed request of a lazy app), so no second call path
 into media exists and no clipboard command is involved.
-| `clipboard debug` | introspection |
-| `clipboard config get/set/reload` | live config via facade |
+
+### Request contract — metadata only, payload behind one opt-in
+
+The app holds everything the user copies, so the surface is shaped so that no
+caller can read payloads by accident:
+
+- **A metadata line is `<ISO ts> <id> <mime> <payload bytes> <pinned>`** (one
+  line per entry, `(empty)` for no entries). It never carries content. The size
+  is `store.ts`'s `payloadSize` — a text entry's UTF-8 byte length, an image
+  entry's PNG file size (0 when the blob is missing).
+- **`history`, `entry <id>` and `debug` answer that shape and never a payload.**
+  `debug` adds the capture-loop state and the entry/pin counts — no content, no
+  entry names. Other tooling reads `debug`, which is why it is metadata too.
+- **The ONLY way to payload content is `clipboard entry <id> --reveal`.** It
+  names ONE entry and prints that entry alone: text verbatim, or an image
+  entry's absolute PNG path (the bytes are never printed — `img/<id>.png` is
+  the blob the picker previews). Nothing bulk reveals.
+- **No listing path takes a reveal flag** — `history --reveal` is refused, not
+  silently ignored.
+- **Parsing is strict on every path.** A token the path does not define — an
+  unknown flag, an extra argument, a non-numeric or zero `<limit>` — answers
+  `error: usage: <that path's usage>` and the request does nothing else. A
+  masking flag that silently does not apply is worse than no flag.
+- **An unknown subcommand** answers the dispatcher's `error: unknown command …`
+  with the paths available at that level. `delete` / `pin` / `unpin` take
+  exactly one id; anything else is a usage answer.
+- A refusal is the FIRST line of the reply (`error: …`), never buried under
+  output, and a refusal writes nothing. The `ags` CLI itself exits 0 for every
+  reply, an `error:` one included, so a caller that needs an exit code maps that
+  prefix — the app's contract is the reply text, which is what makes the mapping
+  decidable.
 
 ## Lifecycle
 

@@ -178,6 +178,26 @@ export function thumbPath(id: string): string {
   return GLib.build_filenamev([THUMB_DIR, `${id}.png`])
 }
 
+/**
+ * Payload size in bytes of one entry: a text entry's text as UTF-8, or an
+ * image entry's PNG file size (0 when the blob is missing). The request
+ * surface reports this as entry metadata, so a caller learns how big a payload
+ * is without reading it.
+ */
+export function payloadSize(e: ClipboardEntry): number {
+  if (e.mime === "text") return new TextEncoder().encode(e.text ?? "").length
+  try {
+    const info = Gio.File.new_for_path(imagePath(e.id)).query_info(
+      "standard::size",
+      Gio.FileQueryInfoFlags.NONE,
+      null,
+    )
+    return info.get_size()
+  } catch {
+    return 0
+  }
+}
+
 /** Save an image entry's PNG bytes to disk. */
 export function saveImage(id: string, bytes: Uint8Array): boolean {
   return writeFileSync(imagePath(id), bytes)
