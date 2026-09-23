@@ -28,9 +28,20 @@
 #                                          → LIVE instances only; exit 2 when
 #                                            nothing serves it
 #
-# Exit codes: 0 on any forwarded reply (the `ags` CLI exits 0 even for
-# `error:` responses); 1 on usage error or unknown app; 2 when --no-start found
-# no live instance; non-zero if no instance ever became servable.
+# Exit codes: 0 on a forwarded reply, EXCEPT one whose first line starts with
+# `error:` — that is exit 1. The `ags` request CLI exits 0 for EVERY reply,
+# `error: …` included, so a script cannot tell success from failure without
+# parsing stdout; the router is the one client path all of them share, so the
+# mapping lives here. The test is deliberately narrow: the first line only, the
+# exact `error:` prefix only, nothing else inspected (a plain prefix test on
+# the whole reply IS a first-line test — a later line's `error:` cannot make
+# the string start with it). A JSON ENVELOPE IS NOT MAPPED: `applets …` replies
+# are `{"ok":true,…}` / `{"ok":false,…}` and their clients parse the envelope
+# only on exit 0 (common/applets/backend-client.ts), so mapping those would
+# turn a structured `ok:false` answer into a transport failure. Every other
+# reply keeps the CLI's own exit code untouched. Also: 1 on usage error or
+# unknown app; 2 when --no-start found no live instance; non-zero if no
+# instance ever became servable.
 set -u
 
 # --no-start: route to a LIVE instance only, never cold-start one. Keybind
@@ -72,10 +83,32 @@ probe() {
   ags -i "$1" request "" 2>/dev/null | grep -qw -- "$APP"
 }
 
+# Forward the request to a servable instance, print its reply verbatim and
+# apply the `error:` exit mapping (see the exit-code contract in the header).
+# `forward <instance> <request> [quiet]` — `quiet` drops the CLI's stderr, the
+# cold-start path where a freshly spawned instance's own startup output is not
+# part of the reply. The reply is unmodified: command substitution collapses a
+# run of trailing newlines to the one printed here, and nothing else changes.
+forward() {
+  local out rc
+  if [ -n "${3:-}" ]; then
+    out="$(ags -i "$1" request "$2" 2>/dev/null)"
+  else
+    out="$(ags -i "$1" request "$2")"
+  fi
+  rc=$?
+  [ -n "$out" ] && printf '%s\n' "$out"
+  case "$out" in
+    error:*) rc=1 ;;
+  esac
+  return "$rc"
+}
+
 # 1. Map-listed instances in map order (production priority).
 for inst in $(printf '%s' "$instances" | tr ',' ' '); do
   if probe "$inst"; then
-    exec ags -i "$inst" request "$APP $CMD"
+    forward "$inst" "$APP $CMD"
+    exit $?
   fi
   probed="${probed:+$probed
 }$inst"
@@ -86,7 +119,8 @@ done
 for inst in $(ags list 2>/dev/null); do
   printf '%s' "$probed" | grep -qxF -- "$inst" && continue
   if probe "$inst"; then
-    exec ags -i "$inst" request "$APP $CMD"
+    forward "$inst" "$APP $CMD"
+    exit $?
   fi
 done
 
@@ -142,5 +176,5 @@ FIRST="${instances%%,*}"
   exit 1
 }
 
-exec ags -i "$FIRST" request "$APP $CMD" 2>/dev/null
-exit 0
+forward "$FIRST" "$APP $CMD" quiet
+exit $?

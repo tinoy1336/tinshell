@@ -594,7 +594,16 @@ reboot (/tmp); rotate or archive it if a crash needs post-reboot diagnosis.
   `flock`-serialized on that instance). Keybinds,
   ensure-*.sh wrappers and the promptd CLI clients all go through it. The
   map decides ROUTE PRIORITY + cold-start target only — live routing always
-  probes reality.
+  probes reality. EXIT CODE: a reply whose FIRST LINE starts with `error:` is
+  exit 1, because `ags -i <instance> request` exits 0 for EVERY reply,
+  `error: …` included, and the router is the one client path keybinds,
+  wrappers and CLIs share — so a caller tests `$?` instead of parsing stdout.
+  The test is exactly the first line and exactly that prefix, and every other
+  reply keeps the CLI's own exit code. JSON ENVELOPES ARE DELIBERATELY NOT
+  MAPPED: `tinshell-route applets …` answers `{"ok":true,…}` / `{"ok":false,…}`
+  and its clients parse the envelope only on exit 0
+  (`common/applets/backend-client.ts`), so an unmapped structured error keeps
+  travelling as `ok:false` on exit 0.
 - `ags list` — enumerate running instances.
 - Bare `ags request` / `ags quit` (no `-i`) target the default `ags` instance,
   which NO app uses — they error `instance "ags" is not runnning` (intended:
