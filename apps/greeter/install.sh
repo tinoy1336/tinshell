@@ -84,20 +84,29 @@ install -Dm644 config.schema.json /etc/greetd/tinshell-greeter/config.schema.jso
 # The applet strip mounts the SHARED renderer (common/applets/surface) with the
 # DOCK's config: the greeter user cannot read the session user's home, so the dock config
 # trio ships here too (apps/greeter/config.ts dockConfigView). schema + defaults
-# let the shared loader serve the dock's canonical values; the LIVE values are a
-# separate root copy (data in the session user's home) — run it when the dock config
-# changes:
-#   sudo install -Dm644 apps/dock/config.json \
-#     /etc/greetd/tinshell-greeter/dock/config.json   # run from the tree root
-# That copy stays a plain install (no seed guard): its SOURCE is the live dock
-# config itself, so it is a refresh of a mirror and cannot revert a setting.
+# let the shared loader serve the dock's canonical values; the deployed
+# config.json is a MIRROR of the dock's LIVE file — a plain install, no seed
+# guard, because its SOURCE is the live config itself, so refreshing it cannot
+# revert a setting.
 install -Dm644 ../dock/config.schema.json /etc/greetd/tinshell-greeter/dock/config.schema.json
 install -Dm644 ../dock/config.defaults.json /etc/greetd/tinshell-greeter/dock/config.defaults.json
-# the dock's LIVE values now live OUTSIDE the tree (~/.config/tinshell/dock.json), so the
-# greeter's dock view pairs the deployed schema/defaults with that flat file; ship the
-# deployed copy too when it is readable (root deploy, data in the user's home)
-if [ -r "$HOME/.config/tinshell/dock.json" ]; then
-  install -Dm644 "$HOME/.config/tinshell/dock.json" /etc/greetd/tinshell-greeter/dock/config.json
+# The live dock config sits OUTSIDE the tree (<config dir>/tinshell/dock.json,
+# common/config/loader appConfigPath). Resolve it EXPLICITLY: TINSHELL_DOCK_CONFIG
+# names it, else the INVOKING user's home does (SUDO_USER). Never $HOME — under
+# sudo that is /root, where the readability test fails, the copy is skipped in
+# silence and the deploy still reports success while shipping the previous
+# mirror. An unreadable source is NAMED (here and in the summary below), never
+# silently skipped.
+DOCK_LIVE="${TINSHELL_DOCK_CONFIG:-}"
+if [ -z "$DOCK_LIVE" ]; then
+  DOCK_LIVE="$(getent passwd "${SUDO_USER:-$(id -un)}" 2>/dev/null | cut -d: -f6 || true)/.config/tinshell/dock.json"
+fi
+if [ -r "$DOCK_LIVE" ]; then
+  install -Dm644 "$DOCK_LIVE" /etc/greetd/tinshell-greeter/dock/config.json
+  DOCK_MIRROR="refreshed from $DOCK_LIVE"
+else
+  DOCK_MIRROR="kept as deployed: the live dock config is unreadable at ${DOCK_LIVE:-<unresolved>} (name it with TINSHELL_DOCK_CONFIG)"
+  echo "[deploy] WARNING: dock config mirror NOT refreshed — $DOCK_MIRROR" >&2
 fi
 # The three PAYLOAD configs (see the header): always installed, each one naming
 # the md5 it superseded.
@@ -122,7 +131,7 @@ echo "greeter deployed:"
 echo "  /etc/greetd/tinshell-greeter.sh          (the bundle, runs as user greeter)"
 echo "  /etc/greetd/tinshell-greeter.sh.stamp.json (the sources it was built from — \`npm run check:builds\` reads it)"
 echo "  /etc/greetd/tinshell-greeter/config*.json"
-echo "  /etc/greetd/tinshell-greeter/dock/       (the dock config the applet strip renders)"
+echo "  /etc/greetd/tinshell-greeter/dock/       (the dock config the applet strip renders — mirror $DOCK_MIRROR)"
 echo "  /etc/greetd/config.toml             (greetd → greeter compositor)"
 echo "  /etc/greetd/greeter.lua             (greeter compositor config)"
 echo "  /etc/greetd/greeter-handoff.sh      (login handoff: freezes the last frame)"

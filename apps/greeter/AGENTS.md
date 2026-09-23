@@ -66,9 +66,10 @@ shows nothing running. Rebuild the bundle — never hand-run it under a bare
 **Both bundles COMPILE the dock config's key names in, and the pre-login deploy
 carries its own copy of the dock trio — so a dock config KEY RENAME must be
 followed by a rebuild + redeploy in the same change:** `build.sh` +
-`build-lock.sh` (new keys inside the bundles), `install.sh` (deploy), and the
-live dock copy refresh the deploy does NOT cover —
-`sudo install -Dm644 <checkout>/apps/dock/config.json /etc/greetd/tinshell-greeter/dock/config.json`.
+`build-lock.sh` (new keys inside the bundles) plus `install.sh`, which deploys
+AND refreshes the mirror of the live dock config (`TINSHELL_DOCK_CONFIG`, else
+the invoking user's home — see the deploy flow bullet). No hand copy is needed,
+and none exists to go stale.
 A stale bundle reading a renamed key throws `<key> is undefined` while the strip
 mounts; the lock then logs `[lock] applet strip: … composing without the strip`
 and paints no applets (the card and the wallpaper still map — lock/surface.ts
@@ -138,8 +139,8 @@ another window.
      exact values the dock paints);
   2. `/etc/greetd/tinshell-greeter/dock` — the deployed copy of the dock config
      trio, the pre-login greeter's only route to the live values
-     (`install.sh` seeds it; the LIVE `config.json` is a separate root copy —
-     see the decision item in the deploy flow).
+     (`install.sh` deploys the trio and refreshes its `config.json` from the
+     live dock config; see the deploy flow item).
   Neither present → the alarm is logged and the strip stays out (the card still
   maps): a bundled-defaults snapshot is deliberately NOT painted, because it
   drifts from the dock silently — the "cheap copy" this strip must never be.
@@ -566,12 +567,15 @@ plus `ags bundle` compiling for both bundles.
   `/etc/pam.d/greetd` are always installed too (payload — greetd, the greeter
   compositor and PAM read them directly, so no defaults channel exists), each
   announced with the md5 it superseded. The pre-login strip also needs the
-  dock's LIVE values there — a root copy the morning owner must run once
-  (root-only, cannot be done from an unattended shell):
-  `sudo install -Dm644 <checkout>/apps/dock/config.json /etc/greetd/tinshell-greeter/dock/config.json`
-  (without it the login strip paints the dock config DEFAULTS — the loader's
-  own values, logged with the source line — while dev/preview/lock read the
-  live dock config directly).
+  dock's LIVE values there: `install.sh` refreshes that mirror in the same run,
+  from `$TINSHELL_DOCK_CONFIG` when set and otherwise from the INVOKING user's
+  home (`SUDO_USER` — never `$HOME`, which under sudo is `/root`, where the
+  readability test fails and the copy is skipped in silence while the deploy
+  still reports success and ships the previous mirror). An unreadable source is
+  named in the deploy output and repeated in its summary, never skipped without
+  a word (without the mirror the login strip paints the dock config DEFAULTS —
+  the loader's own values, logged with the source line — while dev/preview/lock
+  read the live dock config directly).
 - **Preview (dev):** `apps/greeter/preview.sh [login|lock]` (or
   `TINSHELL_GREETER_PREVIEW=1|login|lock <wrapper>`) renders the login OR lock
   card + the real dock applet strip as a plain Gtk.Window pinned to
