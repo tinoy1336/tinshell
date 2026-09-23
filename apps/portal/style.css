@@ -1,0 +1,110 @@
+/* portal — xdg-desktop-portal FileChooser backend chooser theme.
+ *
+ * Assembled by mount.ts through cardAppCss (common/card/app-css) after
+ * common/shell/theme.css; the config-driven colours
+ * (appearance.cardColour/cardAlpha/textColour/accentColour/selectionColour/
+ * hoverColour/fontSize) arrive as the card theme/chrome blocks and the
+ * chooser skin `extra` block, so this file holds the static structural rules.
+ *
+ * The chooser is a custom plain Gtk.Window (window.tsx, css class "portal")
+ * built on the shared card substrate: header (card header + path bar), body
+ * (places column + listing + preview pane), status bar, actionbar. Hyprland
+ * styling comes from the `portal-float` window rule (float, rounding 14,
+ * translucent card), NOT a layerrule and NOT CSS shadows.
+ */
+window.portal {
+  background: transparent;
+  border-radius: var(--tinshell-panel-radius);
+}
+
+window.portal > box {
+  background: transparent;
+}
+
+/* Header + actionbar chrome (padding, hairline, button shapes, accents) comes
+ * from common/css/card-chrome.ts via mount.ts's dynamicCss(). */
+
+/* Denser controls than the shared card box: the header and the actionbar carry
+ * the shared 34px-floor box, which is heavy in a dialog. 32px box = 20px floor
+ * + 2x6 padding for the glyph buttons, and 3px/10px for the text pills. These
+ * rules sit in the same stylesheet as the shared `.card-*` block, so
+ * specificity decides them; the rows' own padding is row height as well and is
+ * trimmed with them. */
+window.portal .card-header,
+window.portal .card-actionbar {
+  padding: 6px 8px;
+}
+
+window.portal .card-header .card-btn,
+window.portal .card-actionbar .card-btn {
+  min-width: 20px;
+  padding: 3px 6px;
+}
+
+window.portal .card-actionbar .card-action,
+window.portal .card-actionbar .card-primary,
+window.portal .media-pane .card-primary {
+  padding: 3px 10px;
+}
+
+/* ── the listing ───────────────────────────────────────────────────────────
+ * The listing is an ordinary card listing (the files browser's shape): the
+ * scroller and the column view keep transparent surfaces so the frosted card
+ * reads through, rows stay flat with the family's small radius, and the column
+ * headers flatten onto the card like every other card control. */
+window.portal .chooser-body {
+  border-top: 1px solid var(--tinshell-hairline);
+}
+
+window.portal .chooser-scroll,
+window.portal .chooser-view,
+window.portal .chooser-view > header,
+window.portal .chooser-view > header button,
+window.portal .chooser-places-scroll,
+window.portal .chooser-places,
+window.portal .chooser-places > row {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+window.portal .chooser-view > header button {
+  border-radius: 6px;
+  min-height: 0;
+  padding: 2px 6px;
+}
+
+/* The places column is a rail, not a second list: a hairline marks it off and
+ * its rows take the family's hover/selection fill at a tighter radius. */
+window.portal .chooser-places-scroll {
+  border-right: 1px solid var(--tinshell-hairline);
+}
+
+window.portal .chooser-places > row {
+  border-radius: 8px;
+  margin: 1px 4px;
+  padding: 4px 6px;
+}
+
+window.portal .chooser-place-icon {
+  min-width: 18px;
+}
+
+/* The name entry sits in the actionbar beside the buttons, so it takes the
+ * family's control height instead of the entry default. */
+window.portal .chooser-name-entry {
+  min-height: 20px;
+  padding: 3px 8px;
+}
+
+window.portal paned > separator {
+  background: rgba(255, 255, 255, 0.08);
+  min-width: 1px;
+}
+
+/* Preview pane: one hairline splits the pane from the listing (window.tsx adds
+ * media-pane-split for that shape only). The pane's ink comes from its
+ * appearance parameter, not from CSS. */
+window.portal .media-pane-split {
+  border-left: 1px solid var(--tinshell-hairline);
+}

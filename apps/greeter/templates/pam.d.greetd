@@ -1,0 +1,21 @@
+#%PAM-1.0
+# /etc/pam.d/greetd — package default + gnome-keyring unlock.
+#
+# The base is the greetd package default (auth/account/session include
+# system-local-login → pam_systemd → seat/GPU + XDG_RUNTIME_DIR). Added:
+#   auth     optional pam_gnome_keyring.so  → the login password unlocks the
+#                                             user's gnome-keyring (no second
+#                                             prompt after greetd login)
+#   session  optional pam_gnome_keyring.so auto_start → ensures the daemon is
+#                                             registered for the session
+# (hyprland.lua also starts gnome-keyring-daemon --start --components=secrets.)
+# Both are optional — the greeter's own session (user "greeter", no keyring)
+# passes through untouched.
+
+auth       required     pam_securetty.so
+auth       requisite    pam_nologin.so
+auth       include      system-local-login
+auth       optional     pam_gnome_keyring.so
+account    include      system-local-login
+session    include      system-local-login
+session    optional     pam_gnome_keyring.so auto_start

@@ -1,0 +1,149 @@
+/**
+ * shim-types generator — emits the declared surface of the ags/gnim shim sources
+ * (/usr/share/ags/js) into shim-types/, so the type-check program
+ * (tsconfig.typecheck.json) consumes DECLARATIONS and skipLibCheck keeps the
+ * third-party .ts sources out of the checked program.
+ *
+ * The runtime config (tsconfig.json) carries no such mapping on purpose: `ags
+ * bundle` honours tsconfig `paths`, so the bundler must keep resolving the real
+ * sources — pointing it at declarations would break every app at runtime.
+ *
+ * The emit program is scripts/tsconfig.shim-emit.json; this script wraps it,
+ * formats the output with the repo's own formatter (biome, as `gen:schemas` does
+ * for config.schema.json), and records a manifest so drift is detectable.
+ *
+ * Usage:
+ *   node --experimental-strip-types scripts/gen-shim-types.ts
+ *     regenerate shim-types/ from the installed shims
+ *   node --experimental-strip-types scripts/gen-shim-types.ts --check
+ *     verify shim-types/ still matches the installed shims (exit 1 when stale)
+ *
+ * Re-run after ANY update of the ags/gnim packages (i.e. whenever
+ * /usr/share/ags/js changes) — setup.sh does it on a fresh machine, and
+ * `npm run check` runs the --check form.
+ */
+import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { dirname, join, relative } from "node:path"
+import { fileURLToPath } from "node:url"
+
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
+const OUT = join(ROOT, "shim-types")
+const MANIFEST = join(OUT, "sources.json")
+const EMIT_CONFIG = join(ROOT, "scripts", "tsconfig.shim-emit.json")
+const SHIM_ROOT = "/usr/share/ags/js"
+const TSC = join(ROOT, "node_modules", "typescript", "bin", "tsc")
+const BIOME = join(ROOT, "node_modules", "@biomejs", "biome", "bin", "biome")
+
+/** Declaration files the check program resolves the repo's imports through.
+ *  A missing one means the emit lost part of the graph, not a formatting nit. */
+const REQUIRED = [
+  "lib/index.d.ts",
+  "lib/gtk4/index.d.ts",
+  "lib/gtk4/app.d.ts",
+  "lib/time.d.ts",
+  "node_modules/gnim/dist/index.d.ts",
+]
+
+/** Every .ts of the installed shim, so ANY package change invalidates the
+ *  manifest — not only the subset the emit program happens to include. */
+function walk(root: string, base = root): string[] {
+  const out: string[] = []
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const abs = join(root, entry.name)
+    if (entry.isDirectory()) out.push(...walk(abs, base))
+    else if (entry.name.endsWith(".ts")) out.push(relative(base, abs))
+  }
+  return out.sort()
+}
+
+function digest(root: string, files: string[]): string {
+  const hash = createHash("sha256")
+  for (const file of files) hash.update(`${file}\n${readFileSync(join(root, file), "utf8")}\n`)
+  return hash.digest("hex")
+}
+
+/** The installed shim as one digest: the ags sources plus the vendored gnim. */
+function shimSourceDigest(): { digest: string; files: number } {
+  const files = [
+    ...walk(join(SHIM_ROOT, "lib")).map((f) => `lib/${f}`),
+    ...walk(join(SHIM_ROOT, "node_modules/gnim/dist")).map((f) => `node_modules/gnim/dist/${f}`),
+  ]
+  return { digest: digest(SHIM_ROOT, files), files: files.length }
+}
+
+function generatedDigest(): string {
+  const files = walk(OUT).filter((f) => f !== "sources.json")
+  return digest(OUT, files)
+}
+
+function run(argv: string[], label: string): { status: number | null; output: string } {
+  const res = spawnSync(process.execPath, argv, { cwd: ROOT, encoding: "utf8" })
+  if (res.error) throw res.error
+  return { status: res.status, output: `${res.stdout ?? ""}${res.stderr ?? ""}` }
+}
+
+function emit(): void {
+  rmSync(OUT, { recursive: true, force: true })
+  const { status, output } = run([TSC, "-p", EMIT_CONFIG], "tsc")
+  // The shim's own sources carry type errors this repo does not own (a nullable
+  // application id in ags, gnim's narrowed Service.emit). Declaration emit still
+  // completes; only errors OUTSIDE the shim mean the generated tree is wrong.
+  const foreign = output.split("\n").filter((l) => l.includes("error TS") && !l.includes(SHIM_ROOT))
+  if (foreign.length) {
+    console.error(foreign.join("\n"))
+    throw new Error(`emit reported ${foreign.length} error(s) outside the shim`)
+  }
+  if (status !== 0)
+    console.log(`emit: tsc exited ${status} on the shim's own type errors (non-fatal)`)
+
+  const { status: fmtStatus, output: fmtOut } = run(
+    [BIOME, "check", "--write", relative(ROOT, OUT)],
+    "biome",
+  )
+  if (fmtStatus !== 0)
+    throw new Error(`biome could not clean shim-types:\n${fmtOut.slice(0, 2000)}`)
+
+  const missing = REQUIRED.filter((f) => !existsSync(join(OUT, f)))
+  if (missing.length) throw new Error(`emit lost part of the graph: ${missing.join(", ")}`)
+
+  const shim = shimSourceDigest()
+  writeFileSync(
+    MANIFEST,
+    `${JSON.stringify(
+      {
+        note: "generated by scripts/gen-shim-types.ts - do not edit",
+        shim: shim.digest,
+        shimFiles: shim.files,
+        tree: generatedDigest(),
+        tsc: spawnSync(process.execPath, [TSC, "--version"], { encoding: "utf8" }).stdout.trim(),
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  console.log(`gen:shim-types ok - ${shim.files} shim sources -> shim-types/`)
+}
+
+function check(): void {
+  if (!existsSync(MANIFEST)) {
+    console.error("shim-types/ is missing - run: npm run gen:shim-types")
+    process.exit(1)
+  }
+  const manifest = JSON.parse(readFileSync(MANIFEST, "utf8"))
+  const shim = shimSourceDigest()
+  const tree = generatedDigest()
+  const stale =
+    manifest.shim !== shim.digest ? `installed shim changed (${shim.files} sources)` : null
+  const edited = manifest.tree !== tree ? "shim-types/ edited or partially written" : null
+  if (stale || edited) {
+    console.error(`shim-types/ is stale: ${[stale, edited].filter(Boolean).join("; ")}`)
+    console.error("run: npm run gen:shim-types")
+    process.exit(1)
+  }
+  console.log("check:shim-types ok")
+}
+
+if (process.argv.includes("--check")) check()
+else emit()

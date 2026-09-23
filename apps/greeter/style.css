@@ -1,0 +1,122 @@
+/*
+ * greeter — boot-level login screen (runs pre-login as user "greeter").
+ *
+ * LAYOUT/SHAPE ONLY: every colour on this screen is generated from the suite's
+ * dark palette in theme.ts (appearance.menu / appearance.textShadow of the dock
+ * config, the same tokens the dock's discs and the centred menus read) and
+ * appended AFTER this file. Add colour declarations there, never here — one
+ * owner per value. Layered on common/shell/theme.css (font + entry base). Frost
+ * comes from the greeter COMPOSITOR's layerrule (namespace "greeter", blur) in
+ * /etc/greetd/greeter.lua — NOT hyprland.lua, NOT CSS alpha alone.
+ *
+ * The window is TRANSPARENT: the compositor's wallpaper shows through. In
+ * preview the live session's wallpaper is the backdrop; on the greeter
+ * compositor it is the greeter compositor's own wallpaper layer.
+ */
+
+window.greeter {
+  /* TRANSPARENT, no window-wide tint: the compositor's wallpaper layer shows
+   * through, and the compositor blur frosts the applet strip (and any other
+   * widget) wherever it carries alpha ≥ the blur's ignore_alpha (the login
+   * compositor's layer rule for namespace "greeter", the live session's
+   * global blur in preview/lock). A window-wide veil would COMPOSITE UNDER
+   * the strip: the dock's glass must sit on the same background here as it
+   * does on the desktop (see strip/Strip.tsx). */
+  background: transparent;
+}
+
+.greeter-card {
+  /* Layout only — the card paints NO panel: no background, no border, no
+   * radius. The clock and the fields sit directly on the compositor's
+   * backdrop, so no frame rectangle is drawn around them. Consequence: this
+   * region's alpha is 0 — below the greeter compositor's ignore_alpha (0.2,
+   * /etc/greetd/greeter.lua) — so the blur layerrule does not engage behind
+   * the card region in login mode. */
+  padding: 26px 30px;
+}
+
+window.greeter-lock {
+  /* Solid backdrop for the in-session session lock (TINSHELL_GREETER_MODE=lock).
+   * Session-lock surfaces have NO compositor blur — the desktop is blanked on
+   * lock — so the translucent window.greeter veil does not apply. The opaque
+   * fill is the suite glass tone at full alpha, generated in theme.ts. */
+}
+
+.greeter-wallpaper {
+  /* Wallpaper backdrop for login + lock. Subtle dim so the fields and their
+   * text hold contrast; the fields carry their own scrims. */
+  filter: brightness(0.75);
+}
+
+.greeter-root {
+  padding: 60px;
+}
+
+/* Clock: big time above a smaller date. */
+.greeter-clock {
+  margin-bottom: 18px;
+}
+
+.greeter-clock-time {
+  font-size: 56px;
+  font-weight: 700;
+}
+
+.greeter-clock-date {
+  font-size: 16px;
+}
+
+/* Input fields: scrim wells — horizontal padding only; the height follows the
+ * entry's min-height (see .greeter-entry below). The fill and edge colours come
+ * from the generated theme (theme.ts). */
+.greeter-field {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--tinshell-row-radius);
+  padding: 0 12px;
+  min-height: 34px;
+  margin-bottom: 14px;
+}
+
+.greeter-entry {
+  font-size: 18px;
+  /* Fill the field scrim (the entry's default min-height varies by theme). */
+  min-height: 34px;
+}
+
+/* Wrong-password retry state (promptd's .prompt-entry-error): the text AND
+ * mask chars render in the suite's danger colour until edited (the changed
+ * handler removes the class). `.greeter-entry-error`, `.greeter-status-error`
+ * and `.greeter-status-info` carry no layout — their colours are generated in
+ * theme.ts. */
+.greeter-status {
+  font-size: 13px;
+  min-height: 20px;
+  margin-bottom: 12px;
+}
+
+/* Session buttons: launcher row treatment — glass wells, the accent edge when
+ * selected (colour from the generated theme; shape here). */
+.greeter-sessions {
+  margin-bottom: 22px;
+}
+
+.greeter-session-btn {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.greeter-sessions-empty {
+  font-size: 13px;
+  margin-bottom: 22px;
+}
+
+/* Bottom-centre applet strip (the REAL dock applets on the SHARED renderer —
+ * strip/Strip.tsx). The strip's BACKDROP, discs, lift and panel
+ * stadiums are the dock's own Cairo paint, drawn by the shared renderer
+ * (common/applets/surface) from the dock's live config — intentionally NOT a
+ * CSS background here, so greeter and dock render the identical pill. Do not
+ * re-add a background/border/filter here. */

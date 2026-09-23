@@ -1,0 +1,3 @@
+[portal]
+DBusName=org.freedesktop.impl.portal.desktop.tinshell-portal
+Interfaces=org.freedesktop.impl.portal.FileChooser;

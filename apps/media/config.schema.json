@@ -1,0 +1,100 @@
+{
+  "type": "object",
+  "properties": {
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "cardColour": {
+          "type": "string"
+        },
+        "cardAlpha": {
+          "type": "number"
+        },
+        "rounding": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 48
+        },
+        "selectionColour": {
+          "type": "string"
+        },
+        "textColour": {
+          "type": "string"
+        },
+        "accentColour": {
+          "type": "string"
+        },
+        "hoverColour": {
+          "type": "string"
+        },
+        "fontSize": {
+          "type": "integer",
+          "minimum": 10
+        },
+        "iconSize": {
+          "type": "integer",
+          "minimum": 10
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "restart"
+    },
+    "window": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 400
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 240
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "restart"
+    },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "autoHideMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pollIntervalMs": {
+          "type": "integer",
+          "minimum": 250
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "restart"
+    },
+    "startup": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "baked"
+    },
+    "view": {
+      "type": "object",
+      "properties": {
+        "showPlaylist": {
+          "type": "boolean"
+        },
+        "showThumbnail": {
+          "type": "boolean"
+        },
+        "showTimestamps": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    }
+  },
+  "additionalProperties": false
+}

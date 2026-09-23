@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=TINSHELL Annotate
+GenericName=Screenshot Annotation
+Comment=Annotate a screenshot or any image
+Exec=__HOME__/dev/tinshell/apps/annotate/ensure-open.sh %f
+Icon=applications-graphics
+Terminal=false
+Categories=Graphics;2DGraphics;RasterGraphics;
+# No MimeType on purpose: this is a launcher entry, not a handler. Annotating
+# is an explicit action — a double-clicked image belongs to the viewer.
+StartupNotify=false

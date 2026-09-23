@@ -1,0 +1,33 @@
+# tinshell-warm.service — boot-time pre-warm of the TINSHELL bundle cache (user-scope).
+#
+# scripts/build-all.sh --quiet builds every artifact this user can build
+# through the ONE bundler: the universal bundle (common/host/entry.ts, cached at
+# ~/.cache/tinshell-bundle/universal/, shared by EVERY instance shape), each app's
+# bundle cache and the greeter's login + lock bundles.
+# A cold bundle build + cold page cache makes the login-time start ~3.3s;
+# this oneshot builds them at boot (needs loginctl enable-linger so the user
+# manager runs pre-login) so the real start at login is a cache hit (~0.7s).
+# The FULL set is deliberate: narrowing this unit to the shell's universal
+# bundle leaves the fallback fleet's per-app caches and the greeter bundles
+# cold at login. tinshell-boot.sh warms the universal bundle before it spawns the
+# shell and runs the same build-all in the BACKGROUND while the shell
+# initialises, so at login every artifact is normally already current and the
+# second pass is a cache-hit no-op; a genuine overlap between the two runs is
+# serialized per artifact by the bundler's build lock.
+# A warm FAILURE here (build error) does NOT trigger the boot fallback by
+# itself — it just means the login start is cold and tinshell-boot.sh branches to
+# the per-app fleet if the shell spawn then fails.
+#
+# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
+# setup.sh on install.
+
+[Unit]
+Description=Pre-build every TINSHELL artifact at boot (warm the bundle caches)
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=__HOME__/dev/tinshell/scripts/build-all.sh --quiet
+
+[Install]
+WantedBy=default.target

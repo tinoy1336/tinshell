@@ -1,0 +1,29 @@
+{
+  "appearance": {
+    "cardColour": "#0a0c11",
+    "cardAlpha": 0.5,
+    "textColour": "#e6e6e6",
+    "caretColour": "#8ab5f7",
+    "selectionColour": "rgba(138, 181, 247, 0.45)",
+    "fontSize": 16
+  },
+  "window": {
+    "width": 250,
+    "height": 250,
+    "padding": 8
+  },
+  "storage": {
+    "dir": "~/.local/share/notes",
+    "maxFiles": 200
+  },
+  "export": {
+    "defaultDir": "~/Notes"
+  },
+  "timing": {
+    "saveDebounceMs": 400
+  },
+  "session": {
+    "enabled": true,
+    "pollMs": 2000
+  }
+}

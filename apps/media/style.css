@@ -1,0 +1,148 @@
+/*
+ * media theme — static structure (transparent surfaces, the empty state, the
+ * transport seek scrubber, the viewer's scrolled picture and its footer).
+ * Colours are injected at startup from config (mount.ts appends the shared
+ * card blocks + a dynamic block) — appearance changes need a restart (the
+ * notes convention).
+ *
+ * Frost comes from Hyprland's GLOBAL blur + the translucent window (the
+ * `media-float` window rule floats + rounds it; the window fills the
+ * surface, so no CSS radius).
+ */
+window.media {
+  background: transparent; /* the shared card theme sets the card colour */
+}
+
+/* ── the EMPTY window (opened with no file) ──
+ * No rule here on purpose: the shared card theme's translucent fill IS the
+ * empty look — no header, no toolbar, no placeholder, no scrubber, nothing of
+ * the media painted, so the wallpaper shows through the usual frost. The
+ * background must NOT be set to zero alpha: a GTK window whose whole frame is
+ * fully transparent never commits a buffer, so the compositor is handed no
+ * surface to map (verified — the window is then absent from `hyprctl clients`
+ * and nothing of it appears on screen). ── */
+
+/* ── transport: the auto-hiding seek scrubber over the output picture ── */
+.media-controls {
+  background: rgba(0, 0, 0, 0.35); /* dynamic block overrides */
+  padding: 0 2px 0;
+}
+
+.media-placeholder {
+  font-size: 56px;
+}
+
+.media-seek {
+  background: transparent;
+  /* The widget box is the SCRUB TARGET (a transparent catcher sits over it):
+     tall enough to grab, while the trough and slider below keep their own
+     thin metrics. */
+  min-height: 16px;
+}
+
+.media-seek trough {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  min-height: 3px;
+}
+
+.media-seek highlight {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+  min-height: 3px;
+}
+
+.media-seek slider {
+  background: #ffffff;
+  border: none;
+  border-radius: 100%;
+  min-width: 8px;
+  min-height: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.media-time {
+  padding-right: 2px;
+}
+
+/* ── viewer: the still in a scrolled window over the window's card
+ * background; both layers paint nothing of their own, so a transparent
+ * still shows the card surface ── */
+.media-scroll,
+.media-scroll > viewport {
+  background: transparent;
+}
+
+.media-picture {
+  background: transparent;
+}
+
+/* ── viewer footer: the filename (left) and the zoom readout (right) over the
+ * still. Both are BUTTONS — the filename opens the path editor, the zoom
+ * readout toggles fit <-> 100% — and both advertise it by glowing white under
+ * the pointer. Flat at rest (no button fill, no focus ring), so the glow is
+ * the only thing that appears. ── */
+.media-footer {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 3px 6px;
+}
+
+.media-name,
+.media-zoom {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  box-shadow: none;
+  padding: 1px 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.media-name:hover,
+.media-zoom:hover {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.media-name:focus,
+.media-zoom:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.media-name label,
+.media-zoom label {
+  font-size: var(--tinshell-font-size-body);
+}
+
+.media-name:hover label,
+.media-zoom:hover label {
+  color: var(--tinshell-ink-emphasis);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+}
+
+.media-zoom label {
+  font-variant-numeric: tabular-nums;
+}
+
+.media-dims {
+  font-size: var(--tinshell-font-size-body);
+}
+
+/* The filename editor the name button swaps itself for (same slot, same
+ * metrics, so the footer row does not change height while editing). */
+.media-name-entry {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  box-shadow: none;
+  padding: 1px 6px;
+  min-height: 0;
+  font-size: 12px;
+}
+
+.media-name-entry:focus {
+  outline: none;
+  box-shadow: none;
+}

@@ -1,0 +1,157 @@
+{
+  "type": "object",
+  "properties": {
+    "layout": {
+      "type": "string",
+      "enum": ["standard", "thumbs"],
+      "x-tier": "live"
+    },
+    "keyScale": {
+      "type": "number",
+      "x-tier": "live"
+    },
+    "repeat": {
+      "type": "object",
+      "properties": {
+        "delayMs": {
+          "type": "integer"
+        },
+        "rateHz": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "panel": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "key": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "keyAction": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "keyPressed": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "text": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "enabled": {
+      "type": "boolean",
+      "x-tier": "restart"
+    },
+    "showMode": {
+      "type": "string",
+      "enum": ["auto", "show", "hide"],
+      "x-tier": "live"
+    },
+    "autoTextApps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "x-tier": "live"
+    }
+  },
+  "additionalProperties": false,
+  "x-tier": "live"
+}

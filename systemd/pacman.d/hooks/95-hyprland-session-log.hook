@@ -1,0 +1,10 @@
+[Trigger]
+Type = Package
+Operation = Install
+Operation = Upgrade
+Target = hyprland
+
+[Action]
+Description = Re-apply the Hyprland session console-log redirect after a hyprland update
+When = PostTransaction
+Exec = /usr/local/lib/hyprland-session-redirect.sh

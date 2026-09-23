@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // Emits the declared surface of the ags/gnim shim sources so the type-check
+    // program consumes DECLARATIONS (skipLibCheck applies) instead of checking
+    // third-party .ts sources the repo does not own. Only tsconfig.typecheck.json
+    // reads the result: the runtime config keeps resolving the real sources,
+    // because `ags bundle` honours tsconfig `paths`.
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "../shim-types",
+    // Pinned so the emitted tree mirrors the shim's own layout; without it the
+    // repo-local ambient .d.ts inputs below shift the computed source root and the
+    // output lands back on the read-only source paths.
+    "rootDir": "/usr/share/ags/js",
+    // Node globals must not enter this program: they shadow the gjs runtime
+    // declarations the shim sources are written against (setTimeout's Timeout).
+    "types": []
+  },
+  // The ags entry points this repo imports (ags, ags/gtk4, ags/gtk4/app, ags/time)
+  // pull the rest of the ags tree in through their own imports.
+  //
+  // gnim needs every file spelled out: tsc emits declarations for the program's
+  // root files and for imported sources OUTSIDE node_modules, but skips imported
+  // sources under node_modules — the gnim entry alone yields one .d.ts and an
+  // unresolvable tree. Listing the gnim modules the app program loads is what makes
+  // the emitted set match it; a module added upstream surfaces as a resolution
+  // error in the check program (loud, not silent), and `npm run gen:shim-types`
+  // re-derives the whole tree.
+  "include": [
+    "/usr/share/ags/js/lib/index.ts",
+    "/usr/share/ags/js/lib/gtk4/index.ts",
+    "/usr/share/ags/js/lib/gtk4/app.ts",
+    "/usr/share/ags/js/lib/time.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/index.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/dbus.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/gobject.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/util.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/variant.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/gtk4/jsx-runtime.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/jsx/env.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/jsx/For.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/jsx/Fragment.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/jsx/jsx.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/jsx/scope.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/jsx/state.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/jsx/This.ts",
+    "/usr/share/ags/js/node_modules/gnim/dist/jsx/With.ts",
+    "../@girs/**/*",
+    "../env.d.ts",
+    "../typing-fixes.d.ts"
+  ]
+}

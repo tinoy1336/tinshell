@@ -1,0 +1,88 @@
+{
+  "type": "object",
+  "properties": {
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "cardColour": {
+          "type": "string"
+        },
+        "cardAlpha": {
+          "type": "number"
+        },
+        "textColour": {
+          "type": "string"
+        },
+        "caretColour": {
+          "type": "string"
+        },
+        "selectionColour": {
+          "type": "string"
+        },
+        "fontSize": {
+          "type": "number"
+        }
+      },
+      "x-tier": "restart"
+    },
+    "window": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "padding": {
+          "type": "integer"
+        }
+      },
+      "x-tier": "restart"
+    },
+    "storage": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "type": "string"
+        },
+        "maxFiles": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "properties": {
+        "defaultDir": {
+          "type": "string"
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "saveDebounceMs": {
+          "type": "integer"
+        }
+      },
+      "x-tier": "restart"
+    },
+    "session": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "pollMs": {
+          "type": "integer",
+          "minimum": 250
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "restart"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+/*
+ * notes theme.
+ *
+ * The card colour, text colours, and padding are injected at startup from
+ * config (app.ts appends a dynamic CSS block built from config.defaults) —
+ * this file holds the static structure: transparent surfaces (the scrollbar
+ * comes from the shared thin-pill family in common/shell/theme.css).
+ *
+ * Frost comes from Hyprland's global blur (this window is translucent) +
+ * the `notes-float` window rule (float, rounding 14) in hyprland.lua.
+ */
+window.note {
+  background: transparent; /* dynamic block sets the card colour */
+}
+
+.note-pad {
+  background: transparent; /* padding injected dynamically */
+}
+
+.note-scroll {
+  background: transparent;
+}
+
+textview.note-view {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+textview.note-view text {
+  background: transparent;
+  /* colour/caret/font-size injected dynamically */
+}
+
+textview.note-view text selection {
+  /* injected dynamically */
+}
+
+/* ── Session-restore gate ──
+   Restored notes map content-invisible (`restoring` class) so their placement
+   never flashes at the default spot: the card background goes fully
+   transparent and the pad (text) to opacity 0. session.ts removes the class
+   once the saved geometry is confirmed applied. Transition gives a soft
+   fade-in instead of a pop. NO BACKTICK-style gotchas here (static css). */
+window.note.restoring {
+  background: transparent;
+}
+window.note.restoring .note-pad {
+  opacity: 0;
+}
+window.note .note-pad {
+  transition: opacity 150ms ease-out;
+}

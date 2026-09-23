@@ -1,0 +1,61 @@
+{
+  "$comment": "The TINSHELL app manifest — single source of truth for the tinshell-host distributor. The four lazy apps export their unmount under the ALIAS name 'unmount' (export { unmountX as unmount }), so the 'unmount' value here is the actual module export, not a convention. polkit exports no css (zero windows, no stylesheet). 'unit' = DEV systemd unit (promptd/portal/polkit only). 'lazy' = on-demand desktop app (loaded eagerly when the app is a set member; lazily registered otherwise). Canonical eager order = surfaces first, then services (dock, launcher, notifications, keyboard, clipboard, promptd, portal, polkit).",
+  "dock": {
+    "css": "dockCss",
+    "mount": "dockMount"
+  },
+  "launcher": {
+    "css": "launcherCss",
+    "mount": "launcherMount"
+  },
+  "notifications": {
+    "css": "notificationsCss",
+    "mount": "notificationsMount"
+  },
+  "keyboard": {
+    "css": "keyboardCss",
+    "mount": "keyboardMount"
+  },
+  "clipboard": {
+    "css": "clipboardCss",
+    "mount": "clipboardMount"
+  },
+  "promptd": {
+    "css": "promptdCss",
+    "mount": "mountPromptd",
+    "unit": "tinshell-promptd.service"
+  },
+  "portal": {
+    "css": "portalCss",
+    "mount": "mountPortal",
+    "unit": "tinshell-portal.service"
+  },
+  "polkit": {
+    "mount": "mountPolkit",
+    "unit": "tinshell-polkit.service"
+  },
+  "notes": {
+    "css": "notesCss",
+    "mount": "mountNotes",
+    "unmount": "unmount",
+    "lazy": true
+  },
+  "files": {
+    "css": "filesCss",
+    "mount": "mountFiles",
+    "unmount": "unmount",
+    "lazy": true
+  },
+  "annotate": {
+    "css": "annotateCss",
+    "mount": "mountAnnotate",
+    "unmount": "unmount",
+    "lazy": true
+  },
+  "media": {
+    "css": "mediaCss",
+    "mount": "mountMedia",
+    "unmount": "unmount",
+    "lazy": true
+  }
+}

@@ -1,0 +1,45 @@
+/*
+ * files theme — static structure only.
+ *
+ * The shared card-window chrome (header bar + hairline, glyph buttons, path
+ * bar + segments, status line) lives in common/css/card-chrome.ts and is
+ * emitted by mount.ts's cardAppCss(); the config-driven colours come from the
+ * same block.
+ * This file keeps only the app's own structural rules (transparent surfaces,
+ * row cell classes). Appearance changes need a restart (notes convention; no
+ * live-theme path in v1).
+ *
+ * Frost comes from Hyprland's GLOBAL blur + the translucent window (the
+ * `files-float` window rule floats + rounds it; the window fills the surface,
+ * so no CSS radius).
+ */
+window.files {
+  background: transparent; /* dynamic block sets the card colour */
+}
+
+.files-view {
+  background: transparent;
+}
+
+.files-scroll {
+  background: transparent;
+}
+
+.files-empty {
+  background: transparent;
+}
+
+/* Row cell content (.files-icon / .files-name / .files-meta) is styled by the
+ * dynamic block only — colour and size come from config appearance. */
+
+/* Preview pane: one hairline splits the pane from the listing when the pane is
+ * a side slot (preview.tsx adds media-pane-split for that shape only — in full
+ * mode the pane IS the body and a left edge would be a stray line). The pane's
+ * ink comes from its appearance parameter, not from CSS. */
+.media-pane-split {
+  border-left: 1px solid var(--tinshell-hairline);
+}
+
+.files-hidden {
+  opacity: 0.5;
+}

@@ -1,0 +1,604 @@
+{
+  "applets": [
+    "performance",
+    "battery",
+    "media",
+    "volume",
+    "brightness",
+    "screengrab",
+    "wifi",
+    "bluetooth",
+    "workspaces",
+    "keyboard",
+    "lockSession",
+    "power"
+  ],
+  "layout": {
+    "position": "top-right",
+    "iconSize": 34,
+    "pillHeight": 140,
+    "spacing": 6,
+    "marginTop": 8,
+    "marginBottom": 8,
+    "marginLeft": 8,
+    "marginRight": 8
+  },
+  "fonts": {
+    "family": "JetBrainsMono Nerd Font",
+    "iconSize": 15,
+    "labelSize": 11,
+    "degreeSize": 8
+  },
+  "timing": {
+    "framerate": 60,
+    "clockTickMs": 1000,
+    "leaveGrace": 220,
+    "pillAnim": 300,
+    "externalChange": 200,
+    "stepSnap": 150,
+    "appearAnim": 300,
+    "appearOutAnim": 600,
+    "fadeAnim": 180,
+    "fadeEasing": "easeOut",
+    "tickAnim": 3000,
+    "overflowIdle": 3000,
+    "moveModeTimeout": 4000,
+    "recordingBlink": 1200,
+    "menuFade": 180,
+    "poll": {
+      "tlp": 30000,
+      "chargeThreshold": 30000,
+      "batteryPower": 2000,
+      "cpu": 3000,
+      "ram": 5000,
+      "temp": 3000,
+      "brightness": 30000,
+      "volume": 30000,
+      "uptime": 1000,
+      "wifi": 30000,
+      "bluetooth": 30000,
+      "autoProfile": 1000,
+      "media": 30000,
+      "wifiMenu": 5000,
+      "bluetoothMenu": 2000
+    },
+    "moveSnap": 200,
+    "tabletCloseMs": 3000,
+    "workspacePoll": 30000,
+    "mediaIdleMs": 300000
+  },
+  "appearance": {
+    "disc": {
+      "rgb": [0.04, 0.05, 0.07],
+      "alpha": 0.45
+    },
+    "unfilled": {
+      "rgb": [0.9, 0.9, 0.9],
+      "alpha": 0.25
+    },
+    "ringThickness": 2.5,
+    "backdrop": {
+      "rgb": [0.04, 0.05, 0.07],
+      "alpha": 0.35
+    },
+    "debugFill": false,
+    "textShadow": {
+      "rgb": [0, 0, 0],
+      "alpha": 0.44,
+      "offset": 1
+    },
+    "glyphColour": {
+      "rgb": [0.94, 0.94, 0.94],
+      "alpha": 0.92
+    },
+    "pctTextColour": {
+      "rgb": [1, 1, 1],
+      "alpha": 1
+    },
+    "uptimeTextColour": {
+      "rgb": [0.9, 0.9, 0.9],
+      "alpha": 1
+    },
+    "disabledDisc": {
+      "rgb": [0.04, 0.05, 0.07],
+      "alpha": 0.3
+    },
+    "disabledGlyph": {
+      "rgb": [0.6, 0.6, 0.6],
+      "alpha": 0.7
+    },
+    "icons": {
+      "volumeSilent": "\uf026",
+      "volumeLow": "\uf027",
+      "volumeHigh": "\uf028",
+      "brightness": "\uf185",
+      "batteryIdle": "\uf0e7",
+      "sleepBlocked": "\uf023",
+      "sleepAllowed": "\uf09c",
+      "autoProfile": "\uf1e6",
+      "powerSaver": "\uf06c",
+      "balanced": "\ueeb2",
+      "performanceProfile": "\uf135",
+      "hibernate": "\uf236",
+      "restart": "\uead2",
+      "shutdown": "\uf011",
+      "wifiDisabled": "\udb82\udd2e",
+      "wifiScanningWeak": "\udb82\udd1f",
+      "wifiScanningFair": "\udb82\udd22",
+      "wifiScanningGood": "\udb82\udd25",
+      "wifiScanningStrong": "\udb82\udd28",
+      "wifiConnectedWeak": "\udb82\udd21",
+      "wifiConnectedFair": "\udb82\udd24",
+      "wifiConnectedGood": "\udb82\udd27",
+      "wifiConnectedStrong": "\udb82\udd2a",
+      "wifiNoInternetWeak": "\udb82\udd20",
+      "wifiNoInternetFair": "\udb82\udd23",
+      "wifiNoInternetGood": "\udb82\udd26",
+      "wifiNoInternetStrong": "\udb82\udd29",
+      "wifiOff": "\udb81\uddaa",
+      "wifiOn": "\udb81\udda9",
+      "wifiReconnect": "\uead2",
+      "wifiOpen": "\udb85\udec6",
+      "bluetoothDisabled": "\udb80\udcb2",
+      "bluetoothIdle": "\udb80\udcaf",
+      "bluetoothConnected": "\udb80\udcb1",
+      "bluetoothOff": "\udb80\udcb2",
+      "bluetoothOn": "\udb80\udcaf",
+      "bluetoothReconnect": "\uead2",
+      "bluetoothOpen": "\udb80\udcb3",
+      "volumeMuted": "\ueee8",
+      "mediaPlaying": "\uf04b",
+      "mediaPaused": "\uf04c",
+      "mediaPrev": "\uf049",
+      "mediaNext": "\uf050",
+      "mediaPause": "\uf04c",
+      "lock": "\uedcc",
+      "logout": "\uf08b",
+      "sleep": "\ued8a",
+      "overflow": "\uf0d8",
+      "overflowShowAll": "\uf065",
+      "overflowHideAll": "\uf066",
+      "menuWifiWeak": "\udb82\udd1f",
+      "menuWifiFair": "\udb82\udd22",
+      "menuWifiGood": "\udb82\udd25",
+      "menuWifiStrong": "\udb82\udd28",
+      "menuLock": "\udb80\udf3e",
+      "menuCheck": "\udb80\udd2c",
+      "menuForget": "\udb82\ude79",
+      "menuBluetooth": "\udb80\udcaf",
+      "menuAudio": "\udb80\udcb0",
+      "menuKeyboard": "\udb80\udf0c",
+      "menuMouse": "\udb80\udf7d",
+      "menuPhone": "\udb80\udd1c",
+      "menuWatch": "\udb81\udd89",
+      "menuHeadphones": "\udb80\udecb",
+      "overflowAuto": "\uf021",
+      "overflowMove": "\uf0b2",
+      "screengrabStill": "\uf030",
+      "screengrabVideo": "\uf03d",
+      "screengrabFiles": "\uf07c",
+      "screengrabSettings": "\uf013",
+      "screengrabRecording": "\uf04d",
+      "screengrabFullscreen": "\udb80\ude93",
+      "screengrabIdle": "\udb83\ude51",
+      "screengrabWindow": "\udb81\uddaf",
+      "screengrabSelect": "\udb82\ude6d",
+      "screengrabCancel": "\uf00d",
+      "menuSpinner": "\udb81\udc50",
+      "screengrabStorage": "Save folder",
+      "menuEye": "\uf06e",
+      "menuEyeOff": "\uf070",
+      "mediaOpen": "\uf05b",
+      "notifications": "\uf0f3",
+      "mediaReturn": "\uf0e2",
+      "keyboardShow": "\udb80\udf0c",
+      "keyboardHide": "\udb80\udf10",
+      "keyboardCycle": "\udb82\uddf9"
+    },
+    "performanceTempColours": {
+      "red": {
+        "rgb": [0.9, 0.2, 0.2],
+        "alpha": 0.9
+      },
+      "yellow": {
+        "rgb": [0.9, 0.85, 0.2],
+        "alpha": 0.9
+      },
+      "green": {
+        "rgb": [0.2, 0.9, 0.2],
+        "alpha": 0.9
+      },
+      "none": {
+        "rgb": [0.95, 0.95, 0.95],
+        "alpha": 0.9
+      }
+    },
+    "batteryWattColours": {
+      "red": {
+        "rgb": [0.9, 0.2, 0.2],
+        "alpha": 1
+      },
+      "green": {
+        "rgb": [0.2, 0.9, 0.2],
+        "alpha": 1
+      },
+      "none": {
+        "rgb": [0.95, 0.95, 0.95],
+        "alpha": 1
+      }
+    },
+    "ringColours": {
+      "volume": {
+        "rgb": [0.54, 0.71, 0.97],
+        "alpha": 1
+      },
+      "brightness": {
+        "rgb": [0.98, 0.89, 0.33],
+        "alpha": 1
+      },
+      "battery": {
+        "charging": {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        "plugged": {
+          "rgb": [0.6, 0.35, 0.95],
+          "alpha": 0.9
+        },
+        "ok": {
+          "rgb": [0.2, 0.8, 0.2],
+          "alpha": 0.9
+        },
+        "warn": {
+          "rgb": [0.9, 0.9, 0.2],
+          "alpha": 0.9
+        },
+        "low": {
+          "rgb": [0.9, 0.2, 0.2],
+          "alpha": 0.9
+        },
+        "cap": {
+          "rgb": [0.28, 0.28, 0.28],
+          "alpha": 0.85
+        }
+      },
+      "cpu": {
+        "low": {
+          "rgb": [0.3, 0.8, 0.95],
+          "alpha": 1
+        },
+        "mid": {
+          "rgb": [1, 0.7, 0.3],
+          "alpha": 1
+        },
+        "high": {
+          "rgb": [1, 0.3, 0.3],
+          "alpha": 1
+        }
+      },
+      "ram": {
+        "rgb": [0.35, 0.85, 0.35],
+        "alpha": 1
+      },
+      "wifiRate": {
+        "down": {
+          "rgb": [0.2, 0.8, 0.2],
+          "alpha": 1
+        },
+        "up": {
+          "rgb": [1, 0.6, 0.15],
+          "alpha": 1
+        }
+      },
+      "media": {
+        "rgb": [0.96, 0.55, 0.75],
+        "alpha": 1
+      },
+      "volumeByType": {
+        "bluetooth": {
+          "rgb": [0.54, 0.71, 0.97],
+          "alpha": 1
+        },
+        "usb": {
+          "rgb": [1, 0.62, 0.15],
+          "alpha": 1
+        },
+        "speaker": {
+          "rgb": [0.45, 0.78, 0.45],
+          "alpha": 1
+        },
+        "headset": {
+          "rgb": [0.72, 0.55, 0.95],
+          "alpha": 1
+        }
+      },
+      "mediaByPlayer": {
+        "spotify": {
+          "rgb": [0.29, 0.82, 0.4],
+          "alpha": 1
+        },
+        "vlc": {
+          "rgb": [0.98, 0.55, 0.2],
+          "alpha": 1
+        },
+        "firefox": {
+          "rgb": [0.36, 0.62, 0.98],
+          "alpha": 1
+        },
+        "mpv": {
+          "rgb": [0.9, 0.9, 0.9],
+          "alpha": 1
+        }
+      }
+    },
+    "stepColours": {
+      "performance": [
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.2, 0.8, 0.2],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.85, 0.25, 0.25],
+          "alpha": 0.8
+        }
+      ],
+      "lockSession": [
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.85, 0.25, 0.25],
+          "alpha": 0.8
+        }
+      ],
+      "power": [
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.85, 0.25, 0.25],
+          "alpha": 0.8
+        }
+      ],
+      "wifi": [
+        {
+          "rgb": [0.85, 0.25, 0.25],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.2, 0.8, 0.2],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        }
+      ],
+      "bluetooth": [
+        {
+          "rgb": [0.85, 0.25, 0.25],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.2, 0.8, 0.2],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        }
+      ],
+      "media": [
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        }
+      ],
+      "overflow": [
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.2, 0.8, 0.2],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.9, 0.85, 0.2],
+          "alpha": 0.9
+        }
+      ],
+      "screengrab": [
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.85, 0.25, 0.25],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.2, 0.8, 0.2],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        }
+      ],
+      "keyboard": [
+        {
+          "rgb": [0.85, 0.25, 0.25],
+          "alpha": 0.8
+        },
+        {
+          "rgb": [0.2, 0.8, 0.2],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.3, 0.6, 0.95],
+          "alpha": 0.9
+        },
+        {
+          "rgb": [0.92, 0.92, 0.92],
+          "alpha": 0.8
+        }
+      ]
+    },
+    "thresholds": {
+      "batteryLow": 15,
+      "batteryNotifyPct": 10,
+      "batteryWarn": 30,
+      "cpuHigh": 80,
+      "cpuMid": 50,
+      "dragDeadZone": 4,
+      "volumeHigh": 50
+    },
+    "wifi": {
+      "floor": 100000,
+      "window": 30
+    },
+    "menu": {
+      "width": 320,
+      "maxWidth": 560,
+      "cornerRadius": 18,
+      "rowHeight": 40,
+      "fontSize": 13,
+      "emojiSize": 15,
+      "maxRows": 7,
+      "bg": {
+        "rgb": [0.04, 0.05, 0.07],
+        "alpha": 0.55
+      },
+      "rowHighlight": {
+        "rgb": [1, 1, 1],
+        "alpha": 0.1
+      },
+      "rowActive": {
+        "rgb": [1, 1, 1],
+        "alpha": 0.16
+      },
+      "text": {
+        "rgb": [0.9, 0.9, 0.9],
+        "alpha": 0.9
+      },
+      "mutedText": {
+        "rgb": [0.65, 0.65, 0.65],
+        "alpha": 0.8
+      },
+      "accent": {
+        "rgb": [0.54, 0.71, 0.97],
+        "alpha": 0.95
+      },
+      "glowAlpha": 0.22,
+      "danger": {
+        "rgb": [0.9, 0.3, 0.3],
+        "alpha": 0.9
+      }
+    },
+    "recordingColour": {
+      "rgb": [0.92, 0.25, 0.25],
+      "alpha": 0.95
+    },
+    "clock": {
+      "enabled": true,
+      "reappearMs": 2000,
+      "transientHoldMs": 2000,
+      "minorTicksPerGap": 3,
+      "mode": "digital",
+      "digitalLayout": "stacked",
+      "text": {
+        "rgb": [0.95, 0.95, 0.95],
+        "alpha": 0.9
+      },
+      "hour": {
+        "rgb": [1, 0.72, 0.25],
+        "alpha": 0.95
+      },
+      "minute": {
+        "rgb": [0.95, 0.95, 0.95],
+        "alpha": 0.85
+      },
+      "second": {
+        "rgb": [0.9, 0.25, 0.25],
+        "alpha": 0.95
+      },
+      "centre": {
+        "rgb": [0.95, 0.95, 0.95],
+        "alpha": 0.9
+      },
+      "dot": {
+        "rgb": [0.95, 0.95, 0.95],
+        "alpha": 0.6
+      }
+    }
+  },
+  "screengrab": {
+    "dir": "~/Pictures/ScreenCaptures",
+    "format": "png",
+    "jpegQuality": 80,
+    "codec": "h264",
+    "framerate": 60,
+    "videoQuality": "medium",
+    "nameTemplate": "capture-%Y%m%d-%H%M%S",
+    "audio": false,
+    "cursor": false,
+    "notify": true,
+    "showDock": true,
+    "overlayPos": "top",
+    "overlayOffset": 40,
+    "captureMode": "select",
+    "hwEncode": true,
+    "vaapiDevice": "/dev/dri/renderD128"
+  }
+}

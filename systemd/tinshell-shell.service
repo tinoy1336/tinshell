@@ -1,0 +1,73 @@
+# TINSHELL shell user service (tinshell-shell.service) — the MERGED production instance:
+# shell (dock+launcher+notifications+keyboard+clipboard) + promptd + portal
+# + polkit + notes + files + annotate + media in ONE process (bus
+# io.Astal.shell). One instance = one bundle =
+# one warm cache; resident memory ≈ half of N separate islands.
+#
+# ExecStart is tinshell-boot.sh: warm the ONE
+# universal bundle → spawn the shell via tinshell-host.sh (env union + TINSHELL_SHELL
+# rule applied there, for EVERY instance shape) → healthy = blocking wait
+# (the script is the unit's main process and propagates the child's exit
+# code to Restart=on-failure) → unhealthy within the probe window = fallback
+# island fleet, then exit 0. The exit is load-bearing: a boot script left
+# alive as the unit's MainPID kept the unit reading `active` with no shell in
+# it, so `systemctl --user start tinshell-shell` (the login autostart, `tinshell-mode
+# shell`, the polkit recovery) was a silent no-op — desktop with no TINSHELL
+# surface. Exit 0 is a SUCCESS result, so Restart=on-failure does not re-run
+# boot; the unit goes inactive (honest state) and a later start re-runs the
+# whole path. Every fleet app runs in its OWN unit and survives the teardown.
+#
+# OnFailure=tinshell-islands-fallback.service covers restart EXHAUSTION: 3 fast
+# crashes within StartLimitIntervalSec exhaust StartLimitBurst → the oneshot
+# fallback engages the island fleet (no-double-spawn guarded). Normal boot
+# stays resident — the fleet exists only when the shell demonstrably cannot hold the
+# bus.
+#
+# The per-app units (promptd/portal/polkit) are KEPT but NOT enabled — they
+# are the DEV mode (and the manifest-unit fleet path). The five shell
+# surfaces have no units (they run inside this shell instance).
+#
+# Lifecycle contract: Restart=on-failure (crashes and register-race deaths
+# restart; a clean exit 0 is a deliberate `ags -i shell quit` and is never
+# resurrected). ExecStartPre (tinshell-bus-wait.sh shell) waits for io.Astal.shell
+# to be released before the new instance starts — kept: the restart handover
+# after a crash relies on it.
+#
+# ENV: the full session identity block (Wayland identity, GPU-wake pins,
+# GSK_RENDERER=gl, TINSHELL_SHELL rule) lives in common/shell/tinshell-host.sh
+# (host_env) so EVERY instance shape — shell, combo, island, boot fleet —
+# gets the identical union. This unit carries no app env; tinshell-boot.sh →
+# tinshell-host.sh applies it at spawn. See the tinshell-host.sh header for the
+# regression-trap rationale of each variable.
+#
+# ONE-OWNER RULE: the shell surface claims org.freedesktop.Notifications
+# (the first AstalNotifd Notifd instantiation becomes the daemon). swaync
+# must NOT be running. The portal impl name
+# (org.freedesktop.impl.portal.desktop.tinshell-portal) is claimed at
+# portal/mount import time — BEFORE Gtk init (the boot-time portal deadlock
+# fix; the universal entry resolves eager imports at top level for this).
+#
+# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
+# setup.sh on install.
+
+[Unit]
+Description=TINSHELL shell — all apps in one instance (tinshell-shell.service)
+PartOf=graphical-session.target
+# 3 fast crashes in 60s = the shell is crash-looping → exhaust into OnFailure
+# (island fleet) instead of flapping forever. RestartSec=5 keeps genuine
+# one-off crashes from exhausting the burst (3×5s > 60s window needs 3
+# crashes INSIDE 60s — the StartLimitIntervalSec/Burst pair below is tuned
+# so a single crash never arms exhaustion).
+StartLimitIntervalSec=60
+StartLimitBurst=3
+OnFailure=tinshell-islands-fallback.service
+
+[Service]
+Type=simple
+ExecStartPre=__HOME__/dev/tinshell/common/shell/tinshell-bus-wait.sh shell
+ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-boot.sh boot
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,0 +1,15 @@
+{
+  "appearance": {
+    "cardColour": "#0a0c11",
+    "cardAlpha": 0.5,
+    "textColour": "#e6e6e6",
+    "accentColour": "#8ab5f7",
+    "selectionColour": "rgba(138, 181, 247, 0.35)",
+    "hoverColour": "rgba(255, 255, 255, 0.08)",
+    "fontSize": 16
+  },
+  "window": {
+    "defaultWidth": 630,
+    "defaultHeight": 420
+  }
+}

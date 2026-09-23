@@ -1,0 +1,250 @@
+{
+  "type": "object",
+  "properties": {
+    "dnd": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "popup": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 200,
+          "maximum": 800
+        },
+        "timeout": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 600
+        },
+        "timeoutLow": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 600
+        },
+        "timeoutCritical": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 600
+        },
+        "maxVisible": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "spacing": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "baked"
+    },
+    "centre": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 1200
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 1600
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "baked"
+    },
+    "grouping": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "code": {
+      "type": "object",
+      "properties": {
+        "apps": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "keywords": {
+          "type": "object",
+          "properties": {
+            "strong": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "weak": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "context": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "cardRgb": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "cardAlpha": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "cardAlphaCritical": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "radius": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "ink": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 32
+        },
+        "muted": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 32
+        },
+        "accent": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 32
+        },
+        "hoverBg": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "focusBg": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "closeBg": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "closeBgHover": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "actionBg": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "iconSize": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 128
+        },
+        "thumbnailSize": {
+          "type": "integer",
+          "minimum": 40,
+          "maximum": 200
+        },
+        "bodyImageRadius": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "summaryFontSize": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 32
+        },
+        "bodyFontSize": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 32
+        },
+        "timeFontSize": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 32
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "baked"
+    },
+    "behaviour": {
+      "type": "object",
+      "properties": {
+        "hideOnAction": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "transitionMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "collapseMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    }
+  },
+  "additionalProperties": false
+}

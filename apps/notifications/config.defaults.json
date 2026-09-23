@@ -1,0 +1,107 @@
+{
+  "dnd": {
+    "enabled": false
+  },
+  "popup": {
+    "width": 360,
+    "timeout": 15,
+    "timeoutLow": 8,
+    "timeoutCritical": 0,
+    "maxVisible": 5,
+    "spacing": 8
+  },
+  "centre": {
+    "width": 500,
+    "height": 600
+  },
+  "grouping": {
+    "enabled": true
+  },
+  "code": {
+    "apps": ["chromium", "firefox", "thunderbird"],
+    "keywords": {
+      "strong": [
+        "otp",
+        "totp",
+        "2fa",
+        "mfa",
+        "two-factor",
+        "two factor",
+        "two-step",
+        "two step",
+        "multi-factor",
+        "multifactor",
+        "one-time",
+        "one time",
+        "passcode",
+        "verification code",
+        "authentication code",
+        "auth code",
+        "security code",
+        "sign-in code",
+        "sign in code",
+        "login code",
+        "log-in code",
+        "confirmation code",
+        "access code",
+        "temporary code",
+        "single-use code",
+        "single use code",
+        "temporary password",
+        "magic link"
+      ],
+      "weak": [
+        "verification",
+        "verify",
+        "pin",
+        "security",
+        "authenticate",
+        "authentication",
+        "sign in",
+        "sign-in",
+        "log in",
+        "login"
+      ],
+      "context": [
+        "do not share",
+        "don't share",
+        "never share",
+        "do not give",
+        "expires in",
+        "expires at",
+        "if you didn't request",
+        "if you did not request",
+        "if this wasn't you",
+        "if this was not you",
+        "wasn't you"
+      ]
+    }
+  },
+  "appearance": {
+    "cardRgb": [10, 12, 17],
+    "cardAlpha": 0.5,
+    "cardAlphaCritical": 0.62,
+    "radius": 18,
+    "ink": "#e6e6e6",
+    "muted": "#a6a6a6",
+    "accent": "#8ab5f7",
+    "hoverBg": "rgba(255, 255, 255, 0.10)",
+    "focusBg": "rgba(10, 12, 17, 0.72)",
+    "closeBg": "rgba(255, 255, 255, 0.10)",
+    "closeBgHover": "rgba(255, 255, 255, 0.18)",
+    "actionBg": "rgba(255, 255, 255, 0.08)",
+    "iconSize": 48,
+    "thumbnailSize": 80,
+    "bodyImageRadius": 12,
+    "summaryFontSize": 14,
+    "bodyFontSize": 13,
+    "timeFontSize": 14
+  },
+  "behaviour": {
+    "hideOnAction": true
+  },
+  "timing": {
+    "transitionMs": 200,
+    "collapseMs": 400
+  }
+}

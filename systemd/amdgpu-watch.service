@@ -1,0 +1,19 @@
+# TINSHELL amdgpu-watch user service (amdgpu-watch.service) — dock-local helper
+# (apps/dock/amdgpu-watch.sh): watches the kernel journal for amdgpu ring
+# timeouts / GPU resets and copies the devcoredump before it expires.
+#
+# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
+# setup.sh on install.
+
+[Unit]
+Description=amdGPU ring-timeout / GPU-reset watchdog (copies devcoredumps before expiry)
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=__HOME__/dev/tinshell/apps/dock/amdgpu-watch.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

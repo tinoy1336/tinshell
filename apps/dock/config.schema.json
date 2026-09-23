@@ -1,0 +1,1252 @@
+{
+  "type": "object",
+  "properties": {
+    "applets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "performance",
+          "battery",
+          "media",
+          "volume",
+          "brightness",
+          "screengrab",
+          "wifi",
+          "bluetooth",
+          "lockSession",
+          "power",
+          "workspaces",
+          "keyboard"
+        ]
+      },
+      "x-tier": "baked"
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "type": "string",
+          "enum": [
+            "bottom-middle",
+            "bottom-left",
+            "bottom-right",
+            "top-middle",
+            "top-left",
+            "top-right",
+            "left-middle",
+            "left-top",
+            "left-bottom",
+            "right-middle",
+            "right-top",
+            "right-bottom"
+          ]
+        },
+        "iconSize": {
+          "type": "number"
+        },
+        "pillHeight": {
+          "type": "number"
+        },
+        "spacing": {
+          "type": "number"
+        },
+        "marginTop": {
+          "type": "number"
+        },
+        "marginBottom": {
+          "type": "number"
+        },
+        "marginLeft": {
+          "type": "number"
+        },
+        "marginRight": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "baked"
+    },
+    "fonts": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "string"
+        },
+        "iconSize": {
+          "type": "number"
+        },
+        "labelSize": {
+          "type": "number"
+        },
+        "degreeSize": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "framerate": {
+          "type": "number"
+        },
+        "clockTickMs": {
+          "type": "number"
+        },
+        "leaveGrace": {
+          "type": "number"
+        },
+        "pillAnim": {
+          "type": "number"
+        },
+        "externalChange": {
+          "type": "number"
+        },
+        "stepSnap": {
+          "type": "number"
+        },
+        "appearAnim": {
+          "type": "number"
+        },
+        "appearOutAnim": {
+          "type": "number"
+        },
+        "fadeAnim": {
+          "type": "number"
+        },
+        "fadeEasing": {
+          "type": "string",
+          "enum": ["linear", "easeOut", "easeInOut"]
+        },
+        "tickAnim": {
+          "type": "number"
+        },
+        "overflowIdle": {
+          "type": "number"
+        },
+        "moveModeTimeout": {
+          "type": "number"
+        },
+        "recordingBlink": {
+          "type": "number"
+        },
+        "menuFade": {
+          "type": "number"
+        },
+        "poll": {
+          "type": "object",
+          "x-tier": "restart"
+        },
+        "moveSnap": {
+          "type": "number"
+        },
+        "tabletCloseMs": {
+          "type": "number"
+        },
+        "workspacePoll": {
+          "type": "number"
+        },
+        "mediaIdleMs": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "disc": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "unfilled": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ringThickness": {
+          "type": "number"
+        },
+        "backdrop": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "debugFill": {
+          "type": "boolean"
+        },
+        "textShadow": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            },
+            "offset": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "glyphColour": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "pctTextColour": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "uptimeTextColour": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "disabledDisc": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "disabledGlyph": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "icons": {
+          "type": "object",
+          "properties": {
+            "volumeSilent": {
+              "type": "string"
+            },
+            "volumeLow": {
+              "type": "string"
+            },
+            "volumeHigh": {
+              "type": "string"
+            },
+            "brightness": {
+              "type": "string"
+            },
+            "batteryIdle": {
+              "type": "string"
+            },
+            "sleepBlocked": {
+              "type": "string"
+            },
+            "sleepAllowed": {
+              "type": "string"
+            },
+            "autoProfile": {
+              "type": "string"
+            },
+            "powerSaver": {
+              "type": "string"
+            },
+            "balanced": {
+              "type": "string"
+            },
+            "performanceProfile": {
+              "type": "string"
+            },
+            "hibernate": {
+              "type": "string"
+            },
+            "restart": {
+              "type": "string"
+            },
+            "shutdown": {
+              "type": "string"
+            },
+            "wifiDisabled": {
+              "type": "string"
+            },
+            "wifiScanningWeak": {
+              "type": "string"
+            },
+            "wifiScanningFair": {
+              "type": "string"
+            },
+            "wifiScanningGood": {
+              "type": "string"
+            },
+            "wifiScanningStrong": {
+              "type": "string"
+            },
+            "wifiConnectedWeak": {
+              "type": "string"
+            },
+            "wifiConnectedFair": {
+              "type": "string"
+            },
+            "wifiConnectedGood": {
+              "type": "string"
+            },
+            "wifiConnectedStrong": {
+              "type": "string"
+            },
+            "wifiNoInternetWeak": {
+              "type": "string"
+            },
+            "wifiNoInternetFair": {
+              "type": "string"
+            },
+            "wifiNoInternetGood": {
+              "type": "string"
+            },
+            "wifiNoInternetStrong": {
+              "type": "string"
+            },
+            "wifiOff": {
+              "type": "string"
+            },
+            "wifiOn": {
+              "type": "string"
+            },
+            "wifiReconnect": {
+              "type": "string"
+            },
+            "wifiOpen": {
+              "type": "string"
+            },
+            "bluetoothDisabled": {
+              "type": "string"
+            },
+            "bluetoothIdle": {
+              "type": "string"
+            },
+            "bluetoothConnected": {
+              "type": "string"
+            },
+            "bluetoothOff": {
+              "type": "string"
+            },
+            "bluetoothOn": {
+              "type": "string"
+            },
+            "bluetoothReconnect": {
+              "type": "string"
+            },
+            "bluetoothOpen": {
+              "type": "string"
+            },
+            "volumeMuted": {
+              "type": "string"
+            },
+            "mediaPlaying": {
+              "type": "string"
+            },
+            "mediaPaused": {
+              "type": "string"
+            },
+            "mediaPrev": {
+              "type": "string"
+            },
+            "mediaNext": {
+              "type": "string"
+            },
+            "mediaPause": {
+              "type": "string"
+            },
+            "lock": {
+              "type": "string"
+            },
+            "logout": {
+              "type": "string"
+            },
+            "sleep": {
+              "type": "string"
+            },
+            "overflow": {
+              "type": "string"
+            },
+            "overflowShowAll": {
+              "type": "string"
+            },
+            "overflowHideAll": {
+              "type": "string"
+            },
+            "menuWifiWeak": {
+              "type": "string"
+            },
+            "menuWifiFair": {
+              "type": "string"
+            },
+            "menuWifiGood": {
+              "type": "string"
+            },
+            "menuWifiStrong": {
+              "type": "string"
+            },
+            "menuLock": {
+              "type": "string"
+            },
+            "menuCheck": {
+              "type": "string"
+            },
+            "menuForget": {
+              "type": "string"
+            },
+            "menuBluetooth": {
+              "type": "string"
+            },
+            "menuAudio": {
+              "type": "string"
+            },
+            "menuKeyboard": {
+              "type": "string"
+            },
+            "menuMouse": {
+              "type": "string"
+            },
+            "menuPhone": {
+              "type": "string"
+            },
+            "menuWatch": {
+              "type": "string"
+            },
+            "menuHeadphones": {
+              "type": "string"
+            },
+            "overflowAuto": {
+              "type": "string"
+            },
+            "overflowMove": {
+              "type": "string"
+            },
+            "screengrabStill": {
+              "type": "string"
+            },
+            "screengrabVideo": {
+              "type": "string"
+            },
+            "screengrabFiles": {
+              "type": "string"
+            },
+            "screengrabSettings": {
+              "type": "string"
+            },
+            "screengrabRecording": {
+              "type": "string"
+            },
+            "screengrabFullscreen": {
+              "type": "string"
+            },
+            "screengrabIdle": {
+              "type": "string"
+            },
+            "screengrabWindow": {
+              "type": "string"
+            },
+            "screengrabSelect": {
+              "type": "string"
+            },
+            "screengrabCancel": {
+              "type": "string"
+            },
+            "menuSpinner": {
+              "type": "string"
+            },
+            "screengrabStorage": {
+              "type": "string"
+            },
+            "menuEye": {
+              "type": "string"
+            },
+            "menuEyeOff": {
+              "type": "string"
+            },
+            "mediaOpen": {
+              "type": "string"
+            },
+            "notifications": {
+              "type": "string"
+            },
+            "mediaReturn": {
+              "type": "string"
+            },
+            "keyboardShow": {
+              "type": "string"
+            },
+            "keyboardHide": {
+              "type": "string"
+            },
+            "keyboardCycle": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "performanceTempColours": {
+          "type": "object"
+        },
+        "batteryWattColours": {
+          "type": "object"
+        },
+        "ringColours": {
+          "type": "object",
+          "properties": {
+            "volume": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "brightness": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "battery": {
+              "type": "object"
+            },
+            "cpu": {
+              "type": "object"
+            },
+            "ram": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "wifiRate": {
+              "type": "object"
+            },
+            "media": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "volumeByType": {
+              "type": "object"
+            },
+            "mediaByPlayer": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        },
+        "stepColours": {
+          "type": "object",
+          "properties": {
+            "performance": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "alpha": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "lockSession": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "alpha": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "power": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "alpha": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "wifi": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "alpha": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "bluetooth": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "alpha": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "media": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "alpha": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "overflow": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "alpha": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "screengrab": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "alpha": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "keyboard": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rgb": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "alpha": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "additionalProperties": false
+        },
+        "thresholds": {
+          "type": "object"
+        },
+        "wifi": {
+          "type": "object"
+        },
+        "menu": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "number"
+            },
+            "maxWidth": {
+              "type": "number"
+            },
+            "cornerRadius": {
+              "type": "number"
+            },
+            "rowHeight": {
+              "type": "number"
+            },
+            "fontSize": {
+              "type": "number"
+            },
+            "emojiSize": {
+              "type": "number"
+            },
+            "maxRows": {
+              "type": "number"
+            },
+            "bg": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "rowHighlight": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "rowActive": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "text": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "mutedText": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "accent": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "glowAlpha": {
+              "type": "number"
+            },
+            "danger": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "recordingColour": {
+          "type": "object",
+          "properties": {
+            "rgb": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "alpha": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "clock": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "reappearMs": {
+              "type": "number"
+            },
+            "transientHoldMs": {
+              "type": "number"
+            },
+            "minorTicksPerGap": {
+              "type": "number"
+            },
+            "mode": {
+              "type": "string",
+              "enum": ["analogue", "clean", "digital"]
+            },
+            "digitalLayout": {
+              "type": "string",
+              "enum": ["stacked", "one-line"]
+            },
+            "text": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "hour": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "minute": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "second": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "centre": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "dot": {
+              "type": "object",
+              "properties": {
+                "rgb": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "alpha": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "screengrab": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["png", "jpg"]
+        },
+        "jpegQuality": {
+          "type": "number"
+        },
+        "codec": {
+          "type": "string",
+          "enum": ["h264", "vp9", "av1"]
+        },
+        "framerate": {
+          "type": "number"
+        },
+        "videoQuality": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "nameTemplate": {
+          "type": "string"
+        },
+        "audio": {
+          "type": "boolean"
+        },
+        "cursor": {
+          "type": "boolean"
+        },
+        "notify": {
+          "type": "boolean"
+        },
+        "showDock": {
+          "type": "boolean"
+        },
+        "overlayPos": {
+          "type": "string",
+          "enum": ["top", "bottom"]
+        },
+        "overlayOffset": {
+          "type": "number"
+        },
+        "captureMode": {
+          "type": "string",
+          "enum": ["fullscreen", "window", "select"]
+        },
+        "hwEncode": {
+          "type": "boolean"
+        },
+        "vaapiDevice": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "x-tier": "live"
+}

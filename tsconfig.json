@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "strict": true,
+    "module": "ES2022",
+    "target": "ES2020",
+    "lib": ["ES2023"],
+    "moduleResolution": "Bundler",
+    "noEmit": true, // the repo never emits: tsc is the type-check only (allowImportingTsExtensions is legal only under noEmit)
+    "allowImportingTsExtensions": true, // schema sources import each other via .ts paths for the Node generator
+    "jsx": "react-jsx",
+    "jsxImportSource": "ags/gtk4",
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "skipLibCheck": true,
+    "paths": {
+      "@apps/*": ["./apps/*"],
+      "@common/*": ["./common/*"]
+    }
+  },
+  "include": ["apps/**/*", "common/**/*", "typing-fixes.d.ts", "env.d.ts", "@girs/**/*"],
+  "exclude": ["node_modules"]
+}

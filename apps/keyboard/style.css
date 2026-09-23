@@ -1,0 +1,38 @@
+/* TINSHELL keyboard — static structure. Every visible TOKEN (colours, alphas)
+ * lives in config.appearance.* and is assembled at runtime by style.ts
+ * (the dock's "nothing visual hardcoded in code" culture). */
+
+window.keyboard-main {
+  background: transparent;
+}
+
+window.keyboard-main .keyboard-root {
+  padding: 8px 0;
+  border-radius: var(--tinshell-panel-radius) var(--tinshell-panel-radius) 0 0;
+}
+
+window.keyboard-main .keycap {
+  border: none;
+  border-radius: 10px;
+  color: #eaeaea;
+  font-size: 20px;
+  font-weight: 600;
+  box-shadow: none;
+  outline: none;
+  outline-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+window.keyboard-main .keycap:hover {
+  filter: brightness(1.15);
+}
+
+window.keyboard-main .keycap:active,
+window.keyboard-main .keycap.pressed {
+  filter: brightness(1.4);
+}
+
+window.keyboard-main .keycap.shift-active {
+  filter: brightness(1.5);
+}

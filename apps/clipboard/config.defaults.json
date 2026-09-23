@@ -1,0 +1,20 @@
+{
+  "capture": true,
+  "maxEntries": 100,
+  "persistImages": true,
+  "window": {
+    "width": 0.5,
+    "maxWidth": 800,
+    "maxHeight": 600
+  },
+  "appearance": {
+    "cardRgb": [10, 12, 17],
+    "cardAlpha": 0.5,
+    "radius": 14,
+    "ink": "#e6e6e6",
+    "muted": "#a6a6a6",
+    "accent": "#8ab5f7",
+    "hoverBg": "rgba(255, 255, 255, 0.10)",
+    "focusBg": "rgba(10, 12, 17, 0.72)"
+  }
+}

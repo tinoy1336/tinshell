@@ -1,0 +1,47 @@
+# TINSHELL multi-app home — repo hygiene
+#
+# This ~/dev/tinshell tree is ALSO the live runtime config dir, so ignore
+# choices follow the "regenerable / re-derivable" rule:
+#   - COMMITTED: source, docs, unit templates, shell scripts, and every app's
+#     config.schema.json + config.defaults.json (the schema is GENERATED from
+#     config.schema.ts, but committed so a checkout restores a complete,
+#     check:schemas-valid trio without a regen step). The LIVE config.json is
+#     NOT here: it lives outside the tree, at ~/.config/tinshell/<app>.json.
+#   - IGNORED: anything regenerable or machine-local (see below).
+
+# Dependencies — npm workspace links + ags/gnim manual shims, re-created by
+# setup.sh AFTER npm install (npm prunes undeclared links).
+node_modules/
+
+# GI typings — regenerable via `ags types` (ONE set at root; greeter keeps a
+# symlink to it for its standalone build).
+@girs/
+apps/greeter/@girs
+
+# Bundler / build artifacts (greeter ships a pre-built dist bundle).
+dist/
+
+# Subagent / review working artifacts (transcripts, scratch outputs) — not
+# part of the codebase.
+.pi-subagents/
+# pi subagent scheduling artifacts (schedule/run records for runs created
+# with this repo as cwd — e.g. scheduled deepseek-insight runs). Machine-
+# generated, per-schedule state; never part of the codebase.
+.pi/
+
+# Editor-local state.
+.zcode/
+
+# Stale backup dirs from pre-monorepo layouts (if any survive).
+.backup-*/
+
+# Runtime junk (defensive — none of this normally lands in the repo dir:
+# state lives in ~/.local/state/tinshell, bundles in ~/.cache/tinshell-bundle, the
+# loaded-apps memory in $XDG_RUNTIME_DIR, crash logs in /tmp).
+*.log
+.tinshell-*
+*.tmp
+
+# Bundle runtime files, if one ever lands in the tree.
+*-tinshell.js
+*-tinshell.wrapper.sh

@@ -1,0 +1,139 @@
+/* ── Global (scoped to dock windows — the merged shell process shares one
+   CSS namespace with launcher/notifications/keyboard, so a bare `*` here
+   would leak min-height/font-size onto every widget of every surface).
+   Sizing only: the font family comes from the `--tinshell-font-family` token in
+   common/shell/theme.css, which every dock window already inherits. ── */
+window.dock-pill,
+window.dock-pill *,
+window.dock-menu,
+window.dock-menu *,
+window.dock-corner,
+window.dock-corner * {
+  font-size: 13px;
+  min-height: 0;
+}
+
+/* ── Per-applet pill windows ──
+   GTK4 windows are opaque by default: even with the pill
+   and overlay set `background: transparent`, the window's own theme background
+   paints a grey rectangle across its full bounds. This zeroes the window's own
+   background so only the Cairo-drawn pill shows. The `dock-pill` class is set
+   explicitly via the JSX `class` prop on the layer window in DockSurface.tsx —
+   Astal's `namespace` property is a layer-shell namespace (for compositor
+   rules), NOT a CSS class. */
+window.dock-pill {
+  /* The Cairo-drawn pill backdrop is the visible surface; the window itself
+     stays transparent (GTK4 windows are opaque by default).
+     The grey debug fill is opt-in via appearance.debugFill (the dock build
+     toggles the debug-fill class). */
+  background: transparent;
+}
+
+window.dock-pill.debug-fill {
+  /* DEBUG: translucent grey fill to visualize the window bounds */
+  background: rgba(128, 128, 128, 0.5);
+}
+
+/* ── Centred wifi/bluetooth menu windows (common/applets/<app>/menu.tsx) ──
+   Same opaque-background gotcha as .dock-pill: zero the window's own theme
+   background so only the Cairo-painted frosted panel shows. All visible menu
+   content is config-driven (Cairo panel + Pango-attributed labels + Cairo row
+   highlights) — no visible colours live in CSS here. */
+window.dock-menu {
+  background: transparent;
+}
+
+/* The invisible corner-cancel surface (touch bail) — must never paint. */
+window.dock-corner {
+  background: transparent;
+}
+
+/* The network/device list scrollbar: the shared thin-pill family (base
+   slider/trough live in common/shell/theme.css) plus two menu-specific
+   extras — a FIXED 140px thumb (the track is always 280px: maxRows 7 ×
+   rowHeight 40, the bar shows only on overflow; GTK4 sizes the thumb
+   proportionally and CSS can't cap it, so the menu shell fixes it via
+   set_slider_size_fixed) and `near` proximity widening (a 2px hover target is
+   a precision test — a motion controller on the shared menu shell toggles the
+   `near` class within ~24px of the bar; the plain `:hover` widening comes
+   from the shared family). */
+window.dock-menu scrollbar slider {
+  min-height: 140px;
+}
+window.dock-menu scrollbar.near {
+  min-width: 7px;
+}
+window.dock-menu scrollbar.near trough {
+  min-width: 7px;
+}
+window.dock-menu scrollbar.near slider {
+  min-width: 7px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* The wifi password entry. Text colour/size come from Pango attributes
+   (config-driven); only caret/placeholder/underline need CSS literals because
+   GtkEntry doesn't expose those via attributes. No border-bottom — the
+   underlines under the entry rows would read as "section separators".
+   Scoped to dock-menu windows (the
+   merged process shares one CSS namespace). */
+window.dock-menu .menu-entry {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 2px 0;
+  caret-color: rgba(255, 255, 255, 0.85);
+  outline: none;
+  box-shadow: none;
+  /* No ligatures in input fields (matches the shared theme entry base, which
+   * the dock imports alongside this file). */
+  font-variant-ligatures: none;
+}
+/* Air between the **** password chars — scoped to password entries only (the
+   storage-path/quality/template entries must not get letter-spacing). */
+window.dock-menu .menu-entry-password {
+  letter-spacing: 3px;
+}
+window.dock-menu .menu-entry:focus,
+window.dock-menu .menu-entry:focus-within {
+  outline: none;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+}
+
+/* ── Vertical pill panels (continuous slider + step selector) ──
+   Each pill lives in its own per-applet layer-shell window
+   (namespace "dock-pill"); the window's size follows its child's
+   allocation, driven per-frame by set_size_request in render(). */
+
+/* The Gtk.Overlay that becomes the window child on panel open. No chrome
+   here — the pill itself is the background. Height is driven per-frame by
+   set_size_request during open/close animation (iconSize → pillHeight).
+   min-width/min-height are injected DYNAMICALLY from config.layout.iconSize
+   (mount.ts dynamicCss) — a hardcoded minimum over-allocates the pill widget
+   past a smaller window (iconSize 34) and shifts the painted stadium ~1px
+   right of the disc; 140px min-height would clamp it back up and snap the
+   window to full size. Scoped to dock-pill windows. */
+window.dock-pill .dock-overlay-pill-overlay {
+  background: transparent;
+}
+
+/* The inner pill DrawingArea. Sizing + shape only. The visible colour is
+   painted by the drawingarea's set_draw_func (Cairo fill, same path as the
+   icon disc) — NOT CSS background, because the CSS path composited
+   differently and rendered the disc colour as "translucent black" on the
+   large pill area. border-radius stays for clipping.
+   Height is driven per-frame by set_size_request during open/close animation
+   (36 → 140), same reasoning as .dock-overlay-pill-overlay above. */
+window.dock-pill .dock-overlay-pill {
+  border-radius: 18px;
+  background: transparent;
+  /* min-width/min-height: injected from config.layout.iconSize (mount.ts). */
+  padding: 0;
+  margin: 0;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}

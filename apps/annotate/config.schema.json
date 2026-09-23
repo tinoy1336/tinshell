@@ -1,0 +1,72 @@
+{
+  "type": "object",
+  "properties": {
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "cardColour": {
+          "type": "string"
+        },
+        "cardAlpha": {
+          "type": "number"
+        },
+        "textColour": {
+          "type": "string"
+        },
+        "accentColour": {
+          "type": "string"
+        },
+        "selectionColour": {
+          "type": "string"
+        },
+        "hoverColour": {
+          "type": "string"
+        },
+        "fontSize": {
+          "type": "number"
+        }
+      },
+      "x-tier": "restart"
+    },
+    "window": {
+      "type": "object",
+      "properties": {
+        "defaultWidth": {
+          "type": "integer"
+        },
+        "defaultHeight": {
+          "type": "integer"
+        }
+      },
+      "x-tier": "restart"
+    },
+    "tools": {
+      "type": "object",
+      "properties": {
+        "lineWidth": {
+          "type": "number"
+        },
+        "fontSize": {
+          "type": "number"
+        },
+        "colours": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "properties": {
+        "suffix": {
+          "type": "string"
+        },
+        "copyToClipboard": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

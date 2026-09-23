@@ -1,0 +1,118 @@
+/*
+ * annotate theme — static structure only.
+ *
+ * The shared card-window chrome (header bar + hairline, glyph buttons, status
+ * line, accent action) comes from common/css/card-chrome.ts via mount.ts's
+ * dynamicCss(); the card colour and text colours are injected from config by
+ * the same block. This file keeps only annotate's own pieces: the tool
+ * swatches and the transparent canvas.
+ *
+ * Frost comes from Hyprland's global blur (this window is translucent) + the
+ * `annotate-float` window rule (float, rounding 14) in hyprland.lua. The
+ * canvas area is transparent so the image (Gtk.Picture) shows through; the
+ * drawing overlay draws only strokes.
+ */
+window.annotate {
+  background: transparent; /* dynamic block sets the card colour */
+}
+
+/* Colour well (current ink) + the palette chips inside its popover. Both are
+ * scoped with `window.annotate` so they out-specify the shared `.card-btn`
+ * padding — a chip is a rounded square, never an oval. */
+window.annotate .annotate-well {
+  border: none;
+  border-radius: 6px;
+  margin: 0;
+  /* No size of its own: the well is a `.card-btn`, so it takes annotate's own
+   * control box (below) like every glyph button and the toolbar is one uniform
+   * row. The cairo swatch is the button's CHILD at a fixed 18px, centred by its
+   * own halign/valign — a uniform box never inflates the swatch itself. */
+}
+
+/* The tool row's scroller — the LEFT group is what shrinks and scrolls. Its own
+ * surface is the header's (transparent, no border, no edge shading), so the only
+ * chrome it adds is the house thin-pill scrollbar (common/shell/theme.css styles
+ * both dimensions), and that bar — kept visible rather than overlaying — is the
+ * cue that more controls sit off the edge. */
+window.annotate .annotate-tools-scroll {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+}
+window.annotate .annotate-tools-scroll > viewport {
+  background: transparent;
+}
+window.annotate .annotate-tools-scroll undershoot {
+  background: none;
+  box-shadow: none;
+}
+
+/* The tool group's denser control box and the header's trimmed padding are NOT
+ * here: they have to out-rank the shared card chrome, and in the shell this
+ * app's sheet is applied at a LOWER provider priority than the boot sheet that
+ * carries that chrome — so those two rules live in mount.ts's own
+ * USER-priority provider (see the CHROME_OVERRIDES comment there). */
+
+window.annotate .annotate-chip {
+  border: none;
+  border-radius: 6px;
+  padding: 0;
+  min-width: 20px;
+  min-height: 20px;
+  /* Flat like every other card control: with the swatch inset to 16px inside
+   * this 20px BOX the theme's button background would otherwise show as a dark
+   * well around each swatch. The selection/hover ring is a box-shadow, which
+   * paints whether or not a background is set. */
+  background: transparent;
+  transition: box-shadow 120ms ease;
+}
+
+window.annotate .annotate-chip:hover,
+window.annotate .annotate-chip:focus {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+  outline: none;
+}
+
+.annotate-canvas {
+  background: transparent;
+}
+
+/* The chips row is a plain Gtk.Box (window.tsx): one deterministic line at
+ * POPOVER_WIDTH. It was a Gtk.FlowBox while a static palette grid shared the
+ * popover; that grid is gone, so the flowboxchild zeroing it needed went with
+ * it. */
+
+/* Stroke-width slider inside its popover — the suite's slider geometry (media's
+ * seek bar: a flat transparent scale, a thin trough, a small round slider) in
+ * the card's own ink. Structure only; the ink comes from the dynamic block in
+ * mount.ts. */
+window.annotate .annotate-width {
+  background: transparent;
+  padding: 0;
+  min-height: 4px;
+}
+
+window.annotate .annotate-width trough {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 2px;
+  min-height: 4px;
+}
+
+window.annotate .annotate-width highlight {
+  border-radius: 2px;
+  min-height: 4px;
+}
+
+/* margin 0: the theme's slider margins made GTK report a NEGATIVE min size
+ * ("GtkGizmo (slider) reported min height -6") once the box shrank to 10px. */
+window.annotate .annotate-width slider {
+  border: none;
+  border-radius: 100%;
+  min-width: 10px;
+  min-height: 10px;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+}

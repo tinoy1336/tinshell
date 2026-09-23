@@ -1,0 +1,24 @@
+{
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && tsc --noEmit -p scripts",
+    "gen:shim-types": "node --experimental-strip-types scripts/gen-shim-types.ts",
+    "check:shim-types": "node --experimental-strip-types scripts/gen-shim-types.ts --check",
+    "gen:schemas": "node --experimental-strip-types scripts/gen-config-schemas.ts && biome format --write apps/*/config.schema.json",
+    "check:schemas": "node --experimental-strip-types scripts/gen-config-schemas.ts --check",
+    "build:all": "bash scripts/build-all.sh",
+    "check:builds": "bash scripts/check-builds.sh",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "check": "biome check . && npm run check:shim-types && npm run typecheck && npm run check:schemas"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.11",
+    "@types/node": "^22.0.0",
+    "typebox": "^1.3.25",
+    "typescript": "^6.0.0"
+  }
+}

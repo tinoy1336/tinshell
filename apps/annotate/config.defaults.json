@@ -1,0 +1,24 @@
+{
+  "appearance": {
+    "cardColour": "#0a0c11",
+    "cardAlpha": 0.5,
+    "textColour": "#e6e6e6",
+    "accentColour": "#8ab5f7",
+    "selectionColour": "rgba(138, 181, 247, 0.35)",
+    "hoverColour": "rgba(255, 255, 255, 0.08)",
+    "fontSize": 14
+  },
+  "window": {
+    "defaultWidth": 630,
+    "defaultHeight": 450
+  },
+  "tools": {
+    "lineWidth": 9,
+    "fontSize": 24,
+    "colours": ["#8ab5f7", "#ef5350", "#fbc02d", "#66bb6a", "#42a5f5", "#262626"]
+  },
+  "export": {
+    "suffix": "-annotated",
+    "copyToClipboard": false
+  }
+}

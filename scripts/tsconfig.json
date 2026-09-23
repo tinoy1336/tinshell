@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // The generator runs under plain `node --experimental-strip-types`, not gjs,
+    // so Node's ambient globals (process, node:*, setTimeout's Timeout) belong to
+    // this program alone: in the gjs program they shadow the runtime's own
+    // declarations and break the ags/gnim shim sources.
+    "types": ["node"],
+    // No JSX in a Node script. Both keys must go: the inherited jsxImportSource
+    // resolves the ags/gtk4 JSX runtime into this program even under `preserve`,
+    // which drags the whole gjs widget stack (and its GI typings) along.
+    "jsx": "preserve",
+    "jsxImportSource": ""
+  },
+  "include": ["**/*.ts"]
+}

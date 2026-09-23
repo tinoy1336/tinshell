@@ -1,0 +1,155 @@
+/*
+ * Launcher theme.
+ *
+ * Shared primitives (font family, Gtk.Entry base) come from
+ * common/shell/theme.css (imported first in app.ts); this file holds the
+ * launcher-specific card/row styles only.
+ *
+ * The row box carries a single "match" class (no nested-class stacking, so
+ * no transparent-inner dance needed).
+ *
+ * Frost comes from the Hyprland blur layerrule on the "launcher" namespace
+ * (set in hyprland.lua), NOT from the CSS alpha alone. The window itself is
+ * transparent; the .main card's translucent bg + compositor blur = frosted glass.
+ */
+
+window.launcher {
+  background: transparent;
+}
+
+window.launcher .main {
+  background: var(--tinshell-panel);
+  border-radius: var(--tinshell-panel-radius);
+  padding: 6px;
+}
+
+window.launcher .entry-row {
+  background: var(--tinshell-wash);
+  border-radius: var(--tinshell-row-radius);
+  padding: var(--tinshell-row-padding);
+}
+
+window.launcher .entry-icon {
+  color: var(--tinshell-ink-muted);
+  font-size: 16px;
+  padding-top: 2px;
+}
+
+window.launcher .matches {
+  background: transparent;
+}
+
+window.launcher .match {
+  background: var(--tinshell-wash);
+  border-radius: var(--tinshell-row-radius);
+  padding: var(--tinshell-row-padding);
+  margin-top: 6px;
+}
+
+window.launcher .match image {
+  background: transparent;
+}
+
+window.launcher .match .title {
+  color: var(--tinshell-ink-muted);
+  font-size: var(--tinshell-font-size-body);
+}
+
+window.launcher .match .description {
+  color: var(--tinshell-ink-faint);
+  font-size: 10px;
+}
+
+window.launcher .match.selected {
+  background: var(--tinshell-row-selected);
+}
+
+window.launcher .match.selected .title {
+  color: var(--tinshell-ink-emphasis);
+}
+
+window.launcher .match.selected .description {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Prime-run button: tiny NVIDIA logo on the row's right edge. Subtle at
+ * rest, brightens on hover. Only present on app rows (Result.runPrime). */
+window.launcher .match .prime-run-btn {
+  background: transparent;
+  border-radius: 8px;
+  padding: 2px 4px;
+  margin-left: 4px;
+  min-width: 20px;
+  min-height: 20px;
+}
+
+window.launcher .match .prime-run-btn image.logo-grey {
+  opacity: 0.6;
+}
+
+window.launcher .match .prime-run-btn:hover image.logo-grey {
+  opacity: 0;
+}
+
+window.launcher .match .prime-run-btn image.logo-green {
+  opacity: 0;
+}
+
+window.launcher .match .prime-run-btn:hover image.logo-green {
+  opacity: 1;
+}
+
+/* Ctrl held (prime-run modifier) on the SELECTED row: the logo turns green
+ * as an affordance, independent of hover. .ctrl-held is toggled on the
+ * window by the key controller. */
+window.launcher.ctrl-held .match.selected .prime-run-btn image.logo-grey {
+  opacity: 0;
+}
+
+window.launcher.ctrl-held .match.selected .prime-run-btn image.logo-green {
+  opacity: 1;
+}
+
+/* ── emoji section ──
+ * Emoji matches render AS the content under one label (`Emoji: <term> -
+ * <n> matches`, built in ./emoji): the section shares the row chrome and
+ * selection treatment so it reads as part of the list, with its glyph cells
+ * as the rows. Tokens (glyph size, cell hover/selection, label colour) come
+ * from ./emoji-style.ts. */
+window.launcher .match.emoji-section {
+  padding: 6px 8px 8px 8px;
+}
+
+window.launcher .match.emoji-section .title {
+  margin: 0 6px 6px 6px;
+}
+
+/* Commit-buffer preview (Shift+Enter / Shift+click accumulate glyphs, plain
+   Enter / plain click commits them as one paste): its own line under the count
+   label, hidden while the buffer is empty. */
+window.launcher .match.emoji-section .pending-row {
+  margin: 0 6px 6px 6px;
+}
+
+window.launcher .match.emoji-section .pending {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: var(--tinshell-font-size-body);
+}
+
+/* The grid scrolls inside this scroller once the matches exceed the visible
+   rows. Transparent, so only the glyph cells paint; the thin-pill scrollbar
+   family comes from common/shell/theme.css. */
+window.launcher .emoji-scroll {
+  background: transparent;
+  border: none;
+}
+
+window.launcher button.emoji-cell {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 4px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 8px;
+}

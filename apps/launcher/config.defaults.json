@@ -1,0 +1,63 @@
+{
+  "window": {
+    "width": 0.3,
+    "maxWidth": 800
+  },
+  "listHeight": 5,
+  "sources": {
+    "applications": true,
+    "calc": true,
+    "time": true,
+    "units": true,
+    "bangs": true,
+    "emoji": true
+  },
+  "calc": {
+    "debounceMs": 175,
+    "timeoutMs": 4000
+  },
+  "currency": {
+    "cacheMs": 86400000,
+    "timeoutMs": 6000
+  },
+  "bangs": {
+    "browserFirefox": "firefox",
+    "browserChromium": "chromium",
+    "searchUrl": "https://www.google.com/search?q="
+  },
+  "grid": {
+    "columns": 8,
+    "glyphSize": 22,
+    "visibleRows": 4
+  },
+  "insert": {
+    "mode": "paste",
+    "typer": "wtype",
+    "delayMs": 140,
+    "restoreClipboard": true,
+    "restoreDelayMs": 350,
+    "terminalClasses": [
+      "Alacritty",
+      "alacritty",
+      "foot",
+      "ghostty",
+      "kitty",
+      "konsole",
+      "org.wezfurlong.wezterm",
+      "wezterm",
+      "xterm",
+      "st",
+      "urxvt",
+      "tmux"
+    ]
+  },
+  "recents": {
+    "max": 50,
+    "limit": 16
+  },
+  "appearance": {
+    "accentColour": "#8ab5f7",
+    "selectionColour": "rgba(138, 181, 247, 0.22)",
+    "hoverColour": "rgba(255, 255, 255, 0.10)"
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "type": "object",
+  "properties": {
+    "window": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 1
+        },
+        "maxWidth": {
+          "type": "integer",
+          "minimum": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "listHeight": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20
+    },
+    "sources": {
+      "type": "object",
+      "properties": {
+        "applications": {
+          "type": "boolean"
+        },
+        "calc": {
+          "type": "boolean"
+        },
+        "time": {
+          "type": "boolean"
+        },
+        "units": {
+          "type": "boolean"
+        },
+        "bangs": {
+          "type": "boolean"
+        },
+        "emoji": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "calc": {
+      "type": "object",
+      "properties": {
+        "debounceMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 100
+        }
+      },
+      "additionalProperties": false
+    },
+    "currency": {
+      "type": "object",
+      "properties": {
+        "cacheMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 100
+        }
+      },
+      "additionalProperties": false
+    },
+    "bangs": {
+      "type": "object",
+      "properties": {
+        "browserFirefox": {
+          "type": "string"
+        },
+        "browserChromium": {
+          "type": "string"
+        },
+        "searchUrl": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "grid": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 16
+        },
+        "glyphSize": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 64
+        },
+        "visibleRows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "baked"
+    },
+    "insert": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["paste", "type", "copy"]
+        },
+        "typer": {
+          "type": "string",
+          "enum": ["wtype", "ydotool"]
+        },
+        "delayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "restoreClipboard": {
+          "type": "boolean"
+        },
+        "restoreDelayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000
+        },
+        "terminalClasses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        }
+      },
+      "additionalProperties": false
+    },
+    "recents": {
+      "type": "object",
+      "properties": {
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        }
+      },
+      "additionalProperties": false
+    },
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "accentColour": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 32
+        },
+        "selectionColour": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "hoverColour": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "baked"
+    }
+  },
+  "additionalProperties": false
+}

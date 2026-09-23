@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "properties": {
+    "defaultUser": {
+      "type": "string"
+    },
+    "defaultSession": {
+      "type": "string"
+    },
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "timeFormat": {
+          "type": "string"
+        },
+        "dateFormat": {
+          "type": "string"
+        },
+        "clockVisible": {
+          "type": "boolean"
+        },
+        "sessionPickerVisible": {
+          "type": "boolean"
+        },
+        "userFieldVisible": {
+          "type": "boolean"
+        },
+        "cardWidth": {
+          "type": "integer",
+          "minimum": 280,
+          "maximum": 900
+        },
+        "fieldWidth": {
+          "type": "integer",
+          "minimum": 180,
+          "maximum": 700
+        }
+      },
+      "additionalProperties": false
+    },
+    "dock": {
+      "type": "object",
+      "properties": {
+        "applets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "marginBottom": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 200
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

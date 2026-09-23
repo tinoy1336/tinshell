@@ -1,0 +1,248 @@
+{
+  "name": "thumbs",
+  "rows": [
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "1", "keysym": "1", "shiftKeysym": "exclam", "width": 1 },
+        { "label": "2", "keysym": "2", "shiftKeysym": "at", "width": 1 },
+        { "label": "3", "keysym": "3", "shiftKeysym": "numbersign", "width": 1 },
+        { "label": "4", "keysym": "4", "shiftKeysym": "dollar", "width": 1 },
+        { "label": "5", "keysym": "5", "shiftKeysym": "percent", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "6", "keysym": "6", "shiftKeysym": "asciicircum", "width": 1 },
+        { "label": "7", "keysym": "7", "shiftKeysym": "ampersand", "width": 1 },
+        { "label": "8", "keysym": "8", "shiftKeysym": "asterisk", "width": 1 },
+        { "label": "9", "keysym": "9", "shiftKeysym": "parenleft", "width": 1 },
+        { "label": "0", "keysym": "0", "shiftKeysym": "parenright", "width": 1 }
+      ]
+    },
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "q", "keysym": "q", "width": 1 },
+        { "label": "w", "keysym": "w", "width": 1 },
+        { "label": "e", "keysym": "e", "width": 1 },
+        { "label": "r", "keysym": "r", "width": 1 },
+        { "label": "t", "keysym": "t", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "y", "keysym": "y", "width": 1 },
+        { "label": "u", "keysym": "u", "width": 1 },
+        { "label": "i", "keysym": "i", "width": 1 },
+        { "label": "o", "keysym": "o", "width": 1 },
+        { "label": "p", "keysym": "p", "width": 1 }
+      ]
+    },
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "a", "keysym": "a", "width": 1 },
+        { "label": "s", "keysym": "s", "width": 1 },
+        { "label": "d", "keysym": "d", "width": 1 },
+        { "label": "f", "keysym": "f", "width": 1 },
+        { "label": "g", "keysym": "g", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "h", "keysym": "h", "width": 1 },
+        { "label": "j", "keysym": "j", "width": 1 },
+        { "label": "k", "keysym": "k", "width": 1 },
+        { "label": "l", "keysym": "l", "width": 1 },
+        { "label": "'", "keysym": "apostrophe", "shiftKeysym": "quotedbl", "width": 1 }
+      ]
+    },
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "⇧", "action": "shift", "width": 1, "align": "left" },
+        { "label": "z", "keysym": "z", "width": 1 },
+        { "label": "x", "keysym": "x", "width": 1 },
+        { "label": "c", "keysym": "c", "width": 1 },
+        { "label": "v", "keysym": "v", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "b", "keysym": "b", "width": 1 },
+        { "label": "n", "keysym": "n", "width": 1 },
+        { "label": "m", "keysym": "m", "width": 1 },
+        { "label": "⌫", "action": "backspace", "width": 2, "align": "right", "repeat": true }
+      ]
+    },
+    {
+      "gap": 0,
+      "keys": [
+        { "label": "123", "action": "symbols", "width": 2, "align": "left" },
+        { "label": "😀", "action": "emoji", "width": 1.5 },
+        { "label": ",", "keysym": "comma", "shiftKeysym": "less", "width": 1.5 },
+        { "label": "", "action": "space", "width": 4, "repeat": true },
+        { "label": ".", "keysym": "period", "shiftKeysym": "greater", "width": 1.5 },
+        {
+          "label": "?!",
+          "keysym": "question",
+          "shiftKeysym": "exclam",
+          "swipeKeysym": "exclam",
+          "width": 1.5
+        },
+        { "label": "⌄", "action": "hide", "width": 2, "align": "right" }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "!", "keysym": "exclam", "width": 1 },
+        { "label": "@", "keysym": "at", "width": 1 },
+        { "label": "#", "keysym": "numbersign", "width": 1 },
+        { "label": "$", "keysym": "dollar", "width": 1 },
+        { "label": "%", "keysym": "percent", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "^", "keysym": "asciicircum", "width": 1 },
+        { "label": "&", "keysym": "ampersand", "width": 1 },
+        { "label": "*", "keysym": "asterisk", "width": 1 },
+        { "label": "(", "keysym": "parenleft", "width": 1 },
+        { "label": ")", "keysym": "parenright", "width": 1 }
+      ]
+    },
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "1", "keysym": "1", "width": 1 },
+        { "label": "2", "keysym": "2", "width": 1 },
+        { "label": "3", "keysym": "3", "width": 1 },
+        { "label": "4", "keysym": "4", "width": 1 },
+        { "label": "5", "keysym": "5", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "6", "keysym": "6", "width": 1 },
+        { "label": "7", "keysym": "7", "width": 1 },
+        { "label": "8", "keysym": "8", "width": 1 },
+        { "label": "9", "keysym": "9", "width": 1 },
+        { "label": "0", "keysym": "0", "width": 1 }
+      ]
+    },
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "-", "keysym": "minus", "width": 1 },
+        { "label": "_", "keysym": "underscore", "width": 1 },
+        { "label": "=", "keysym": "equal", "width": 1 },
+        { "label": "+", "keysym": "plus", "width": 1 },
+        { "label": ";", "keysym": "semicolon", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": ":", "keysym": "colon", "width": 1 },
+        { "label": "\"", "keysym": "quotedbl", "width": 1 },
+        { "label": "~", "keysym": "asciitilde", "width": 1 },
+        { "label": "`", "keysym": "grave", "width": 1 },
+        { "label": "\\", "keysym": "backslash", "width": 1 }
+      ]
+    },
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "<", "keysym": "less", "width": 1 },
+        { "label": ">", "keysym": "greater", "width": 1 },
+        { "label": "/", "keysym": "slash", "width": 1 },
+        { "label": "?", "keysym": "question", "width": 1 },
+        { "label": "|", "keysym": "bar", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "[", "keysym": "bracketleft", "width": 1 },
+        { "label": "]", "keysym": "bracketright", "width": 1 },
+        { "label": "{", "keysym": "braceleft", "width": 1 },
+        { "label": "}", "keysym": "braceright", "width": 1 },
+        { "label": "\\", "keysym": "backslash", "width": 1 }
+      ]
+    },
+    {
+      "gap": 0,
+      "keys": [
+        { "label": "abc", "action": "symbols", "width": 2, "align": "left" },
+        { "label": "😀", "action": "emoji", "width": 1.5 },
+        { "label": ",", "keysym": "comma", "width": 1.5 },
+        { "label": "", "action": "space", "width": 4, "repeat": true },
+        { "label": ".", "keysym": "period", "width": 1.5 },
+        { "label": "?!", "keysym": "question", "swipeKeysym": "exclam", "width": 1.5 },
+        { "label": "⌄", "action": "hide", "width": 2, "align": "right" }
+      ]
+    }
+  ],
+  "emoji": [
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "😀", "text": "😀", "width": 1 },
+        { "label": "😂", "text": "😂", "width": 1 },
+        { "label": "😍", "text": "😍", "width": 1 },
+        { "label": "😎", "text": "😎", "width": 1 },
+        { "label": "🥰", "text": "🥰", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "🤔", "text": "🤔", "width": 1 },
+        { "label": "😅", "text": "😅", "width": 1 },
+        { "label": "😭", "text": "😭", "width": 1 },
+        { "label": "😡", "text": "😡", "width": 1 },
+        { "label": "👍", "text": "👍", "width": 1 }
+      ]
+    },
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "❤", "text": "❤", "width": 1 },
+        { "label": "💙", "text": "💙", "width": 1 },
+        { "label": "💚", "text": "💚", "width": 1 },
+        { "label": "💛", "text": "💛", "width": 1 },
+        { "label": "🧡", "text": "🧡", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "💜", "text": "💜", "width": 1 },
+        { "label": "🖤", "text": "🖤", "width": 1 },
+        { "label": "🤍", "text": "🤍", "width": 1 },
+        { "label": "💯", "text": "💯", "width": 1 },
+        { "label": "🔥", "text": "🔥", "width": 1 }
+      ]
+    },
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "🎉", "text": "🎉", "width": 1 },
+        { "label": "✨", "text": "✨", "width": 1 },
+        { "label": "⭐", "text": "⭐", "width": 1 },
+        { "label": "🌟", "text": "🌟", "width": 1 },
+        { "label": "💫", "text": "💫", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "🌈", "text": "🌈", "width": 1 },
+        { "label": "☀", "text": "☀", "width": 1 },
+        { "label": "🌙", "text": "🌙", "width": 1 },
+        { "label": "⚡", "text": "⚡", "width": 1 },
+        { "label": "❄", "text": "❄", "width": 1 }
+      ]
+    },
+    {
+      "gap": 4,
+      "keys": [
+        { "label": "🍕", "text": "🍕", "width": 1 },
+        { "label": "🍔", "text": "🍔", "width": 1 },
+        { "label": "🍟", "text": "🍟", "width": 1 },
+        { "label": "🌮", "text": "🌮", "width": 1 },
+        { "label": "🍣", "text": "🍣", "width": 1 },
+        { "action": "gap", "width": 4 },
+        { "label": "🍩", "text": "🍩", "width": 1 },
+        { "label": "🍪", "text": "🍪", "width": 1 },
+        { "label": "🎂", "text": "🎂", "width": 1 },
+        { "label": "☕", "text": "☕", "width": 1 },
+        { "label": "🍺", "text": "🍺", "width": 1 }
+      ]
+    },
+    {
+      "gap": 0,
+      "keys": [
+        { "label": "abc", "action": "letters", "width": 2, "align": "left" },
+        { "label": "123", "action": "symbols", "width": 1.5 },
+        { "label": "⌫", "action": "backspace", "width": 1.5, "repeat": true },
+        { "label": "", "action": "space", "width": 4, "repeat": true },
+        { "label": ".", "keysym": "period", "shiftKeysym": "greater", "width": 1.5 },
+        {
+          "label": "?!",
+          "keysym": "question",
+          "shiftKeysym": "exclam",
+          "swipeKeysym": "exclam",
+          "width": 1.5
+        },
+        { "label": "⌄", "action": "hide", "width": 2, "align": "right" }
+      ]
+    }
+  ]
+}

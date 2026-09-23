@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "properties": {
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "cardColour": {
+          "type": "string"
+        },
+        "cardAlpha": {
+          "type": "number"
+        },
+        "textColour": {
+          "type": "string"
+        },
+        "accentColour": {
+          "type": "string"
+        },
+        "selectionColour": {
+          "type": "string"
+        },
+        "hoverColour": {
+          "type": "string"
+        },
+        "fontSize": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "restart"
+    },
+    "window": {
+      "type": "object",
+      "properties": {
+        "defaultWidth": {
+          "type": "integer",
+          "minimum": 520
+        },
+        "defaultHeight": {
+          "type": "integer",
+          "minimum": 360
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "restart"
+    }
+  },
+  "additionalProperties": false
+}

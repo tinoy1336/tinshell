@@ -1,0 +1,153 @@
+/*
+ * Clipboard picker theme.
+ *
+ * Shared primitives (font family, Gtk.Entry base) come from
+ * common/shell/theme.css (imported first in app.ts); this file holds the
+ * clipboard-specific structure; every visible TOKEN (card colour, radius,
+ * text colours) comes from config.appearance.* via buildClipboardCss()
+ * (style.ts) — the dock's "nothing visual hardcoded in
+ * code" culture.
+ *
+ * Frost comes from the Hyprland blur layerrule on the "clipboard-picker"
+ * namespace (set in hyprland.lua), NOT from the CSS alpha alone. The window
+ * is transparent; the .main card's translucent bg + compositor blur =
+ * frosted glass.
+ *
+ * All selectors are scoped to window.clipboard-picker (GTK4 CSS is
+ * process-global — an unscoped rule would paint the other surfaces).
+ */
+
+window.clipboard-picker {
+  background: transparent;
+}
+
+window.clipboard-picker .main {
+  background: var(--tinshell-panel);
+  border-radius: var(--tinshell-panel-radius);
+  padding: 6px;
+}
+
+window.clipboard-picker .entry-row {
+  background: var(--tinshell-wash);
+  border-radius: var(--tinshell-row-radius);
+  padding: var(--tinshell-row-padding);
+}
+
+window.clipboard-picker .entry-icon {
+  color: var(--tinshell-ink-muted);
+  font-size: 14px;
+  padding-top: 2px;
+}
+
+window.clipboard-picker .rows {
+  background: transparent;
+}
+
+window.clipboard-picker .row {
+  background: var(--tinshell-wash);
+  border-radius: var(--tinshell-row-radius);
+  padding: var(--tinshell-row-padding);
+  margin-top: 6px;
+}
+
+window.clipboard-picker .row .snippet {
+  color: var(--tinshell-ink-muted);
+  font-size: var(--tinshell-font-size-body);
+}
+
+window.clipboard-picker .row .pin-badge {
+  color: rgba(166, 166, 166, 0.6);
+  font-size: 11px;
+  min-width: 16px;
+}
+
+/* The row's leading delete control: the first slot of every row, flat and
+ * glyph-sized so it reads as part of the row rather than a button chrome of its
+ * own. Its colours (dim at rest, brighter ink on hover and focus) are appearance
+ * tokens in style.ts. */
+window.clipboard-picker .row .row-delete-slot {
+  min-width: 18px;
+}
+
+window.clipboard-picker .row .row-delete {
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+}
+
+/* The preview control beside it (IMAGE rows only) — the same flat, glyph-sized
+ * grip, styled and chrome-neutralised exactly like the delete control so the
+ * row reads as one control cluster. Colours are appearance tokens in style.ts. */
+window.clipboard-picker .row .row-preview {
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+}
+
+/* Chrome OFF on the button node in every state. A Gtk.Button inherits the GTK
+ * default theme's chrome — `button:hover`'s border + background-image +
+ * box-shadow, and the 2px `button:focus:focus-visible` outline
+ * (Default-light.css:219 and :221) — and a grip on a small glyph control is the
+ * ink alone: no outline, border, box-shadow or background fill while rested,
+ * hovered, focused or pressed. The states are listed because the theme declares
+ * them separately; the selector stays scoped to this control, so no other button
+ * in the app loses its chrome. */
+window.clipboard-picker .row .row-delete,
+window.clipboard-picker .row .row-delete:hover,
+window.clipboard-picker .row .row-delete:focus,
+window.clipboard-picker .row .row-delete:focus-visible,
+window.clipboard-picker .row .row-delete:active,
+window.clipboard-picker .row .row-preview,
+window.clipboard-picker .row .row-preview:hover,
+window.clipboard-picker .row .row-preview:focus,
+window.clipboard-picker .row .row-preview:focus-visible,
+window.clipboard-picker .row .row-preview:active {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  background-image: none;
+  border-radius: 0;
+  outline: none;
+  outline-width: 0;
+  outline-color: transparent;
+}
+
+window.clipboard-picker .row .timestamp {
+  color: rgba(166, 166, 166, 0.45);
+  font-size: 10px;
+}
+
+window.clipboard-picker .row .thumb {
+  min-width: 56px;
+  min-height: 36px;
+  border-radius: 8px;
+}
+
+window.clipboard-picker .row.empty {
+  background: transparent;
+  padding: 10px 12px;
+}
+
+window.clipboard-picker .row.empty .snippet {
+  color: var(--tinshell-ink-faint);
+}
+
+window.clipboard-picker .row.selected {
+  background: var(--tinshell-row-selected);
+}
+
+window.clipboard-picker .row.selected .snippet {
+  color: var(--tinshell-ink-emphasis);
+}
+
+window.clipboard-picker .row.selected .pin-badge {
+  color: var(--tinshell-ink-emphasis);
+}
+
+window.clipboard-picker .row.selected .timestamp {
+  color: rgba(255, 255, 255, 0.7);
+}

@@ -1,0 +1,38 @@
+# TINSHELL promptd user service (tinshell-promptd.service) — DEV-only.
+# NEVER autostarted (hyprland.lua starts tinshell-shell; promptd lives inside it).
+# Restart=on-failure (crashes and register-race deaths
+# restart; a clean exit 0 is a deliberate quit and is never resurrected).
+#
+# The promptd app registers instance `promptd` (bus io.Astal.promptd) via
+# instanceName in app.ts — it does NOT occupy the bare default `ags` name
+# (multi-app home). `ags -i promptd request|quit` addresses it.
+#
+# ExecStartPre (tinshell-bus-wait.sh promptd) waits for io.Astal.promptd to be
+# released before the new instance starts (register-race guard, same as shell).
+#
+# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
+# setup.sh on install.
+
+[Unit]
+Description=TINSHELL promptd (tinshell-promptd.service)
+After=graphical-session.target
+PartOf=graphical-session.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStartPre=__HOME__/dev/tinshell/common/shell/tinshell-bus-wait.sh promptd
+ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-host.sh start promptd --foreground
+Restart=on-failure
+RestartSec=5
+# Wayland session env (XDG_RUNTIME_DIR/HOME come from the user manager).
+Environment=WAYLAND_DISPLAY=wayland-1
+Environment=DISPLAY=:0
+Environment=XDG_CURRENT_DESKTOP=Hyprland
+# GPU-wake pins (AMD iGPU rendering; see tinshell-shell.service for the full
+# rationale — EGL alone doesn't stop the Vulkan-ICD wake, the VK pin does).
+Environment=__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
+Environment=VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json
+
+[Install]
+WantedBy=graphical-session.target

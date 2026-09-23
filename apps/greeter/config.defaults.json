@@ -1,0 +1,17 @@
+{
+  "defaultUser": "",
+  "defaultSession": "hyprland.desktop",
+  "appearance": {
+    "timeFormat": "%H:%M",
+    "dateFormat": "%a, %b %-e",
+    "clockVisible": true,
+    "sessionPickerVisible": true,
+    "userFieldVisible": true,
+    "cardWidth": 440,
+    "fieldWidth": 320
+  },
+  "dock": {
+    "applets": ["battery", "performance", "media", "volume", "brightness", "power"],
+    "marginBottom": 8
+  }
+}

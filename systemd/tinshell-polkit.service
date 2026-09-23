@@ -1,0 +1,48 @@
+# TINSHELL polkit agent user service (tinshell-polkit.service) — auto-started with the
+# graphical session and auto-restarted on crash. Same lifecycle contract as
+# tinshell-promptd.service: Restart=on-failure (crashes and register-race deaths
+# restart; a clean exit 0 is a deliberate quit and is never resurrected).
+#
+# The polkit app registers instance `polkit` (bus io.Astal.polkit) via
+# instanceName in app.ts — it does NOT occupy the bare default `ags` name
+# (multi-app home). `ags -i polkit request|quit` addresses it.
+#
+# The app exports org.freedesktop.PolicyKit1.AuthenticationAgent on the
+# SYSTEM bus and registers with polkitd; its UI is a promptd `input` dialog
+# (masked password). Wants= (NOT Requires=) tinshell-promptd.service: Requires
+# stop-propagates when promptd crashes (extra restart cycle); both are
+# WantedBy=graphical-session.target so startup order is already handled.
+#
+# ExecStartPre (tinshell-bus-wait.sh polkit) waits for io.Astal.polkit to be
+# released before the new instance starts (register-race guard, same as shell
+# and promptd). NOTE: the wait is for OUR OWN name — tinshell-bus-wait.sh waits
+# for the name to be FREE, so pointing it at the resident promptd name would
+# time out and fail the unit.
+#
+# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
+# setup.sh on install.
+
+[Unit]
+Description=TINSHELL polkit agent (tinshell-polkit.service)
+After=graphical-session.target tinshell-promptd.service
+Wants=tinshell-promptd.service
+PartOf=graphical-session.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStartPre=__HOME__/dev/tinshell/common/shell/tinshell-bus-wait.sh polkit
+ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-host.sh start polkit --foreground
+Restart=on-failure
+RestartSec=5
+# Wayland session env (XDG_RUNTIME_DIR/HOME come from the user manager).
+Environment=WAYLAND_DISPLAY=wayland-1
+Environment=DISPLAY=:0
+Environment=XDG_CURRENT_DESKTOP=Hyprland
+# GPU-wake pins (AMD iGPU rendering; see tinshell-shell.service for the full
+# rationale — EGL alone doesn't stop the Vulkan-ICD wake, the VK pin does).
+Environment=__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
+Environment=VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json
+
+[Install]
+WantedBy=graphical-session.target

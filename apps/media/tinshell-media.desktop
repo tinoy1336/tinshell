@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=TINSHELL Media
+GenericName=Media Viewer
+Comment=TINSHELL image viewer and media player
+Exec=__HOME__/dev/tinshell/apps/media/ensure-open.sh --new %f
+Icon=multimedia-player
+Terminal=false
+Categories=AudioVideo;Player;Graphics;Viewer;
+# Concrete types only: a wildcard such as image/* is written literally into
+# mimeinfo.cache and then never matches a real lookup. The still set is exactly
+# what common/media/classify accepts and this machine's decoders were verified
+# against; the audio/video set is the one mpv used to claim.
+MimeType=image/png;image/jpeg;image/jpg;image/gif;image/bmp;image/webp;image/svg+xml;image/tiff;image/x-icon;image/vnd.microsoft.icon;image/heic;image/avif;image/jxl;audio/aac;audio/flac;audio/m4a;audio/x-m4a;audio/mp3;audio/mpeg;audio/mpegurl;audio/x-mpegurl;audio/mp4;audio/ogg;audio/opus;audio/vorbis;audio/x-vorbis;audio/x-vorbis+ogg;audio/wav;audio/x-wav;audio/vnd.wave;audio/x-pn-wav;audio/webm;audio/vnd.dts;audio/vnd.dts.hd;audio/x-ape;audio/x-wavpack;audio/x-ms-wma;audio/3gpp;audio/3gpp2;audio/AMR;audio/amr-wb;audio/ac3;audio/eac3;audio/aiff;audio/x-aiff;audio/musepack;audio/x-musepack;audio/x-shorten;audio/x-tta;audio/m3u;audio/x-pls;audio/scpls;audio/x-scpls;audio/x-adpcm;application/ogg;application/x-ogg;application/x-matroska;application/vnd.apple.mpegurl;application/x-mpegurl;application/x-extension-m4a;application/x-extension-mp4;application/x-cue;video/mp4;video/mp4v-es;video/x-m4v;video/mpeg;video/x-mpeg2;video/x-mpeg3;video/divx;video/vnd.divx;video/msvideo;video/x-msvideo;video/avi;video/x-avi;video/ogg;video/quicktime;video/x-matroska;video/mkv;video/webm;video/x-theora;video/x-theora+ogg;video/x-ogm;video/x-ogm+ogg;video/flv;video/x-flv;video/x-flic;video/fli;video/x-flc;video/x-ms-wmv;video/x-ms-wmx;video/x-ms-asf;video/x-ms-afs;video/vnd.rn-realvideo;video/mp2t;video/3gp;video/3gpp;video/3gpp2;video/dv;video/vnd.avi;video/vnd.mpegurl;
+StartupNotify=false

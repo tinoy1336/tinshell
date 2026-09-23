@@ -1,0 +1,184 @@
+/*
+ * Notifications theme — STATIC structure only. Every visible token (colours,
+ * radius, sizes) comes from the dynamic block (style.ts ← config.appearance.*),
+ * assembled at startup; the frost comes from the Hyprland blur layerrule on
+ * the notifications-* namespaces, NOT from the CSS alpha alone.
+ *
+ * Structure rules: padding, layout, switch geometry.
+ *
+ * ALL selectors are scoped to the notifications windows (window.notifications-
+ * popup / window.notifications-centre): the merged shell process shares one
+ * CSS namespace with dock/launcher/keyboard, so an unscoped `.card`/`.action`
+ * would bleed onto the other surfaces' widgets. (Scrollbars are the exception
+ * — the shared thin-pill family in common/shell/theme.css applies globally.)
+ */
+
+window.notifications-popup,
+window.notifications-centre {
+  background: transparent;
+}
+
+/* ── Popup card ── */
+
+window.notifications-popup .card,
+window.notifications-centre .card {
+  padding: 6px 12px;
+}
+
+window.notifications-popup .card-main,
+window.notifications-centre .card-main {
+  padding: 8px;
+}
+
+window.notifications-popup .card .text-box,
+window.notifications-centre .card .text-box {
+  padding: 0 4px;
+}
+
+window.notifications-popup .card .head,
+window.notifications-centre .card .head {
+  margin-bottom: 2px;
+  padding: 0 8px;
+}
+
+window.notifications-popup .app-name,
+window.notifications-centre .app-name {
+  font-size: var(--tinshell-font-size-body);
+  opacity: 0.75;
+}
+
+window.notifications-popup .header-app-icon,
+window.notifications-centre .header-app-icon {
+  min-width: 18px;
+  min-height: 18px;
+  border-radius: 50%;
+}
+
+window.notifications-popup .summary,
+window.notifications-centre .summary {
+  font-weight: bold;
+}
+
+window.notifications-popup .body,
+window.notifications-centre .body {
+  opacity: 0.92;
+}
+
+window.notifications-popup .app-icon,
+window.notifications-centre .app-icon {
+  border-radius: 50%;
+}
+
+/* The left thumbnail: its box comes from the decoded image (longest edge
+   `appearance.thumbnailSize`, the other follows the image's shape), so NO rule
+   here may set a size — a min-width/min-height would force every image into one
+   fixed box and crop or inflate it. The row's own spacing owns the gap to the
+   content column. */
+window.notifications-popup .body-image,
+window.notifications-centre .body-image {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+window.notifications-popup .actions,
+window.notifications-centre .actions {
+  padding: 4px 8px 8px 8px;
+}
+
+window.notifications-popup .action,
+window.notifications-centre .action {
+  /* No margin: the row's own column_spacing / row_spacing / padding and the
+     shared `card-actions` row rule own the spacing, and a margin here would
+     sit the button off its cell's centre line. */
+  margin: 0;
+  padding: 4px 8px;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+window.notifications-popup .action:hover,
+window.notifications-centre .action:hover {
+  outline: none;
+}
+
+window.notifications-popup .close,
+window.notifications-centre .close {
+  border: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  /* Corner-tuck the ✕: cancel the card (12) + head (8) right padding so its
+     right gap matches its top gap (~6px). */
+  margin-right: -14px;
+}
+
+/* ── Control centre ── */
+
+window.notifications-centre .centre {
+  padding: 8px;
+}
+
+window.notifications-centre .widget {
+  margin: 4px 8px;
+  padding: 8px;
+  border-radius: 18px;
+  background: transparent;
+}
+
+window.notifications-centre .widget-title > box,
+window.notifications-centre .widget-inhibitors > box,
+window.notifications-centre .widget-dnd > box {
+  margin: 0 8px;
+}
+
+window.notifications-centre .widget-title label,
+window.notifications-centre .widget-inhibitors label,
+window.notifications-centre .widget-dnd label {
+  font-size: 14px;
+}
+
+window.notifications-centre .widget-dnd switch slider {
+  border-radius: 12px;
+}
+
+window.notifications-centre .dnd-switch {
+  border-radius: 12px;
+}
+
+window.notifications-centre .centre-list {
+  margin: 0 8px 8px 8px;
+}
+
+window.notifications-centre .centre-list .card {
+  margin-bottom: 8px;
+  padding: 6px 12px;
+}
+
+window.notifications-centre .centre-list .card .body {
+  font-size: var(--tinshell-font-size-body);
+}
+
+window.notifications-centre .centre-group {
+  margin-bottom: 8px;
+}
+
+window.notifications-centre .centre-group .card {
+  margin-bottom: 4px;
+}
+
+window.notifications-centre .group-header {
+  min-height: 36px;
+  background: transparent;
+}
+
+window.notifications-centre .group-icon {
+  border-radius: 50%;
+}
+
+window.notifications-centre .group-close {
+  margin: 0 8px 8px 8px;
+}
+
+window.notifications-centre .empty-state {
+  padding: 24px;
+}

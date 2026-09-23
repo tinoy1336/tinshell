@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=TINSHELL Files
+GenericName=File Manager
+Comment=TINSHELL file manager
+Exec=__HOME__/dev/tinshell/apps/files/ensure-open.sh %f
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileManager;Utility;
+MimeType=inode/directory;
+StartupNotify=false

@@ -1,0 +1,26 @@
+# tinshell-islands-fallback.service — OnFailure= target of tinshell-shell.service.
+# When the shell instance crash-loops
+# past StartLimitBurst (3 fast crashes in 60s), this oneshot engages the
+# island fleet via tinshell-boot.sh fleet: manifest unit dispatch (promptd/
+# portal/polkit → their units; surfaces → tinshell-host transient units), the
+# shared no-double-spawn guard first probes for live instances and exits 0
+# without spawning if anything is already up. Lazy apps (notes/files/
+# annotate/media) stay on-demand — the router cold-starts them per request.
+#
+# Normal boot NEVER reaches this unit: tinshell-boot.sh health-probes the shell
+# within PROBE_WINDOW_S (its own constant — a ceiling for a child still
+# initialising, not a timeout; the child's exit is the fast failure signal)
+# and engages its own fleet path when the shell has not held the bus by then.
+# This unit exists for the restart-exhaustion case systemd handles after
+# boot.
+#
+# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
+# setup.sh on install.
+
+[Unit]
+Description=TINSHELL island fleet — fallback when the shell instance exhausts restarts
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-boot.sh fleet

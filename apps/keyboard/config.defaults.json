@@ -1,0 +1,48 @@
+{
+  "layout": "standard",
+  "keyScale": 0.375,
+  "repeat": {
+    "delayMs": 400,
+    "rateHz": 30
+  },
+  "appearance": {
+    "panel": {
+      "rgb": [0.09, 0.1, 0.13],
+      "alpha": 0.72
+    },
+    "key": {
+      "rgb": [0.17, 0.18, 0.23],
+      "alpha": 0.9
+    },
+    "keyAction": {
+      "rgb": [0.12, 0.13, 0.17],
+      "alpha": 0.9
+    },
+    "keyPressed": {
+      "rgb": [0.33, 0.38, 0.52],
+      "alpha": 0.95
+    },
+    "text": {
+      "rgb": [0.92, 0.93, 0.95],
+      "alpha": 1
+    }
+  },
+  "enabled": true,
+  "showMode": "hide",
+  "autoTextApps": [
+    "code",
+    "code-oss",
+    "codium",
+    "vscodium",
+    "firefox",
+    "chromium",
+    "google-chrome",
+    "alacritty",
+    "foot",
+    "kitty",
+    "wezterm",
+    "gedit",
+    "gnome-text-editor",
+    "geany"
+  ]
+}

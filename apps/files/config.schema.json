@@ -1,0 +1,109 @@
+{
+  "type": "object",
+  "properties": {
+    "appearance": {
+      "type": "object",
+      "properties": {
+        "cardColour": {
+          "type": "string"
+        },
+        "cardAlpha": {
+          "type": "number"
+        },
+        "textColour": {
+          "type": "string"
+        },
+        "accentColour": {
+          "type": "string"
+        },
+        "selectionColour": {
+          "type": "string"
+        },
+        "hoverColour": {
+          "type": "string"
+        },
+        "fontSize": {
+          "type": "number"
+        },
+        "iconSize": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "restart"
+    },
+    "window": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 520
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 360
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "restart"
+    },
+    "startup": {
+      "type": "object",
+      "properties": {
+        "dir": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "baked"
+    },
+    "view": {
+      "type": "object",
+      "properties": {
+        "showHidden": {
+          "type": "boolean"
+        },
+        "sortDirsFirst": {
+          "type": "boolean"
+        },
+        "iconStyle": {
+          "type": "string",
+          "enum": ["glyphs", "theme"]
+        },
+        "showSize": {
+          "type": "boolean"
+        },
+        "showModified": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "reloadDebounceMs": {
+          "type": "integer",
+          "minimum": 50
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "restart"
+    },
+    "trash": {
+      "type": "object",
+      "properties": {
+        "useTrash": {
+          "type": "boolean"
+        },
+        "confirm": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "x-tier": "live"
+    }
+  },
+  "additionalProperties": false
+}

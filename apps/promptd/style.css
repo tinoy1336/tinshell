@@ -1,0 +1,204 @@
+/*
+ * promptd theme.
+ *
+ * Card look mirrors the launcher/dock: translucent card + compositor blur on
+ * the "promptd" window namespace (layerrule in hyprland.lua), NOT CSS alpha
+ * alone. Shared primitives (font, entry base) come from common/shell/theme.css.
+ */
+window.promptd {
+  background: transparent;
+}
+
+.card {
+  background: var(--tinshell-panel);
+  border-radius: var(--tinshell-panel-radius);
+  padding: 12px;
+}
+
+.prompt-title {
+  color: var(--tinshell-ink-emphasis);
+  font-size: 15px;
+}
+
+.prompt-body {
+  color: #c9c9c9;
+  font-size: var(--tinshell-font-size-body);
+  margin-top: 4px;
+}
+
+.prompt-commands {
+  background: var(--tinshell-wash);
+  border-radius: var(--tinshell-row-radius);
+  padding: var(--tinshell-row-padding);
+  margin-top: 8px;
+}
+
+/* Scrollable command list (approve/choice modes): the rows live in a
+   Gtk.ScrolledWindow so the wheel scrolls them instead of the card growing past
+   the overlay. Its height cap is a widget property (Prompt.tsx:
+   `COMMANDS_MAX_HEIGHT` on `max-content-height`) — GTK4 CSS has no `max-height`.
+   Thin-pill scrollbar family comes from
+   common/shell/theme.css (unqualified `scrollbar` rules apply here). */
+.prompt-command {
+  color: var(--tinshell-ink);
+  font-size: var(--tinshell-font-size-body);
+}
+
+.prompt-justification {
+  color: #c9c9c9;
+  font-size: 11px;
+}
+
+/* Choice mode: selectable rows (click to select, OK/Return to confirm). */
+.prompt-choice {
+  color: var(--tinshell-ink);
+  font-size: var(--tinshell-font-size-body);
+  padding: 5px 10px;
+  border-radius: 8px;
+  margin-top: 2px;
+}
+
+.prompt-choice:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.prompt-choice-selected {
+  /* Launcher-aligned: same frosted-white selected treatment as .match.selected. */
+  background: var(--tinshell-row-selected);
+  color: var(--tinshell-ink-emphasis);
+}
+
+/* Form mode: label + field rows. */
+.prompt-form-row {
+  margin-top: 6px;
+}
+
+.prompt-form-label {
+  color: var(--tinshell-ink-muted);
+  font-size: var(--tinshell-font-size-body);
+  min-width: 90px;
+}
+
+.prompt-form-field {
+  background: var(--tinshell-wash);
+  border-radius: 10px;
+  padding: 4px 10px;
+}
+
+.prompt-form-entry {
+  font-size: 14px;
+}
+
+.prompt-entry-row {
+  background: var(--tinshell-wash);
+  border-radius: var(--tinshell-row-radius);
+  padding: var(--tinshell-row-padding);
+  margin-top: 8px;
+  min-width: 340px;
+}
+
+.prompt-entry {
+  font-size: 16px;
+}
+
+/* Wrong-password retry state: text AND mask dots render red until edited
+ * (the changed handler removes the class). */
+.prompt-entry-error {
+  color: #ff6b6b;
+  caret-color: #ff6b6b;
+}
+
+/* Status note line (cache hint / credential-expiry warning). */
+.prompt-note {
+  color: var(--tinshell-ink-muted);
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.prompt-note.warn {
+  color: #f0b35a;
+}
+
+/* Locked during password validation — dimmed so it reads as busy, not dead. */
+.prompt-action:disabled {
+  opacity: 0.35;
+}
+
+.prompt-entry:disabled {
+  color: rgba(230, 230, 230, 0.4);
+}
+
+.prompt-actions {
+  margin-top: 8px;
+}
+
+.prompt-action {
+  margin-left: 8px;
+}
+
+/* Optional caller-supplied text beside an action glyph (confirm's
+ * okLabel/cancelLabel, fed by the zenity/yad wrappers). Sits immediately
+ * left of its glyph, so the glyph keeps its own 8px lead-in. */
+.prompt-action-label {
+  color: #c9c9c9;
+  font-size: var(--tinshell-font-size-body);
+  margin-left: 12px;
+  margin-right: -4px;
+}
+
+.prompt-spinner {
+  margin-left: 8px;
+}
+
+/* Right-click context menu on entries (GTK's default edit menu) — themed
+ * to match the card, appearance-only. GTK4 popover structure: the outer
+ * `popover` node is transparent; the visible panel lives on the `contents`
+ * child node (where the Breeze-Dark theme paints its dark translucent
+ * bg/border/padding), the arrow is a sibling, and items are `modelbutton`
+ * nodes (NOT button.model). The popover is a subsurface of the promptd
+ * window, so the "promptd" Hyprland blur layerrule frosts it too; the bg
+ * matches .card so it reads as part of the same surface. */
+window.promptd popover.menu {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+window.promptd popover.menu contents {
+  background: var(--tinshell-panel);
+  border: none;
+  border-radius: var(--tinshell-panel-radius);
+  padding: 6px;
+}
+
+window.promptd popover.menu > arrow {
+  background: var(--tinshell-panel);
+  border: none;
+}
+
+window.promptd popover.menu modelbutton {
+  color: var(--tinshell-ink);
+  font-size: var(--tinshell-font-size-body);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  margin: 2px 4px;
+  min-width: 0;
+  min-height: 0;
+}
+
+window.promptd popover.menu modelbutton:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+}
+
+window.promptd popover.menu modelbutton:disabled {
+  color: var(--tinshell-ink-faint);
+}
+
+window.promptd popover.menu separator {
+  background: var(--tinshell-hairline);
+  color: var(--tinshell-hairline);
+  margin: 4px 12px;
+}

@@ -1,0 +1,29 @@
+{
+  "appearance": {
+    "cardColour": "#0a0c11",
+    "cardAlpha": 0.5,
+    "rounding": 14,
+    "selectionColour": "rgba(138, 181, 247, 0.35)",
+    "textColour": "#e6e6e6",
+    "accentColour": "#8ab5f7",
+    "hoverColour": "rgba(255, 255, 255, 0.08)",
+    "fontSize": 16,
+    "iconSize": 22
+  },
+  "window": {
+    "width": 670,
+    "height": 380
+  },
+  "timing": {
+    "autoHideMs": 3000,
+    "pollIntervalMs": 1000
+  },
+  "startup": {
+    "dir": "~"
+  },
+  "view": {
+    "showPlaylist": true,
+    "showThumbnail": false,
+    "showTimestamps": true
+  }
+}

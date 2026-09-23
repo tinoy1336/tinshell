@@ -1,0 +1,43 @@
+# TINSHELL portal FileChooser backend (tinshell-portal.service) — RESIDENT at session
+# start (WantedBy=default.target). The xdg-desktop-portal frontend probes
+# this backend via StartServiceByName at ITS startup; dbus-broker fails to
+# complete that activation when the frontend starts concurrently with the
+# unit (25s GDBus timeout — boot-deadlock). Resident = the name
+# is always owned before the frontend probes → probe returns instantly.
+# D-Bus re-activation used to be possible through a session-bus activation
+# file for the impl name; that file is gone on purpose. It fired whenever the
+# name was momentarily unowned — which is also the state at login while the
+# shell is still starting — and the second claimant it created made
+# dbus-broker abandon the frontend's StartServiceByName reply, stalling the
+# session for the full 25s D-Bus timeout. One possible owner, no race.
+#
+# --if-absent: while a LIVE HOST already serves portal (the shell, in
+# production; a portal island in dev) this unit has nothing to do — the
+# impl name is owned, which is the unit's whole purpose. Without the flag
+# the duplicate-host guard exits 2, Restart=on-failure treats that as a
+# crash, and the unit spins on a 5s loop for the life of the session,
+# filling the journal with refusals. --if-absent makes that exit 0 (unit
+# goes inactive, no restart) so the unit only ever runs when the name is
+# genuinely unowned.
+#
+# Started by hand for dev (`systemctl --user start tinshell-portal.service`) or by
+# the boot fleet's manifest-unit dispatch.
+[Unit]
+Description=TINSHELL portal FileChooser backend (tinshell-portal.service)
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-host.sh start portal --foreground --if-absent
+Restart=on-failure
+RestartSec=5
+# Wayland session env (mirrors tinshell-promptd.service).
+Environment=WAYLAND_DISPLAY=wayland-1
+Environment=DISPLAY=:0
+Environment=XDG_CURRENT_DESKTOP=Hyprland
+# GPU-wake pins (see tinshell-shell.service for the full rationale).
+Environment=__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
+Environment=VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json
+
+[Install]
+WantedBy=default.target

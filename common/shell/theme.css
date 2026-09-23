@@ -1,0 +1,142 @@
+/* Shared TINSHELL theme primitives (multi-app home).
+ *
+ * Apps import this FIRST (css: theme + appCss) and override with
+ * app-specific rules. Frost comes from Hyprland blur layerrules on each
+ * app's window namespace, NOT from CSS alpha alone.
+ *
+ * ── Tokens ──
+ * Single-owner values for the whole process (the shell shares one CSS
+ * namespace across every app), declared on `*` so every widget carries the
+ * value itself. GTK custom properties (4.16+) are inherited like any other
+ * inherited property, so a narrower selector would only reach that widget's
+ * subtree — `*` is what the family already used and it covers every window of
+ * every app, including a lazy app mounted long after this provider was added.
+ * A token a consumer CSS cannot reach (a Cairo painter, a `Pango.FontDescription`,
+ * a config fallback string) has a second carrier in common/css/tokens.ts; those
+ * two files are the only ones allowed to spell the value (the audit's
+ * literal-duplicated class allowlists them).
+ *
+ * Each token is named for the ROLE the value plays in this design, never for
+ * the hex: two apps can read one role, and two sites can carry an equal value
+ * that is two different decisions (the seek slider's white fill is a control
+ * fill, not label ink; the notification centre's selected row is a heavier fill
+ * than the picker rows') — those stay spelled out at the site.
+ */
+* {
+  --tinshell-font-family: "JetBrainsMono Nerd Font", monospace;
+
+  /* Ink. */
+  --tinshell-ink: #e6e6e6;
+  --tinshell-ink-emphasis: #ffffff;
+  --tinshell-ink-muted: #a6a6a6;
+  --tinshell-ink-faint: rgba(166, 166, 166, 0.55);
+  --tinshell-accent: #8ab5f7;
+
+  /* Surfaces: the frosted panel base, the washes painted inside it, and the
+   * hairline that separates blocks on it. */
+  --tinshell-panel: rgba(10, 12, 17, 0.5);
+  --tinshell-wash: rgba(255, 255, 255, 0.1);
+  --tinshell-row-selected: rgba(10, 12, 17, 0.72);
+  --tinshell-hairline: rgba(255, 255, 255, 0.06);
+
+  /* Geometry: the panel's outer radius, the radius of the rows inside it
+   * (panel radius less 2), and a row band's inset. */
+  --tinshell-panel-radius: 14px;
+  --tinshell-row-radius: 12px;
+  --tinshell-row-padding: 6px 12px;
+
+  /* Type: the card/row family's body size. Headings, entry fields and the
+   * entry base set their own. */
+  --tinshell-font-size-body: 12px;
+}
+
+/* The font token, applied to every widget. */
+* {
+  font-family: var(--tinshell-font-family);
+}
+
+/* Gtk.Entry base: transparent frameless input inside a styled pill/row box.
+ * The visible background belongs to the surrounding row, not the entry. */
+entry {
+  background: transparent;
+  color: var(--tinshell-ink);
+  caret-color: var(--tinshell-accent);
+  font-size: 16px;
+  padding: 0;
+  outline: none;
+  border: none;
+  box-shadow: none;
+  /* No ligatures in input fields (JetBrains Mono would join "->" into an
+   * arrow glyph). GTK4 CSS: font-variant-ligatures: none. */
+  font-variant-ligatures: none;
+}
+
+entry:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+/* Scrollbar — the shared thin-pill family (dock menus, notifications, notes,
+ * files). Transparent trough, borderless, slender rounded slider that widens
+ * on hover (160ms eased). WHITE everywhere (one consistent look across all
+ * surfaces). The dock menu layers its fixed-thumb + `near` proximity widening
+ * on top. Both dimensions are set so vertical AND horizontal scrollbars (the
+ * files path bar) get the same 2px thickness. */
+scrollbar {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-width: 2px;
+  min-height: 2px;
+  transition:
+    min-width 160ms ease,
+    min-height 160ms ease;
+}
+scrollbar:hover {
+  min-width: 7px;
+  min-height: 7px;
+}
+scrollbar trough {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 1px;
+  min-width: 2px;
+  min-height: 2px;
+  transition:
+    min-width 160ms ease,
+    min-height 160ms ease;
+}
+scrollbar:hover trough {
+  min-width: 7px;
+  min-height: 7px;
+}
+scrollbar slider {
+  margin: 0;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.22);
+  border: none;
+  box-shadow: none;
+  border-radius: 1px;
+  min-width: 2px;
+  min-height: 2px;
+  transition:
+    min-width 160ms ease,
+    min-height 160ms ease,
+    background 160ms ease;
+}
+scrollbar:hover slider {
+  min-width: 7px;
+  min-height: 7px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.3);
+}
+scrollbar slider:hover,
+scrollbar slider:active {
+  background: rgba(255, 255, 255, 0.45);
+}
