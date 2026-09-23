@@ -695,6 +695,24 @@ steps; each of those three config writes goes through `deploy_config_line`
 lines, and a sudoers merge is visudo-validated before install).
 Idempotent and re-runnable.
 
+**The greeter deployment is REFRESHED on every run, never skipped.** The
+greeter deployment is a snapshot of the sources — the bundle, the greeter config
+trio, the dock trio, the compositor templates and `/etc/pam.d/greetd` — so
+"`/etc/greetd/tinshell-greeter.sh` exists" answers nothing about whether the
+rest is current: as a skip test it left the deployed dock config, the schemas
+and PAM frozen at their first-install state while the sources moved on. The
+block therefore asks the freshness gate's OWN verifier
+(`bundle_stamp_verify`, the same implementation `npm run check:builds` runs for
+its `greeter-deployed` row) whether the deployed bundle still matches the
+sources it was built from — its verdict names every input that moved and is
+printed as the reason — and then runs the deploy through the documented path
+either way: `apps/greeter/build.sh` as the INVOKING user (a root rebuild would
+leave root-owned artefacts in the checkout) followed by `sudo
+./install.sh --no-build`, which verifies its own stamp and REFUSES a payload
+that does not match the sources. The deploy is the only privileged step, so a
+refused or unavailable `sudo` is reported as an error naming the exact command
+to run — the previous deployment is never left in place in silence.
+
 ## Deploy writes to live config
 
 A deploy NEVER silently reverts a config the user has set. Every `install.sh` /
@@ -895,7 +913,9 @@ replaced after its build is caught instead of trusted.
     stamp does not match the sources it was built from; it installs the stamp
     beside the payload so `check:builds` can read the deployed copy
     (`--no-build` deploys the artifact already in `dist/` and is refused the
-    same way when it is stale).
+    same way when it is stale — how `setup.sh` deploys: it builds as the
+    invoking user first, so no root rebuild leaves root-owned artefacts in the
+    checkout).
 - **THE SAME-RUN RECEIPT:** `tinshell-boot.sh` mints ONE receipt file for the boot
   run and hands the SAME path to that run's warm and to its freshness probe
   (`TINSHELL_BUILD_RECEIPT`), removing it when the probe returns; `build-all.sh`

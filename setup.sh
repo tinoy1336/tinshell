@@ -651,11 +651,39 @@ else
   done_ "greeter lock bundle built"
 fi
 
+# The deployment is a SNAPSHOT of the sources — the bundle, the greeter config
+# trio, the dock trio, the compositor templates and /etc/pam.d/greetd — so "the
+# bundle file exists" answers nothing: that test left the deployed dock config,
+# the schemas and PAM frozen at their first install while the sources moved on.
+# Ask the freshness gate's own verifier (common/shell/bundle-stamp.sh — the
+# implementation scripts/check-builds.sh runs for its `greeter-deployed` row)
+# whether the deployed bundle still matches the sources it was built from: it
+# names every input that moved, which is the reason the deploy runs. The deploy
+# itself goes through the documented path on EVERY run, because the files
+# install.sh refreshes BESIDE the bundle are not part of any fingerprint and a
+# current bundle would otherwise freeze them.
+# shellcheck source=common/shell/bundle-stamp.sh
+. "$TINSHELL_HOME/common/shell/bundle-stamp.sh"
 if [ -f /etc/greetd/tinshell-greeter.sh ]; then
-  skip "greeter deploy (/etc/greetd/tinshell-greeter.sh present)"
+  mapfile -t GREETER_DIRS < <(bundle_source_dirs "$TINSHELL_HOME" greeter)
+  bundle_stamp_verify greeter-deployed /etc/greetd/tinshell-greeter.sh.stamp.json \
+    /etc/greetd/tinshell-greeter.sh "${GREETER_DIRS[@]}" ||
+    say "greeter deploy: the deployed bundle does not match the sources it was built from (named above) — re-deploying"
 else
-  (cd "$TINSHELL_HOME/apps/greeter" && sudo ./install.sh) || err "greeter install.sh failed"
-  done_ "greeter deployed to /etc/greetd/"
+  say "greeter deploy: nothing under /etc/greetd/ yet"
+fi
+
+# Build as the INVOKING user (a root rebuild would leave root-owned artefacts in
+# the checkout) and install that bundle with --no-build — install.sh still
+# verifies its stamp and REFUSES a payload that does not match the sources, so a
+# stale bundle cannot be deployed. The deploy is the only step here that needs
+# root: a refused or unavailable sudo is reported with the exact command instead
+# of leaving the previous deployment in place in silence.
+if (cd "$TINSHELL_HOME/apps/greeter" && ./build.sh) &&
+  (cd "$TINSHELL_HOME/apps/greeter" && sudo ./install.sh --no-build); then
+  done_ "greeter deployed to /etc/greetd/ (bundle built as $(id -un), installed with --no-build)"
+else
+  err "greeter deploy did NOT run — /etc/greetd/ still holds the PREVIOUS deployment; run it yourself (needs root): cd $TINSHELL_HOME/apps/greeter && ./build.sh && sudo ./install.sh --no-build"
 fi
 
 # Greeter compositor config verification (the greeter's blur rule lives in
