@@ -16,15 +16,12 @@ namespace. **TWO deployment shapes, one codebase:**
   others, fast per-app rebuilds. The **five shell surfaces are five real
   apps** (dock, launcher, notifications, keyboard, clipboard).
 
-## Status — pre-first-commit polish
+## Status — early polish
 
-The home is in its early polish stage: everything is being ironed out ahead
-of the INITIAL GIT COMMIT (date TBD). That includes a repo-wide purge of
-dead/outdated references — stale comments, tombstones of removed modules,
-provenance chatter, deprecated API mentions — assessed case-by-case and
-either removed or corrected — that purge pass is complete and its working list
-has been consumed. New code must not reintroduce these patterns (comments state
-technical fact only, no dates or history).
+The tree is in its early polish stage. A repo-wide pass has removed dead and
+outdated references — stale comments, tombstones of removed modules, provenance
+chatter, deprecated API mentions. New code must not reintroduce these patterns
+(comments state technical fact only, no dates or history).
 
 The shell instance aggregates every app's `mount.ts`; islands call the same
 mount from their own `app.ts`. `common/app/mode` (`isShell` — legacy name;

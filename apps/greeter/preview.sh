@@ -9,7 +9,7 @@
 #   preview.sh [login|lock]     (default: login)
 #
 # TINSHELL_GREETER_PREVIEW=login|lock selects the card. The dock applets run as
-# tinoy and read the REAL dock config (MPRIS/AstalWp live).
+# the session user and read the REAL dock config (MPRIS/AstalWp live).
 set -euo pipefail
 cd "$(dirname "$0")"
 MODE="${1:-login}"

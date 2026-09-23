@@ -185,7 +185,7 @@ console.log(
 // the card cannot widen; what the wrap mode changes is the label's MINIMUM,
 // which is what a card's own floor is made of.
 const longToken =
-  "Open — /opt/very/long/path/that/keeps/going/and/going/filename-with-many-characters.png"
+  "Open — /home/dev/very/long/path/that/keeps/going/and/going/filename-with-many-characters.png"
 const unbrokenToken = `Open — https://example.com/${"a".repeat(120)}`
 const guarded = label(longToken, CAP_PX_DESC, descriptionLines(true))
 const unguarded = wordWrappedLabel(longToken, CAP_PX_DESC, descriptionLines(true))

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build.sh — tinoy-side build → ./dist/greeter-tinshell.sh (self-contained bundle
+# build.sh — session-user build → ./dist/greeter-tinshell.sh (self-contained bundle
 # for the greetd login screen).
 #
 # The build body (guard + esbuild + outfile patch + GPU pins + stamp) is

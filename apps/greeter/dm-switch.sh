@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # dm-switch.sh <greetd|plasmalogin> — switch the display manager.
 #
-# MUST be run from a SPARE TTY (Ctrl+Alt+F2, login as tinoy), NEVER from
+# MUST be run from a SPARE TTY (Ctrl+Alt+F2, login as the session user), NEVER from
 # inside the graphical session: (re)starting greetd/plasmalogin while a
 # session is active can yank the active VT.
 #

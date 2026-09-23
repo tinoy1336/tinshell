@@ -82,7 +82,7 @@ redeploy.** `dist/*.sh` and `/etc/greetd/tinshell-greeter.sh` are SNAPSHOTS of
 `common/` + `apps/greeter/` inlined at build time: editing
 `common/glyph/*`, `common/applets/*` or any other inlined module changes
 nothing on the pre-login screen until `build.sh` runs AND
-`sudo_approve ./install.sh` deploys the new bundle (the lock bundle needs only
+`sudo ./install.sh` deploys the new bundle (the lock bundle needs only
 `build-lock.sh` — hypridle execs `dist/tinshell-lock.sh` directly). A stale
 cairo-drawing module fails SILENTLY: an exception raised inside a
 `Gtk.DrawingArea` draw func aborts that frame's paint, so a mistyped cairo call
@@ -202,7 +202,7 @@ another window.
   so each write escalates through a scoped `sudo -n tee` rule: the sysfs
   attribute and the machine-level intent file `/var/lib/tinshell/charge-cap`.
   setup.sh creates and seeds that file and installs one rule per account
-  (`/etc/sudoers.d/tinshell-battery` for tinoy, `/etc/sudoers.d/50-tinshell-greeter-battery`
+  (`/etc/sudoers.d/tinshell-battery` for the session user, `/etc/sudoers.d/50-tinshell-greeter-battery`
   for the greeter), each visudo-validated before install; sudoers names those
   exact paths, so the generic `writeFileAsync` cannot escalate elsewhere.
   **The intent file is the whole point:** a greeter-local sysfs reading left the
@@ -224,7 +224,7 @@ another window.
 - **BRIGHTNESS WRITE (login screen):** `backend.brightness` is the shared
   domain bound in process, so its write goes to logind
   `org.freedesktop.login1.Session.SetBrightness` on `/org/freedesktop/login1/session/auto`
-  from the GREETER's own session (pre-login) or tinoy's while locked — the
+  from the GREETER's own session (pre-login) or the session user's while locked — the
   backend's copy of that call targets the backend's session, which does not
   exist before login. No polkit action named brightness is registered on this
   machine; the method authorizes the active seat session without a prompt.
@@ -312,7 +312,7 @@ boot → systemd → greetd.service (root, VT 1)
                  └─ authenticated → start_session(cmd, env) → app keeps
                     running ("Logging in…") + spawns the handoff → compositor
                     dies mid-frame → greetd starts the session on the same VT
-login succeeds → greetd starts the real session (tinoy) on the SAME VT (tty1)
+login succeeds → greetd starts the real session (the session user) on the SAME VT (tty1)
 logout         → session exits → greetd respawns the greeter
 ```
 
@@ -329,7 +329,7 @@ The in-session LOCK mode is a SEPARATE deployment of the same app (no greetd):
 - greetd (extra repo) ships `usr/lib/sysusers.d/greetd.conf`
   (creates the `greeter` user) and `/etc/pam.d/greetd` (system-local-login →
   pam_systemd → seat/GPU + XDG_RUNTIME_DIR for the greeter session).
-- **The greeter user cannot read tinoy's home** — the deployed bundle must be
+- **The greeter user cannot read the session user's home** — the deployed bundle must be
   self-contained (`ags bundle` inlines everything incl. `common/*`) and all
   config lives under `/etc/greetd/`.
 - The AstalGreet `Greeter` object (NOT the one-shot `Greet.login()`) handles
@@ -414,10 +414,10 @@ The in-session LOCK mode is a SEPARATE deployment of the same app (no greetd):
   the active seat.
 - **Gio.File.copy(OVERWRITE) unlinks the destination first** — needs write on
   the parent DIRECTORY. To overwrite the world-writable greeter wallpaper
-  file (tinoy can't write the greeter-owned /etc/greetd/tinshell-greeter dir), use
+  file (the session user cannot write the greeter-owned /etc/greetd/tinshell-greeter dir), use
   `src.load_contents()` + `dst.replace_contents(bytes, null, false,
   Gio.FileCreateFlags.NONE, null)` (O_TRUNC in place).
-- **Login wallpaper must be greeter-readable:** tinoy's home is 700, so the
+- **Login wallpaper must be greeter-readable:** the session user's home is 700, so the
   login screen reads the world-readable `/etc/greetd/tinshell-greeter/wallpaper.png`,
   synced by the wallpaper rotation (`~/.local/bin/wallpapers-sync apply`) and the
   lock screen.
@@ -431,12 +431,12 @@ greeter/
 ├── mode.ts                ← the run modes, resolved ONCE from the env
 │                             (production / TINSHELL_GREETER_PREVIEW / _HARNESS / _MODE=lock)
 ├── run.sh                 ← dev shim (the common/shell launcher) — dev ONLY
-├── build.sh               ← tinoy build → dist/greeter-tinshell.sh (apps/greeter/bundle.sh: guard + stamp)
-├── build-lock.sh          ← tinoy build → dist/tinshell-lock.sh (the LOCK bundle, same source, TINSHELL_GREETER_MODE=lock)
+├── build.sh               ← session-user build → dist/greeter-tinshell.sh (apps/greeter/bundle.sh: guard + stamp)
+├── build-lock.sh          ← session-user build → dist/tinshell-lock.sh (the LOCK bundle, same source, TINSHELL_GREETER_MODE=lock)
 ├── bundle.sh              ← the build BODY both scripts source (guard, outfile patch, GPU pins, stamp,
 │                             atomic replace of dist/*.sh) — not executable on its own
 ├── install.sh             ← ROOT deploy → /etc/greetd/ (rebuilds, refuses a payload whose stamp does not
-│                             match the sources, then installs bundle + stamp; via sudo_approve, never raw sudo)
+│                             match the sources, then installs bundle + stamp; via sudo, never automatically)
 ├── dm-switch.sh           ← spare-TTY DM switch/rollback (NOT from the graphical session)
 ├── preview.sh             ← DEV windowed prototype launcher (login|lock card + dock, pinned to
 │                             workspace 10; TINSHELL_GREETER_PREVIEW=login|lock; never locks anything)
@@ -503,7 +503,7 @@ plus `ags bundle` compiling for both bundles.
 
 ## Build / deploy / test flow
 
-- **Build (tinoy, no sudo):** `./build.sh` → `dist/greeter-tinshell.sh`
+- **Build (as the session user, no sudo):** `./build.sh` → `dist/greeter-tinshell.sh`
   (`ags bundle --gtk 4` — the gtk4 flag is REQUIRED, root-level node_modules
   can't infer; plus the per-app JS-outfile sed, same as common/shell/run.sh —
   and the bundle guard, the same one `run.sh` runs). The build body is
@@ -511,15 +511,15 @@ plus `ags bundle` compiling for both bundles.
   Sources unchanged since the last build makes it a no-op (`--force` rebuilds
   regardless; `npm run build:all` drives it with the rest of the repo's
   artifacts and `npm run check:builds` verifies it).
-- **AUR (tinoy, when the typelib is missing):** `libastal-greetd-git` needs
+- **AUR (as the session user, when the typelib is missing):** `libastal-greetd-git` needs
   `quarrel` installed first; `libastal-auth-git` (lock mode) does NOT need
   quarrel (deps glib2/glibc/pam) and SHIPS its own `/etc/pam.d/astal-auth`.
-  yay's internal sudo can't prompt from an agent shell —
-  build via makepkg as tinoy and install the .pkg.tar.zst via sudo_approve
-  (`pacman -U --noconfirm`).
-- **Lock bundle (tinoy):** `./build-lock.sh` → `dist/tinshell-lock.sh`. NOT
+  yay's internal sudo can't prompt from an unattended shell —
+  build via makepkg as the session user and install the .pkg.tar.zst with a root
+  approval (`pacman -U --noconfirm`).
+- **Lock bundle (session user):** `./build-lock.sh` → `dist/tinshell-lock.sh`. NOT
   deployed via install.sh — hypridle's `lock_cmd` runs it directly from
-  `~/dev/tinshell/apps/greeter/dist/` as tinoy with `TINSHELL_GREETER_MODE=lock`.
+  `~/dev/tinshell/apps/greeter/dist/` as the session user with `TINSHELL_GREETER_MODE=lock`.
   Because hypridle execs that file, the build replaces it ATOMICALLY (build to
   a temp file, rename over it) and skips the build while the sources are
   unchanged.
@@ -546,7 +546,7 @@ plus `ags bundle` compiling for both bundles.
 
   Rollback copies of this file live in `~/.cache/tinshell-greeter-rollback/` (NOT
   /tmp — see the README there).
-- **Deploy (root):** `sudo_approve ./install.sh` — installs the bundle +
+- **Deploy (root):** `sudo ./install.sh` — installs the bundle +
   config store + templates into `/etc/greetd/`, AND the dock config trio into
   `/etc/greetd/tinshell-greeter/dock/` (`apps/dock/config.{schema,defaults}.json`).
   It REBUILDS the bundle first (the build is unprivileged; `--no-build` deploys
@@ -567,7 +567,7 @@ plus `ags bundle` compiling for both bundles.
   compositor and PAM read them directly, so no defaults channel exists), each
   announced with the md5 it superseded. The pre-login strip also needs the
   dock's LIVE values there — a root copy the morning owner must run once
-  (root-only, cannot be done by an agent):
+  (root-only, cannot be done from an unattended shell):
   `sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json /etc/greetd/tinshell-greeter/dock/config.json`
   (without it the login strip paints the dock config DEFAULTS — the loader's
   own values, logged with the source line — while dev/preview/lock read the
@@ -594,7 +594,7 @@ plus `ags bundle` compiling for both bundles.
   → the real AstalGreet flow against a fake greetd (no logout/PAM/faillock).
   Password `789`; state file overridden via `TINSHELL_GREETER_STATE_FILE` (harness
   uses /tmp — the production /etc/greetd/tinshell-greeter/last-user is
-  greeter-owned; permission noise if written as tinoy).
+  greeter-owned; permission noise if written as the session user).
 - **Syntax-check greeter.lua safely:** `start-hyprland -- --verify-config -c /etc/greetd/greeter.lua`
 - **Bus:** `io.Astal.greeter` (instance `greeter`) exists only pre-login on
   the GREETER's session bus — `ags -i greeter request` from the user session
@@ -622,10 +622,10 @@ placement or pointer semantics in an app — extend the shared renderer + port.
   greeter block (install greetd + libastal-greetd-git, build + deploy, verify
   /etc/greetd/greeter.lua; the DM switch enable/disable is auto-skip guarded).
 - package.json workspaces include `"greeter"`.
-- Root only via `sudo_approve`; AUR (`libastal-greetd-git`) via yay as tinoy
+- Root only (the script is run with sudo); AUR (`libastal-greetd-git`) via yay as the session user
   with a warm sudo timestamp.
 - **Recovery when the greeter itself fails:** from a TTY (Ctrl+Alt+F2, log in
-  as tinoy) restore the pre-restructure bundle and reboot —
+  as the session user) restore the pre-restructure bundle and reboot —
   `sudo cp ~/.cache/tinshell-greeter-rollback/greeter-tinshell-pre-restructure.sh /etc/greetd/tinshell-greeter.sh`
   — or start a session by hand with `/usr/bin/start-hyprland` (what
   hyprland.desktop execs). A hand-restored bundle carries no stamp for this
@@ -642,7 +642,7 @@ placement or pointer semantics in an app — extend the shared renderer + port.
   locked until `faillock --reset` as root) — the greeter never auto-retries
   auth, so a single wrong password can't trip it.
 - **Lock wiring (USER session, not the greeter):** `~/.config/hypr/hypridle.conf`
-  `lock_cmd = pgrep -f '[a]gs-lock.js' || TINSHELL_GREETER_MODE=lock <checkout>/apps/greeter/dist/tinshell-lock.sh`
+  `lock_cmd = pgrep -f '[a]gs-lock.js' || TINSHELL_GREETER_MODE=lock ~/dev/tinshell/apps/greeter/dist/tinshell-lock.sh`
   (the `[a]` bracket keeps pgrep from matching its own `sh -c`); there is no
   manual lock key — `hyprland.lua` binds none — so locking comes from hypridle
   (the idle listener's `on-timeout` and `before_sleep_cmd`, both

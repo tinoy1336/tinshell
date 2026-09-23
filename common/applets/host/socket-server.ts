@@ -11,15 +11,15 @@
  *
  * Why a socket at all: the pre-login greeter runs as the `greeter` user in its
  * own compositor. It has no session bus to reach the dock's D-Bus instance and
- * cannot read the user's home, so the one transport that crosses that boundary
+ * cannot read the session user's home, so the one transport that crosses that boundary
  * is a shared-group unix socket (created by setup.sh's root section — see
  * systemd/tmpfiles.d/tinshell-applets.conf).
  *
  * Traffic policy (a greeter client is a different user: file permissions alone
  * cannot say WHICH member it may call):
  *   - the `fs` domain is NEVER exposed — it reads and writes files AS THE
- *     SESSION OWNER, so a socket client with group access would get a
- *     read-anything oracle over the owner's home;
+ *     SESSION USER, so a socket client with group access could read anything in
+ *     that home;
  *   - store writes/leaks (`<store>.set`, `.dump`, `.path`) and every mutator
  *     (power actions, tablet/watchdog, wifi/bluetooth mutation, profile
  *     writes, workspace jumps) are OWNER-ONLY — the peer uid (SO_PEERCRED via

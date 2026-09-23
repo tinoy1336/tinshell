@@ -16,7 +16,7 @@
  *   brightness     /sys/class/backlight/<dev>/brightness — and the WRITE through
  *                  logind `Session.SetBrightness` on `session/auto`, which
  *                  resolves to THIS process's own session: the greeter's
- *                  session pre-login, tinoy's while locked
+ *                  session pre-login, the session user's while locked
  *   cpu / system   /proc/stat, /proc/meminfo, /sys/class/hwmon/…, PCI runtime_status
  *   power-profile  `org.freedesktop.UPower.PowerProfiles` (system bus, tlp-pd)
  *   volume         the default sink (AstalWp → the session's WirePlumber), for the

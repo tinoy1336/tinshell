@@ -624,7 +624,7 @@ else
   fi
 fi
 
-# Build + deploy the bundle (tinoy build via build.sh, root deploy via install.sh).
+# Build + deploy the bundle (session-user build via build.sh, root deploy via install.sh).
 if [ -f "$TINSHELL_HOME/apps/greeter/dist/greeter-tinshell.sh" ]; then
   skip "greeter bundle (already built)"
 else
@@ -632,7 +632,7 @@ else
   done_ "greeter bundle built"
 fi
 
-# Lock bundle (runs as tinoy from dist/, launched by hypridle lock_cmd).
+# Lock bundle (runs as the session user from dist/, launched by hypridle lock_cmd).
 if [ -f "$TINSHELL_HOME/apps/greeter/dist/tinshell-lock.sh" ]; then
   skip "greeter lock bundle (already built)"
 else
@@ -687,12 +687,12 @@ fi
 # ─────── 10c. applets socket dir (greeter ↔ session backend transport) ───────
 # The applets backend (hosted by the dock) serves a unix socket in /run/tinshell so the
 # PRE-LOGIN greeter
-# (user `greeter`, no session bus, no access to tinoy's home) can read applet
+# (user `greeter`, no session bus, no access to the session user's home) can read applet
 # data from the live session. Cross-user access is a shared GROUP on a root
 # directory: /run is a root-owned tmpfs, so both the group and the directory
 # (2750, setgid → the socket inherits the group) are root artifacts installed
 # here and re-created by tmpfiles at every boot. The socket itself is created
-# and mode-fixed by the backend process (tinoy) — nothing here needs to run per
+# and mode-fixed by the backend process (the session user) — nothing here needs to run per
 # session. Auto-skipped when already configured.
 
 SOCKET_GROUP="tinshell-greeter"
@@ -718,11 +718,23 @@ TMPFILES_SRC="$TINSHELL_HOME/systemd/tmpfiles.d/tinshell-applets.conf"
 TMPFILES_DST="/etc/tmpfiles.d/tinshell-applets.conf"
 if [ ! -f "$TMPFILES_SRC" ]; then
   err "tmpfiles template missing: $TMPFILES_SRC"
-elif sudo cmp -s "$TMPFILES_SRC" "$TMPFILES_DST"; then
-  skip "tmpfiles entry $TMPFILES_DST (up to date)"
 else
-  sudo install -Dm644 "$TMPFILES_SRC" "$TMPFILES_DST"
-  done_ "installed tmpfiles entry $TMPFILES_DST"
+  # Substitute __USER__ → the account that runs the session, the same template
+  # token the systemd units and desktop entries carry for __HOME__: the socket
+  # directory is owned by whoever hosts the backend here, which is not knowable
+  # from the tree. A token that survived would install a directory owned by an
+  # account that does not exist, so the entry is NOT installed.
+  TMPFILES_TMP="$(mktemp)"
+  sed "s|__USER__|$(id -un)|g" "$TMPFILES_SRC" >"$TMPFILES_TMP"
+  if grep -q '__USER__' "$TMPFILES_TMP"; then
+    err "$(basename "$TMPFILES_SRC") still carries __USER__ after substitution — not installed; check the template"
+  elif sudo cmp -s "$TMPFILES_TMP" "$TMPFILES_DST"; then
+    skip "tmpfiles entry $TMPFILES_DST (up to date)"
+  else
+    sudo install -Dm644 "$TMPFILES_TMP" "$TMPFILES_DST"
+    done_ "installed tmpfiles entry $TMPFILES_DST"
+  fi
+  rm -f "$TMPFILES_TMP"
 fi
 
 if [ -f "$TMPFILES_SRC" ]; then

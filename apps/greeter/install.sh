@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — ROOT deploy script. Run via sudo_approve (never raw sudo).
+# install.sh — ROOT deploy script. Run with sudo, never automatically.
 #
 # Deploys the built bundle + config store + templates into /etc/greetd/.
 # Idempotent; re-run after rebuilds. The DM switch (enable greetd / disable
@@ -82,10 +82,10 @@ deploy_seed_config config.defaults.json /etc/greetd/tinshell-greeter/config.json
 install -Dm644 config.defaults.json /etc/greetd/tinshell-greeter/config.defaults.json
 install -Dm644 config.schema.json /etc/greetd/tinshell-greeter/config.schema.json
 # The applet strip mounts the SHARED renderer (common/applets/surface) with the
-# DOCK's config: the greeter user cannot read tinoy's home, so the dock config
+# DOCK's config: the greeter user cannot read the session user's home, so the dock config
 # trio ships here too (apps/greeter/config.ts dockConfigView). schema + defaults
 # let the shared loader serve the dock's canonical values; the LIVE values are a
-# separate root copy (data in tinoy's home) — run it when the dock config
+# separate root copy (data in the session user's home) — run it when the dock config
 # changes:
 #   sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json \
 #     /etc/greetd/tinshell-greeter/dock/config.json

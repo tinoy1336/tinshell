@@ -501,12 +501,12 @@ new AstalNotifd.Action({ id, label }))` — the constructor takes a properties
    silent cold-start bundle break (notes GOTCHA 13).
 9. **Never clobber the original screenshot** — output always carries the
    `-annotated` suffix in the source's directory.
-10. **Test-window discipline (mandatory):** the USER runs every live and visual
-   check on this machine — an agent ships static verification (tsc + a real
-   bundle) and the exact keystrokes, and never opens a window to check its own
-   work. When a window IS opened for a live check, never open the annotate
-   window on
-   the user's ACTIVE workspace. Pin probes to a spare workspace (`hyprctl
+10. **Test-window discipline (mandatory):** live and visual checks are made by
+   hand, so a change ships static verification (tsc + a real bundle) plus the
+   exact keystrokes needed to check it. Never open the annotate window to
+   inspect your own work; when a window IS opened for a live check, never open
+   it on
+   the ACTIVE workspace. Pin probe windows to a spare workspace (`hyprctl
 dispatch 'hl.dsp.focus({workspace = N})'`), restore workspace + keyboard
    focus immediately, kill every test process by exact PID before the turn
    ends. A notification-action-launched app's stderr is lost — run `run.sh`

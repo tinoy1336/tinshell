@@ -188,7 +188,7 @@ export function rebuildDocks(): void {
   })
 }
 
-// CYCLE-BREAK handoff, armed at MODULE SCOPE: dock-row calls back into here
+// CYCLE-BREAK callback, armed at MODULE SCOPE: dock-row calls back into here
 // (via setRebuildDocks) for overflow move-mode rebuilds instead of importing
 // ./Dock (which would re-form the Dock ↔ dock-row module cycle that deadlocks
 // the universal host entry's runtime import). The move-mode commit path

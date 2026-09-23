@@ -21,13 +21,11 @@ apps/greeter/@girs
 # Bundler / build artifacts (greeter ships a pre-built dist bundle).
 dist/
 
-# Subagent / review working artifacts (transcripts, scratch outputs) — not
-# part of the codebase.
-.pi-subagents/
-# pi subagent scheduling artifacts (schedule/run records for runs created
-# with this repo as cwd — e.g. scheduled deepseek-insight runs). Machine-
-# generated, per-schedule state; never part of the codebase.
+# Local tooling state — scratch outputs and scheduling records written by the
+# development tooling that works in this tree. Machine-generated, per-run state;
+# never part of the codebase.
 .pi/
+.pi-subagents/
 
 # Editor-local state.
 .zcode/

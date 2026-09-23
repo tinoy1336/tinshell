@@ -76,7 +76,7 @@ import { safeClone } from "./config-clone"
 // dynamic import() of the dock graph (the universal host entry) deadlocks on
 // the async cycle and the instance never comes up. The edge is one-way:
 // Dock.tsx hands its rebuildDocks across at module scope via setRebuildDocks
-// (function declarations hoist, so the handoff is safe regardless of eval
+// (function declarations hoist, so the assignment is safe regardless of eval
 // order) and the reference is resolved before any call.
 let rebuildDocksRef: (() => void) | null = null
 export function setRebuildDocks(fn: () => void): void {

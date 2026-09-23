@@ -2,7 +2,7 @@
  * common/applets/backend-socket-client — the applets backend over its unix
  * socket (common/applets/host/socket-server). This is the transport for a host
  * that CANNOT reach the backend over D-Bus: the pre-login greeter runs
- * as the `greeter` user, outside the session bus and outside tinoy's home.
+ * as the `greeter` user, outside the session bus and outside the session user's home.
  *
  * It speaks common/applets/socket-protocol: one `<id>`-prefixed request line
  * carrying the SAME body the request surface uses, one `<id>`-prefixed envelope
