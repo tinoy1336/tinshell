@@ -4,7 +4,7 @@ The launcher surface: a Spotlight-style app launcher/search popup (replaces
 anyrun). A REAL standalone app (bus `io.Astal.launcher`); this directory IS
 the app.
 
-**READ the root `~/dev/tinshell/AGENTS.md` FIRST** (multi-app rules: bus
+**READ the repository root `AGENTS.md` FIRST** (multi-app rules: bus
 naming, router, launch path, shell aggregation, common modules, onboarding).
 
 ## Identity
@@ -501,7 +501,8 @@ candidates instead of producing result rows:
   metacharacters, case-sensitively; bracket classes and brace expansion are
   not, and the pattern is never expanded by a shell. ONE directory level: the
   segments before the last `/` are a literal directory name, so
-  `~/dev/*/README.md` yields no candidates, and neither does a pattern
+  `notes/*/README.md` (a wildcard in a directory segment) yields no
+  candidates, and neither does a pattern
   followed by a trailing separator.
 - NEWEST FIRST (mtime, name as the tie-break), so the file just downloaded is
   the first Tab.
@@ -918,12 +919,13 @@ readable without a device.
 ### The app-owned and interpreter bangs
 
 - `!n <name>` — open or create a note: spawns
-  `~/dev/tinshell/apps/notes/ensure-new.sh` (router → shell notes).
+  `apps/notes/ensure-new.sh` in this tree (router → shell notes).
 - `!q <expr>` — qalc math · `!py <code>` — python evaluation.
 - `!code <path>` — open a file/directory in VS Code (spawn `code <expanded
   path>`).
 - `!a <path|glob>` — annotate an image in the TINSHELL annotate app (spawn
-  `~/dev/tinshell/apps/annotate/ensure-open.sh <path>`; the shared router serves
+  `apps/annotate/ensure-open.sh <path>` in this tree (resolved against
+  `TINSHELL_HOME`); the shared router serves
   it from whichever instance hosts annotate — the shell in production, never a
   hardcoded instance). The argument is resolved by the SAME rule as `!p`
   (`pathTargets`), then filtered through the shared still predicate
@@ -1184,7 +1186,8 @@ click-outside (Graphene bounds) / focus-loss — all via
   earlier would race the target's paste.
 - `wtype`/`ydotool` availability is probed per insert; missing both degrades
   to copy-only, never an error.
-- `!n`/`!f`/`!c` spawn absolute paths under `~/dev/tinshell/` — keep them
+- `!n`/`!f`/`!c` spawn absolute paths inside this tree (resolved from
+  the tree root at spawn time) — keep them
   valid when the layout changes.
 - prime-run button clears the `VK_ICD_FILENAMES`/EGL pins before spawning
   (`env -u … prime-run <cmd>`) — required for the NVIDIA ICD.

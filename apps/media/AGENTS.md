@@ -1,6 +1,6 @@
 # AGENTS.md — TINSHELL media app
 
-Part of the TINSHELL multi-app home. **READ `~/dev/tinshell/AGENTS.md` FIRST** —
+Part of the TINSHELL multi-app home. **READ the repository root `AGENTS.md` FIRST** —
 the multi-app rules (one app = one explicitly-named bus, launch path via
 `tinshell-host.sh` (the universal bundle), `ags -i <app> request` addressing, onboarding, common
 modules) apply to everything in this file. This file is the app-specific
@@ -17,7 +17,7 @@ corrode trust faster than missing ones.
 
 | | |
 | --- | --- |
-| dir | `~/dev/tinshell/apps/media/` |
+| dir | `apps/media/` (in this tree) |
 | instance / bus | `media` / `io.Astal.media` |
 | window class (GTK4 app_id) | `io.Astal.media` (set by the shared card frame; matched by the `media-float` window rule) |
 | keybind | **NONE** — hyprland.lua binds no key to media. Every trigger goes through `apps/media/ensure-open.sh` + the shared router: the launcher `!p` bang, `tinshell-media.desktop` (xdg-open), and `tinshell-route.sh media …` |
@@ -428,7 +428,7 @@ through the same path (`win.close()`), never a bare `destroy()`.
 
 ## Config
 
-Three files in `~/dev/tinshell/apps/media/` (defaults + schema + live),
+Three files in `apps/media/` (defaults + schema + live),
 loaded by the shared schema-driven loader. Schema uses draft-07 + custom
 `x-tier` (live | baked | restart) per namespace:
 

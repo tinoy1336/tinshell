@@ -43,6 +43,18 @@ jobs:
       - name: Config schemas match their sources
         run: npm run check:schemas
 
+  # Nothing here selects files by extension: this job reads prose and code
+  # alike, because the gates that do select by extension never open a markdown
+  # file. It answers one question — can a stranger who cloned this anywhere
+  # follow every path it names?
+  portability:
+    name: portability
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Path references resolve for a stranger
+        run: node scripts/check-paths.mjs
+
   # The style tier (SC2015, SC2016, SC2034 …) is not enforced: the tree carries
   # a set of notes and warnings under it that nobody has been through yet. The
   # error tier is enforced, and it is the tier that catches a script that cannot

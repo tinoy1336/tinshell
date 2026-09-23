@@ -14,8 +14,8 @@
 # This unit exists for the restart-exhaustion case systemd handles after
 # boot.
 #
-# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
-# setup.sh on install.
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 
 [Unit]
 Description=TINSHELL island fleet — fallback when the shell instance exhausts restarts
@@ -23,4 +23,4 @@ PartOf=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-boot.sh fleet
+ExecStart=__TREE__/common/shell/tinshell-boot.sh fleet

@@ -21,13 +21,16 @@
 #
 # Started by hand for dev (`systemctl --user start tinshell-portal.service`) or by
 # the boot fleet's manifest-unit dispatch.
+#
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 [Unit]
 Description=TINSHELL portal FileChooser backend (tinshell-portal.service)
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-host.sh start portal --foreground --if-absent
+ExecStart=__TREE__/common/shell/tinshell-host.sh start portal --foreground --if-absent
 Restart=on-failure
 RestartSec=5
 # Wayland session env (mirrors tinshell-promptd.service).

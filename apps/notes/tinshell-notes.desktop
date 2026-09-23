@@ -1,10 +1,12 @@
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 [Desktop Entry]
 Type=Application
 Version=1.0
 Name=TINSHELL Notes
 GenericName=Notes
 Comment=TINSHELL floating desktop notes
-Exec=__HOME__/dev/tinshell/apps/notes/ensure-open.sh %f
+Exec=__TREE__/apps/notes/ensure-open.sh %f
 Icon=accessories-text-editor
 Terminal=false
 Categories=Utility;TextEditor;

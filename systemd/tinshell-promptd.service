@@ -10,8 +10,8 @@
 # ExecStartPre (tinshell-bus-wait.sh promptd) waits for io.Astal.promptd to be
 # released before the new instance starts (register-race guard, same as shell).
 #
-# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
-# setup.sh on install.
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 
 [Unit]
 Description=TINSHELL promptd (tinshell-promptd.service)
@@ -21,8 +21,8 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStartPre=__HOME__/dev/tinshell/common/shell/tinshell-bus-wait.sh promptd
-ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-host.sh start promptd --foreground
+ExecStartPre=__TREE__/common/shell/tinshell-bus-wait.sh promptd
+ExecStart=__TREE__/common/shell/tinshell-host.sh start promptd --foreground
 Restart=on-failure
 RestartSec=5
 # Wayland session env (XDG_RUNTIME_DIR/HOME come from the user manager).

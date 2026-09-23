@@ -2,8 +2,8 @@
 # (apps/dock/amdgpu-watch.sh): watches the kernel journal for amdgpu ring
 # timeouts / GPU resets and copies the devcoredump before it expires.
 #
-# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
-# setup.sh on install.
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 
 [Unit]
 Description=amdGPU ring-timeout / GPU-reset watchdog (copies devcoredumps before expiry)
@@ -11,7 +11,7 @@ After=default.target
 
 [Service]
 Type=simple
-ExecStart=__HOME__/dev/tinshell/apps/dock/amdgpu-watch.sh
+ExecStart=__TREE__/apps/dock/amdgpu-watch.sh
 Restart=always
 RestartSec=10
 

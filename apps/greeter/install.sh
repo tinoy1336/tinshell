@@ -87,8 +87,8 @@ install -Dm644 config.schema.json /etc/greetd/tinshell-greeter/config.schema.jso
 # let the shared loader serve the dock's canonical values; the LIVE values are a
 # separate root copy (data in the session user's home) — run it when the dock config
 # changes:
-#   sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json \
-#     /etc/greetd/tinshell-greeter/dock/config.json
+#   sudo install -Dm644 apps/dock/config.json \
+#     /etc/greetd/tinshell-greeter/dock/config.json   # run from the tree root
 # That copy stays a plain install (no seed guard): its SOURCE is the live dock
 # config itself, so it is a refresh of a mirror and cannot revert a setting.
 install -Dm644 ../dock/config.schema.json /etc/greetd/tinshell-greeter/dock/config.schema.json

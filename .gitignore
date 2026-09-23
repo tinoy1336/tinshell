@@ -1,6 +1,6 @@
 # TINSHELL multi-app home — repo hygiene
 #
-# This ~/dev/tinshell tree is ALSO the live runtime config dir, so ignore
+# This tree is ALSO the live runtime config dir, so ignore
 # choices follow the "regenerable / re-derivable" rule:
 #   - COMMITTED: source, docs, unit templates, shell scripts, and every app's
 #     config.schema.json + config.defaults.json (the schema is GENERATED from

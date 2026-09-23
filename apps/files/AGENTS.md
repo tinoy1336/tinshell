@@ -1,6 +1,6 @@
 # AGENTS.md — TINSHELL files app
 
-Part of the TINSHELL multi-app home. **READ `~/dev/tinshell/AGENTS.md` FIRST** —
+Part of the TINSHELL multi-app home. **READ the repository root `AGENTS.md` FIRST** —
 the multi-app rules (one app = one explicitly-named bus, launch path via
 `tinshell-host.sh` (the universal bundle), `ags -i <app> request` addressing, onboarding, common
 modules) apply to everything in this file. This file is the app-specific

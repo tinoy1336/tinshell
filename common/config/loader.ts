@@ -303,7 +303,8 @@ export function setDottedPath(root: any, path: string, value: any): boolean {
 
 /** App schema dir: <tree>/apps/<name> — holds config.schema.json and
  *  config.defaults.json. The tree root comes from the launcher (TINSHELL_HOME,
- *  exported by the host scripts); the dev fallback is ~/dev/tinshell. */
+ *  exported by the host scripts); when it is unset, `common/path/tree-root`'
+ *  fallback resolves the same value it always has. */
 export function appSchemaDir(name: string): string {
   return GLib.build_filenamev([treeRoot(), "apps", name])
 }

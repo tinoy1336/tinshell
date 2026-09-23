@@ -2,7 +2,7 @@
 
 The shared applet substrate: the applets themselves, the binding they are
 mounted on, the shared row renderer, and the OS-domain contract behind them.
-**READ the root `~/dev/tinshell/AGENTS.md` FIRST** (launch path, addressing,
+**READ the repository root `AGENTS.md` FIRST** (launch path, addressing,
 `common/` rules); this file is the applet-specific spec.
 
 Everything here is host-agnostic. Two hosts mount it — the dock's layer-shell

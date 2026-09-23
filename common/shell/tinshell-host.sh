@@ -308,8 +308,12 @@ case "$cmd" in
       done
     fi
 
-    # Env for the child: host vars + the session union.
+    # Env for the child: host vars + the session union + the tree this host is
+    # launching FROM — the app process resolves the tree root from TINSHELL_HOME
+    # (`common/path/tree-root`), and a checkout outside its default location is
+    # only reachable through that variable.
     while IFS='=' read -r k v; do export "$k=$v"; done < <(host_env)
+    export TINSHELL_HOME
 
     if [ "$FOREGROUND" = 1 ]; then
       # Every instance (shell + foreground islands) tees stderr into ONE
@@ -331,6 +335,7 @@ case "$cmd" in
     SPAWN_ARGS+=(--setenv="TINSHELL_HOST_ENTRY=$HOST_ENTRY" --setenv="TINSHELL_HOST_NAME=universal")
     SPAWN_ARGS+=(--setenv="TINSHELL_HOST_SET=$(printf '%s' "$SET_LIST" | tr ' ' ',')" --setenv="TINSHELL_HOST_INSTANCE=$NAME")
     if [ -n "${TINSHELL_SHELL+x}" ]; then SPAWN_ARGS+=(--setenv="TINSHELL_SHELL=$TINSHELL_SHELL"); fi
+    SPAWN_ARGS+=(--setenv="TINSHELL_HOME=$TINSHELL_HOME")
     while IFS='=' read -r k v; do SPAWN_ARGS+=(--setenv="$k=$v"); done < <(host_env)
 
     if ! systemd-run "${SPAWN_ARGS[@]}" bash -c 'exec 2> >(tee -a "$1" >&2); shift; exec "$@"' _ "${TINSHELL_CRASH_LOG:-/tmp/tinshell-crashes.log}" "$RUNSH" universal "${EXTRA_ARGV[@]}" 2>&1; then

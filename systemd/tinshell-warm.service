@@ -18,8 +18,8 @@
 # itself — it just means the login start is cold and tinshell-boot.sh branches to
 # the per-app fleet if the shell spawn then fails.
 #
-# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
-# setup.sh on install.
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 
 [Unit]
 Description=Pre-build every TINSHELL artifact at boot (warm the bundle caches)
@@ -27,7 +27,7 @@ After=default.target
 
 [Service]
 Type=oneshot
-ExecStart=__HOME__/dev/tinshell/scripts/build-all.sh --quiet
+ExecStart=__TREE__/scripts/build-all.sh --quiet
 
 [Install]
 WantedBy=default.target

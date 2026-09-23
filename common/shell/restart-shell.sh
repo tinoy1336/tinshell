@@ -9,7 +9,9 @@
 # (ags list for live instances, apps.json for manifest units).
 set -u
 
-TINSHELL_HOME="$HOME/dev/tinshell"
+# The tree root: this script's own location (common/shell → repo root) unless
+# the environment already named it. Never overwritten.
+TINSHELL_HOME="${TINSHELL_HOME:-$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)}"
 MANIFEST="$TINSHELL_HOME/common/shell/apps.json"
 
 manifest_unit() { jq -r --arg a "$1" '.[$a].unit // empty' "$MANIFEST" 2>/dev/null; }

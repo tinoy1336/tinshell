@@ -1,10 +1,12 @@
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 [Desktop Entry]
 Type=Application
 Version=1.0
 Name=TINSHELL Files
 GenericName=File Manager
 Comment=TINSHELL file manager
-Exec=__HOME__/dev/tinshell/apps/files/ensure-open.sh %f
+Exec=__TREE__/apps/files/ensure-open.sh %f
 Icon=system-file-manager
 Terminal=false
 Categories=System;FileManager;Utility;

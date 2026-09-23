@@ -2,7 +2,7 @@
  * app-store — the per-app config binding shared by the on-demand desktop apps.
  *
  * Wraps `createConfigStore` (common/config/loader) with the boilerplate every
- * standalone app needs: the `~/dev/tinshell/apps/<name>` dir, the
+ * standalone app needs: the `apps/<name>` dir of this tree, the
  * `get`/`all`/`set`/`reloadConfig` facade, and a rejection sink for
  * schema-rejected writes and failed reloads. The typed config shape stays
  * app-side (cast the `config` object to the app's interface).

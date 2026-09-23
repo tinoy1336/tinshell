@@ -47,8 +47,8 @@
 # portal/mount import time — BEFORE Gtk init (the boot-time portal deadlock
 # fix; the universal entry resolves eager imports at top level for this).
 #
-# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
-# setup.sh on install.
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 
 [Unit]
 Description=TINSHELL shell — all apps in one instance (tinshell-shell.service)
@@ -64,8 +64,8 @@ OnFailure=tinshell-islands-fallback.service
 
 [Service]
 Type=simple
-ExecStartPre=__HOME__/dev/tinshell/common/shell/tinshell-bus-wait.sh shell
-ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-boot.sh boot
+ExecStartPre=__TREE__/common/shell/tinshell-bus-wait.sh shell
+ExecStart=__TREE__/common/shell/tinshell-boot.sh boot
 Restart=on-failure
 RestartSec=5
 

@@ -1,0 +1,11 @@
+# Accepted path references — read by scripts/check-paths.mjs, one per line:
+#
+#   <path>:<line>|<detector>|<reason>
+#
+# The reason is required and lives on the same line, so accepting a reference
+# shows up in the diff that accepts it, with its justification beside it. An
+# entry that matches nothing is reported as stale.
+#
+# Nothing is accepted here: every path reference in this tree resolves for a
+# reader who cloned it anywhere. Detectors and the rule are documented in
+# `README.md` §Path references and at the top of `scripts/check-paths.mjs`.

@@ -36,8 +36,9 @@ function check(name: string, actual: unknown, expected: unknown): void {
 }
 
 /** A stub host: the row builders read the platform only through this. */
+const TREE = "/opt/tinshell-fixture"
 const ENV: BangEnv = {
-  tinshellDir: "/home/dev/tinshell",
+  tinshellDir: TREE,
   browserFirefox: "firefox",
   browserChromium: "chromium",
   searchUrl: "https://www.google.com/search?q=",
@@ -365,7 +366,7 @@ check("!man needs a page", row("!man", " "), null)
 check(
   "!grab runs the house capture pipeline",
   argv("!grab", ""),
-  "/home/dev/tinshell/common/shell/ensure-screengrab.sh",
+  `${TREE}/common/shell/ensure-screengrab.sh`,
 )
 check("!grab row title", title("!grab", ""), "Capture region")
 check("!pick runs the colour picker", argv("!pick", ""), ["hyprpicker", "-a"].join(" "))

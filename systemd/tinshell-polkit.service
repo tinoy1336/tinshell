@@ -19,8 +19,8 @@
 # for the name to be FREE, so pointing it at the resident promptd name would
 # time out and fail the unit.
 #
-# This file is a TEMPLATE: __HOME__ is substituted with the real $HOME by
-# setup.sh on install.
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 
 [Unit]
 Description=TINSHELL polkit agent (tinshell-polkit.service)
@@ -31,8 +31,8 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStartPre=__HOME__/dev/tinshell/common/shell/tinshell-bus-wait.sh polkit
-ExecStart=__HOME__/dev/tinshell/common/shell/tinshell-host.sh start polkit --foreground
+ExecStartPre=__TREE__/common/shell/tinshell-bus-wait.sh polkit
+ExecStart=__TREE__/common/shell/tinshell-host.sh start polkit --foreground
 Restart=on-failure
 RestartSec=5
 # Wayland session env (XDG_RUNTIME_DIR/HOME come from the user manager).

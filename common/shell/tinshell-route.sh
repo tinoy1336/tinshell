@@ -66,7 +66,11 @@ DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 # (bare dirname gives the symlink's dir → route-map.conf missing → no app has
 # a cold-start target).
 MAP="$DIR/route-map.conf"
-TINSHELL_HOME="$HOME/dev/tinshell"
+# The tree root: this script's own location (common/shell → repo root) unless
+# the environment already named it. Never overwritten — a caller that exports
+# TINSHELL_HOME points the cold-start path at its own tree, and the clone may
+# live anywhere.
+TINSHELL_HOME="${TINSHELL_HOME:-$(cd "$DIR/../.." && pwd)}"
 probed=""
 
 # Instance order for this app: comma-separated, production first. Empty when

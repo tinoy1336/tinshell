@@ -16,7 +16,9 @@
 # common/shell/apps.json.
 set -u
 
-TINSHELL_HOME="$HOME/dev/tinshell"
+# The tree root: this script's own location (common/shell → repo root) unless
+# the environment already named it. Never overwritten.
+TINSHELL_HOME="${TINSHELL_HOME:-$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)}"
 TINSHELL_HOST="$TINSHELL_HOME/common/shell/tinshell-host.sh"
 MANIFEST="$TINSHELL_HOME/common/shell/apps.json"
 

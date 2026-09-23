@@ -136,7 +136,7 @@ cat >"$APP_DIR/config.ts" <<EOF
 /**
  * $NAME config — the app's OWN store + facade
  * (apps/$NAME/config.{defaults,schema,json}; on-disk dir
- * ~/dev/tinshell/apps/$NAME via appSchemaDir — root AGENTS.md convention).
+ * apps/$NAME in this tree via appSchemaDir — root AGENTS.md convention).
  * The app owns its store: createConfigStore(appSchemaDir(name), appConfigPath(name)) wrapped in
  * the generic facade from \`../../common/config/facade.ts\` (stable mirror +
  * get/set/applyToLive/queueWrite/onConfigChanged) — see a surface app's
@@ -160,7 +160,7 @@ cat >"$APP_DIR/AGENTS.md" <<EOF
 # AGENTS.md — $NAME
 
 Brief: what this app does, its windows, its commands. **READ the root
-\`~/dev/tinshell/AGENTS.md\` FIRST** (bus naming, router, tinshell-host launch
+\`AGENTS.md\` FIRST** (bus naming, router, tinshell-host launch
 path, lazy loading, common modules).
 
 - Hosting: production = the shell instance hosts $NAME via the universal

@@ -2,7 +2,7 @@
 
 Terminal session context injector. Point a fresh agent here.
 
-Part of the TINSHELL multi-app home. **READ `~/dev/tinshell/AGENTS.md` FIRST** — the
+Part of the TINSHELL multi-app home. **READ the repository root `AGENTS.md` FIRST** — the
 multi-app rules (one app = one explicitly-named bus, launch path via
 `tinshell-host.sh` (the universal bundle), `ags -i <app> request` addressing, onboarding, common
 modules) apply to everything in this file.
@@ -68,7 +68,7 @@ carries its own copy of the dock trio — so a dock config KEY RENAME must be
 followed by a rebuild + redeploy in the same change:** `build.sh` +
 `build-lock.sh` (new keys inside the bundles), `install.sh` (deploy), and the
 live dock copy refresh the deploy does NOT cover —
-`sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json /etc/greetd/tinshell-greeter/dock/config.json`.
+`sudo install -Dm644 <checkout>/apps/dock/config.json /etc/greetd/tinshell-greeter/dock/config.json`.
 A stale bundle reading a renamed key throws `<key> is undefined` while the strip
 mounts; the lock then logs `[lock] applet strip: … composing without the strip`
 and paints no applets (the card and the wallpaper still map — lock/surface.ts
@@ -442,7 +442,7 @@ greeter/
 │                             workspace 10; TINSHELL_GREETER_PREVIEW=login|lock; never locks anything)
 ├── @girs → ../@girs       ← symlink (per-app @girs pattern; picks up AstalGreet after `ags types`)
 ├── config.defaults.json / config.schema.ts → config.schema.json / config.ts
-│                          ← config store bound to /etc/greetd/tinshell-greeter (NOT ~/dev/tinshell!)
+│                          ← config store bound to /etc/greetd/tinshell-greeter (NOT the checkout!)
 │                            (+ the `dock` section — see "Greeter dock — REAL dock applets")
 ├── state.ts               ← last-login username (`/etc/greetd/tinshell-greeter/last-user`)
 ├── style.css              ← layered on common/shell/theme.css; LAYOUT/SHAPE only
@@ -519,7 +519,7 @@ plus `ags bundle` compiling for both bundles.
   approval (`pacman -U --noconfirm`).
 - **Lock bundle (session user):** `./build-lock.sh` → `dist/tinshell-lock.sh`. NOT
   deployed via install.sh — hypridle's `lock_cmd` runs it directly from
-  `~/dev/tinshell/apps/greeter/dist/` as the session user with `TINSHELL_GREETER_MODE=lock`.
+  `apps/greeter/dist/` (`<checkout>/apps/greeter/dist/` as an absolute path) as the session user with `TINSHELL_GREETER_MODE=lock`.
   Because hypridle execs that file, the build replaces it ATOMICALLY (build to
   a temp file, rename over it) and skips the build while the sources are
   unchanged.
@@ -540,7 +540,7 @@ plus `ags bundle` compiling for both bundles.
   within one filesystem is atomic, so the old file stays valid until it is
   replaced:
 
-      sudo install -Dm644 ~/dev/tinshell/apps/greeter/templates/greeter.lua /etc/greetd/greeter.lua.new
+      sudo install -Dm644 <checkout>/apps/greeter/templates/greeter.lua /etc/greetd/greeter.lua.new
       sudo mv -f /etc/greetd/greeter.lua.new /etc/greetd/greeter.lua
       Hyprland --verify-config -c /etc/greetd/greeter.lua   # must print: config ok
 
@@ -568,7 +568,7 @@ plus `ags bundle` compiling for both bundles.
   announced with the md5 it superseded. The pre-login strip also needs the
   dock's LIVE values there — a root copy the morning owner must run once
   (root-only, cannot be done from an unattended shell):
-  `sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json /etc/greetd/tinshell-greeter/dock/config.json`
+  `sudo install -Dm644 <checkout>/apps/dock/config.json /etc/greetd/tinshell-greeter/dock/config.json`
   (without it the login strip paints the dock config DEFAULTS — the loader's
   own values, logged with the source line — while dev/preview/lock read the
   live dock config directly).
@@ -642,7 +642,9 @@ placement or pointer semantics in an app — extend the shared renderer + port.
   locked until `faillock --reset` as root) — the greeter never auto-retries
   auth, so a single wrong password can't trip it.
 - **Lock wiring (USER session, not the greeter):** `~/.config/hypr/hypridle.conf`
-  `lock_cmd = pgrep -f '[a]gs-lock.js' || TINSHELL_GREETER_MODE=lock ~/dev/tinshell/apps/greeter/dist/tinshell-lock.sh`
+  `lock_cmd = pgrep -f '[a]gs-lock.js' || TINSHELL_GREETER_MODE=lock <checkout>/apps/greeter/dist/tinshell-lock.sh`
+  (hypridle execs the absolute path of this tree's built lock script —
+  `$TINSHELL_HOME` when the session's environment already names it)
   (the `[a]` bracket keeps pgrep from matching its own `sh -c`); there is no
   manual lock key — `hyprland.lua` binds none — so locking comes from hypridle
   (the idle listener's `on-timeout` and `before_sleep_cmd`, both

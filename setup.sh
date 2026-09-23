@@ -8,11 +8,14 @@
 # prompted); each auto-detects current state and skips if already done.
 #
 # Assumes same hardware (EndeavourOS/Arch, Hyprland, ASUS convertible with AMD
-# iGPU + NVIDIA dGPU). Run from anywhere; operates on ~/dev/tinshell.
+# iGPU + NVIDIA dGPU). Run from anywhere; operates on the tree it lives in.
 set -euo pipefail
 
 HOME_DIR="$HOME"
-TINSHELL_HOME="$HOME_DIR/dev/tinshell"
+# The tree this script lives in — its own directory, so the checkout may sit
+# anywhere. TINSHELL_HOME in the environment overrides it (a caller that already
+# resolved the tree).
+TINSHELL_HOME="${TINSHELL_HOME:-$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)}"
 SYSTEMD_USER="$HOME_DIR/.config/systemd/user"
 
 # Colours for legible output.
@@ -25,6 +28,13 @@ say() { echo "${C_TODO}[setup]${C_RST} $*"; }
 done_() { echo "${C_DONE}[setup] done${C_RST}: $*"; }
 skip() { echo "${C_SKIP}[setup] skipped${C_RST}: $* (already done)"; }
 err() { echo "${C_ERR}[setup] ERROR${C_RST}: $*" >&2; }
+
+# Render a template: __TREE__ → the install location of THIS tree (so the units
+# exec a checkout that may live anywhere) and __HOME__ → the real home directory.
+# The ONE substitution every template consumer goes through.
+render_template() {
+  sed -e "s|__TREE__|$TINSHELL_HOME|g" -e "s|__HOME__|$HOME_DIR|g" "$1"
+}
 
 # ──────────────────────────── 1. Preflight ────────────────────────────
 
@@ -273,14 +283,15 @@ for entry in "$TINSHELL_HOME"/apps/*/tinshell-*.desktop; do
   [ -f "$entry" ] || continue
   dst="$APPS_DIR/$(basename "$entry")"
   tmp="$dst.tmp"
-  # Substitute __HOME__ → real $HOME, same as the systemd unit templates: an
-  # entry's Exec must name the home of the machine it is installed on.
-  sed "s|__HOME__|$HOME_DIR|g" "$entry" >"$tmp"
+  # Render __TREE__ → this tree's location and __HOME__ → the real $HOME, same
+  # as the systemd unit templates: an entry's Exec must name the home AND the
+  # checkout the machine it is installed on actually has.
+  render_template "$entry" >"$tmp"
   # A token that survives the substitution would exec a path that cannot exist
   # here, so the entry is NOT installed — and never written into place, so no
   # broken entry is left for xdg-open to resolve to.
-  if grep -q '__HOME__' "$tmp"; then
-    err "$(basename "$entry") still carries __HOME__ after substitution — not installed; check the template"
+  if grep -qE '__TREE__|__HOME__' "$tmp"; then
+    err "$(basename "$entry") still carries __TREE__/__HOME__ after substitution — not installed; check the template"
     rm -f "$tmp"
     continue
   fi
@@ -338,8 +349,8 @@ for unit in $UNITS; do
     err "canonical unit template missing: $SRC"
     continue
   fi
-  # Substitute __HOME__ → real $HOME.
-  sed "s|__HOME__|$HOME_DIR|g" "$SRC" >"$DST"
+  # Render __TREE__ → this tree's location, __HOME__ → the real $HOME.
+  render_template "$SRC" >"$DST"
   done_ "$unit installed"
 done
 
@@ -405,7 +416,7 @@ cp "$TINSHELL_HOME/apps/portal/tinshell-portal.portal" \
   done_ "portal .portal file installed" ||
   err "portal .portal install failed"
 
-sed "s|__HOME__|$HOME_DIR|g" "$TINSHELL_HOME/systemd/tinshell-portal.service" > \
+render_template "$TINSHELL_HOME/systemd/tinshell-portal.service" > \
   "$SYSTEMD_USER/tinshell-portal.service" &&
   done_ "tinshell-portal.service installed (dev mode)" ||
   err "tinshell-portal.service install failed"
@@ -720,7 +731,7 @@ if [ ! -f "$TMPFILES_SRC" ]; then
   err "tmpfiles template missing: $TMPFILES_SRC"
 else
   # Substitute __USER__ → the account that runs the session, the same template
-  # token the systemd units and desktop entries carry for __HOME__: the socket
+  # mechanism the systemd units and desktop entries use for __TREE__/__HOME__: the socket
   # directory is owned by whoever hosts the backend here, which is not knowable
   # from the tree. A token that survived would install a directory owned by an
   # account that does not exist, so the entry is NOT installed.

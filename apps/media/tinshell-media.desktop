@@ -1,10 +1,12 @@
+# This file is a TEMPLATE: setup.sh substitutes __TREE__ with the tree's install
+# location and __HOME__ with the real $HOME.
 [Desktop Entry]
 Type=Application
 Version=1.0
 Name=TINSHELL Media
 GenericName=Media Viewer
 Comment=TINSHELL image viewer and media player
-Exec=__HOME__/dev/tinshell/apps/media/ensure-open.sh --new %f
+Exec=__TREE__/apps/media/ensure-open.sh --new %f
 Icon=multimedia-player
 Terminal=false
 Categories=AudioVideo;Player;Graphics;Viewer;

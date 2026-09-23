@@ -3,7 +3,7 @@
 The dock surface: per-monitor launcher/status bars with applets and menus.
 A REAL standalone app (bus `io.Astal.dock`).
 
-**READ the root `~/dev/tinshell/AGENTS.md` FIRST** (multi-app rules: bus
+**READ the repository root `AGENTS.md` FIRST** (multi-app rules: bus
 naming, router, launch path, shell aggregation, common modules, onboarding).
 This file is the app-specific spec; the root file is the cross-app contract.
 

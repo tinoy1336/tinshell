@@ -103,7 +103,7 @@ export interface BangValue {
  * (`bangs.ts`), so the catalogue holds no gi import and no machine fact.
  */
 export interface BangEnv {
-  /** The TINSHELL home (`~/dev/tinshell`) — the launcher's own scripts live there. */
+  /** The tree root (`treeRoot()`) — the launcher's own scripts live there. */
   tinshellDir: string
   browserFirefox: string
   browserChromium: string

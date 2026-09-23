@@ -4,7 +4,7 @@ The on-screen keyboard surface (OSK): thumb/compact layouts driven by the
 SW_TABLET_MODE state. A REAL standalone app (bus `io.Astal.keyboard`); this
 directory IS the app.
 
-**READ the root `~/dev/tinshell/AGENTS.md` FIRST** (multi-app rules: bus
+**READ the repository root `AGENTS.md` FIRST** (multi-app rules: bus
 naming, router, launch path, shell aggregation, common modules, onboarding).
 
 ## Identity

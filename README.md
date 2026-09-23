@@ -42,11 +42,19 @@ of commands in [Development](#development).
 ## Install
 
 ```bash
-git clone https://github.com/tinoy1336/tinshell.git ~/dev/tinshell
-cd ~/dev/tinshell
+git clone https://github.com/tinoy1336/tinshell.git ~/tinshell   # anywhere you like
+cd ~/tinshell
 ./setup.sh              # packages, npm install, typings, shim types, units, root steps
 tinshell-mode shell     # or leave it to tinshell-shell.service at login
 ```
+
+**The tree may live anywhere.** The clone destination above is only an example:
+the scripts resolve the tree from their own location, `TINSHELL_HOME` names it
+for anything that needs it explicitly, and the installer renders the systemd
+units and desktop entries against the real checkout path — so `./setup.sh` run
+from a clone at any path (`/opt/tinshell`, a directory under `~/src`, wherever)
+installs units that exec that same tree. Nothing in the tree hardcodes where it
+was cloned, and CI enforces it (`scripts/check-paths.mjs`).
 
 `setup.sh` is idempotent and re-runnable; it installs the user units, enables
 `tinshell-shell.service` and `tinshell-warm.service`, and performs the
@@ -105,8 +113,9 @@ tinshell-route launcher toggle     # routes, or starts the map's first instance
 | `common/host/` | the universal entry and the static app registry every shape is served from |
 | `common/shell/` | `tinshell-host.sh` (the distributor), `tinshell-boot.sh`, `tinshell-route.sh`, `tinshell-mode.sh`, `run.sh` (the bundler) and the bundle stamp/guard |
 | `scripts/` | the artifact registry, the schema generator, the build and freshness gates |
-| `systemd/` | unit templates (`__HOME__` substituted at install time) |
+| `systemd/` | unit templates (`__TREE__` = the checkout location, `__HOME__` = the home directory, both substituted at install time) |
 | `setup.sh` | the machine bootstrap |
+| `scripts/check-paths.mjs` | the portability gate: no tracked file may name where this checkout lives |
 | `AGENTS.md` | the root spec sheet: layout, conventions, launch path, addressing, build gates, gjs gotchas |
 | `.github/workflows/ci.yml` | what CI can and cannot check here, and why |
 
@@ -135,6 +144,25 @@ it booted from, and `<instance> debug build` reports the same stamp.
 
 A change under `apps/` or `common/` is live only after the hosting instance
 restarts — a running process serves the bundle it booted.
+
+## Path references
+
+Anything a stranger reads — docs, comments, scripts, templates — may name the
+**reader's** environment: their home (`~`, `$HOME`, the `__HOME__` install-time
+token), the XDG directories, a tool's own state dir, `/etc`, `/usr`, `/var`,
+`/tmp`. It must not name **where this tree happens to be cloned** — not as an
+absolute path, not as a tilde path whose first segment names a development
+directory, not through a template, not as a bare relative fragment naming that
+location, and not rewritten into a tilde form, which only hides the same
+assumption from a search. Write the path relative to the repository root
+(`common/shell/run.sh`), or use `__TREE__` in a template the installer renders.
+
+`scripts/check-paths.mjs` is the gate for that rule and runs in CI on every
+push. It reads `git ls-files` and scans prose and code alike, because the gates
+that select files by extension never read markdown. `node scripts/check-paths.mjs`
+locally; a deliberate exception goes in `.portability-allow.txt` as
+`path:line|detector|reason`, so the exception is visible in the diff that adds
+it.
 
 ## Licence
 
