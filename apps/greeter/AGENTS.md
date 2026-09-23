@@ -623,8 +623,18 @@ placement or pointer semantics in an app — extend the shared renderer + port.
   section).
 - **NO systemd user unit, NO setup.sh unit-loop/enable-line entry** — but
   setup.sh MUST know the app: chmod list (run.sh/build.sh/build-lock.sh/install.sh) + the
-  greeter block (install greetd + libastal-greetd-git, build + deploy, verify
-  /etc/greetd/greeter.lua; the DM switch enable/disable is auto-skip guarded).
+  greeter block, which installs greetd + libastal-greetd-git, then builds and
+  re-deploys on EVERY run — `build.sh` as the invoking user (a root rebuild would
+  leave root-owned artefacts in the checkout), then `sudo install.sh --no-build`,
+  which still verifies the built payload against its stamp. When a deployment
+  already exists, the block first asks the freshness gate's own verifier
+  (`bundle_stamp_verify`, the `greeter-deployed` implementation) whether that
+  deployed bundle still matches the sources it was built from and names every
+  input that moved; the deploy runs either way, because the files `install.sh`
+  refreshes BESIDE the bundle are in no fingerprint. A refused or unavailable
+  sudo is reported with the exact command instead of leaving the previous
+  deployment in place in silence. It also verifies `/etc/greetd/greeter.lua`;
+  the DM switch enable/disable is auto-skip guarded.
 - package.json workspaces include `"greeter"`.
 - Root only (the script is run with sudo); AUR (`libastal-greetd-git`) via yay as the session user
   with a warm sudo timestamp.
@@ -657,9 +667,18 @@ placement or pointer semantics in an app — extend the shared renderer + port.
   runs `loginctl lock-session`); `debug.enable_stdout_logs
   = false` in hyprland.lua kills post-login tty1 log spam.
 - **Wallpaper sync:** `~/.local/bin/wallpapers-sync apply` picks a random
-  `~/wallpapers/*.png`, runs `awww img` (fade), then `cp`s it to
-  `/etc/greetd/tinshell-greeter/wallpaper.png` (best-effort); the lock screen also
-  syncs it at lock time. Login reads that file; lock queries `awww query`
+  `~/wallpapers/*.png`, runs `awww img` (fade), then publishes it as the login
+  wallpaper through the script's `publish_greeter_wallpaper()`: `cp -f` into
+  `/etc/greetd/tinshell-greeter/wallpaper.png` — or into
+  `$TINSHELL_GREETER_WALLPAPER`, the override for a caller that must not touch
+  the live login input. This copy is NOT best-effort: success logs both paths,
+  and a failure is named on stderr with the previous image left in place —
+  an unreadable source or a failed `cp` (the `cp` error travels with it)
+  returns 1 and `apply` exits non-zero, so a sync that did not happen is never
+  reported as one. A machine with no greeter deployment has no login wallpaper
+  to refresh; that is stated once and is not a failure. The lock screen also
+  syncs it at lock time, with its own in-process copy whose failure is logged.
+  Login reads that file; lock queries `awww query`
   live. `awww` is the swww successor (background layer, namespace
   `awww-daemon`); rotation = `wallpaper-cycle.timer` (10 min) →
   `wallpaper-cycle.service` → `wallpapers-sync apply`.
