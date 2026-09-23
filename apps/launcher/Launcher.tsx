@@ -52,13 +52,13 @@ import { createSpinnerGlyph } from "@common/glyph/spinner"
 import { ignore } from "@common/log/logger"
 import { createPathAutofill } from "@common/path/autofill"
 import { isPathShaped } from "@common/path/complete"
+import { treeRoot } from "@common/path/tree-root"
 import { bindFocusLoss, bindOutsideClick } from "@common/window/popup-dismiss"
 import { type Accessor, createEffect, createState, For } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
 import { Combiner } from "./combiner"
 import type { LauncherControl } from "./commands"
 import { get } from "./config"
-import { treeRoot } from "@common/path/tree-root"
 import {
   EMOJI_ROW_PITCH,
   emojiBeginPick,

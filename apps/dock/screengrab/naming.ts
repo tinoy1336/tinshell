@@ -24,7 +24,7 @@ export function renderCapturePath(dir: string, template: string, ext: string): s
 
   if (!hasTokens) {
     // Fixed filename → every capture overwrites the previous one.
-    return `${base}/${stem}${stem.toLowerCase().endsWith("." + ext) ? "" : "." + ext}`
+    return `${base}/${stem}${stem.toLowerCase().endsWith(`.${ext}`) ? "" : `.${ext}`}`
   }
 
   const name = (n: number) => (n === 0 ? `${stem}.${ext}` : `${stem}-${n}.${ext}`)

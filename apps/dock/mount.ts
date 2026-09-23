@@ -45,7 +45,7 @@ window.dock-pill .dock-overlay-pill { min-width: ${isz}px; min-height: ${isz}px;
 `
 }
 
-export const dockCss = theme + "\n" + style + "\n" + dynamicCss()
+export const dockCss = `${theme}\n${style}\n${dynamicCss()}`
 
 /** Dock: menu pre-create + per-monitor dock + corner-cancel + the applets
  *  backend. */

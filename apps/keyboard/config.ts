@@ -15,7 +15,9 @@
 import { type ConfigFacade, createConfigFacade } from "@common/config/facade"
 import { appConfigPath, appSchemaDir, createConfigStore } from "@common/config/loader"
 
-const keyboard = createConfigFacade(createConfigStore(appSchemaDir("keyboard"), appConfigPath("keyboard")))
+const keyboard = createConfigFacade(
+  createConfigStore(appSchemaDir("keyboard"), appConfigPath("keyboard")),
+)
 
 /** The facade (onConfigChanged fires only on keyboard changes). */
 export const store: ConfigFacade = keyboard

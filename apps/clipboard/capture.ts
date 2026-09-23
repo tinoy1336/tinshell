@@ -221,10 +221,11 @@ function probeImage(): void {
 
 /** Read stdout lines from the watcher — one line per selection change. */
 function pump(): void {
-  if (!watchStream) return
-  watchStream.read_line_async(GLib.PRIORITY_DEFAULT, null, (_s: unknown, res: any) => {
+  const stream = watchStream
+  if (!stream) return
+  stream.read_line_async(GLib.PRIORITY_DEFAULT, null, (_s: unknown, res: any) => {
     try {
-      const [line] = watchStream!.read_line_finish(res)
+      const [line] = stream.read_line_finish(res)
       if (line) {
         void handleProbe()
         pump()

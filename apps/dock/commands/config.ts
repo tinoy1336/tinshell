@@ -34,8 +34,8 @@ type Respond = (response: string) => void
 async function handleReload(_args: string[], res: Respond): Promise<void> {
   const { ok, error, warnings } = await dock.reload()
   if (!ok) {
-    const detail = warnings.length ? " — " + warnings.join("; ") : ""
-    res("error: " + (error ?? "reload failed") + detail)
+    const detail = warnings.length ? ` — ${warnings.join("; ")}` : ""
+    res(`error: ${error ?? "reload failed"}${detail}`)
     return
   }
   geo("config", { event: "reload", position: (config as any).layout?.position ?? "?" })
@@ -51,7 +51,7 @@ function handleGet(args: string[], res: Respond): void {
   }
   const v = dock.get(path)
   if (v === undefined) {
-    res("error: unknown path: " + path)
+    res(`error: unknown path: ${path}`)
     return
   }
   res(JSON.stringify(v))
@@ -79,7 +79,7 @@ function handleUpdate(args: string[], res: Respond): void {
   try {
     obj = JSON.parse(raw)
   } catch (e) {
-    res("error: malformed JSON: " + e)
+    res(`error: malformed JSON: ${e}`)
     return
   }
   if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
@@ -110,14 +110,14 @@ function runBatch(pairs: { path: string; value: any }[], res: Respond): void {
 async function commitBatch(pairs: { path: string; value: any }[]): Promise<string> {
   // 1. Validate every pair against the schema before touching anything.
   const { ok, errors } = dock.validateBatch(pairs)
-  if (!ok) return "error: " + errors.join("; ")
+  if (!ok) return `error: ${errors.join("; ")}`
 
   // 2. Clone live config, apply each pair (the clone is the commit target; the
   //    live tree mutates only after the write, step 4).
   const clone = safeClone(config)
   for (const { path, value } of pairs) {
     if (!setDottedPath(clone, path, safeClone(value))) {
-      return "error: cannot set " + path
+      return `error: cannot set ${path}`
     }
   }
 
@@ -137,5 +137,5 @@ async function commitBatch(pairs: { path: string; value: any }[]): Promise<strin
     rebuildDocks()
   } else if (tiers.includes("live")) redrawAllDocks()
   const note = tiers.includes("restart") ? " (poll intervals take effect on restart)" : ""
-  return "ok" + note
+  return `ok${note}`
 }

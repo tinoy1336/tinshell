@@ -6,6 +6,7 @@
     "includes": [
       "**",
       "!**/@girs",
+      "!**/shim-types",
       "!**/apps/*/config.json",
       "!**/node_modules",
       "!**/.pi-subagents",

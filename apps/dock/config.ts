@@ -23,7 +23,9 @@ import { createConfigFacade } from "@common/config/facade"
 import { appConfigPath, appSchemaDir, createConfigStore } from "@common/config/loader"
 import type { Config } from "./config.schema.ts"
 
-export const dock = createConfigFacade(createConfigStore(appSchemaDir("dock"), appConfigPath("dock")))
+export const dock = createConfigFacade(
+  createConfigStore(appSchemaDir("dock"), appConfigPath("dock")),
+)
 
 // ── Live config object (typed view of the dock subtree mirror) ──
 

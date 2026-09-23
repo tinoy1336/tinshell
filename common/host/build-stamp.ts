@@ -93,7 +93,9 @@ export function buildStampLines(): string[] {
     `built: ${localTime(stamp.builtAt)}`,
   ]
   const store = GLib.getenv("TINSHELL_BUILD_STORE")
-  lines.push(store ? `store: ${store}` : "store: unknown — this bundle carries no TINSHELL_BUILD_STORE")
+  lines.push(
+    store ? `store: ${store}` : "store: unknown — this bundle carries no TINSHELL_BUILD_STORE",
+  )
   const disk = onDiskStamp(stamp.artifact)
   if (disk.state === "no-store") lines.push("on-disk: unknown (this bundle names no store)")
   else if (disk.state === "unreadable")

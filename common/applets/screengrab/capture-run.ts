@@ -10,14 +10,13 @@
  * here, in the process that owns the notification daemon.
  */
 
-import GLib from "gi://GLib"
 import { notifyWithAction } from "@apps/notifications/Notifd"
 import type { AppletBackend, CaptureMode } from "@common/applets/backend"
 import type { AppletConfig } from "@common/applets/config"
 import { copyImageFile } from "@common/clipboard"
+import { treeRoot } from "@common/path/tree-root"
 import { shq } from "@common/subprocess/quote"
 import { runCb, spawnDetached } from "@common/subprocess/run"
-import { treeRoot } from "@common/path/tree-root"
 
 function notify(config: AppletConfig, title: string, body: string): void {
   if (!config.screengrab.notify) return

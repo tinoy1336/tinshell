@@ -18,7 +18,7 @@ import { buildClipboardCss } from "./style"
 import style from "./style.css"
 import { backfillThumbs } from "./thumbs"
 
-export const clipboardCss = theme + "\n" + style + "\n" + buildClipboardCss()
+export const clipboardCss = `${theme}\n${style}\n${buildClipboardCss()}`
 
 /** Clipboard: resident capture loop (config-gated) + picker popup. */
 export function clipboardMount(): void {

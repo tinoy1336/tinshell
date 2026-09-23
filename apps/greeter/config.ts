@@ -3,17 +3,17 @@
  *
  * The greeter's own store is bound to the DEPLOYED config dir
  * (/etc/greetd/tinshell-greeter), NOT the user config dir: the greeter runs as the
- * `greeter` user pre-login and cannot read tinoy's home. install.sh ships
+ * `greeter` user pre-login and cannot read the session user's home. install.sh ships
  * config.defaults.json / config.schema.json / config.json there (read-only for
  * the greeter — the login screen never writes config). Preview mode
- * (TINSHELL_GREETER_PREVIEW=1, run as tinoy in the live session) reads the same
+ * (TINSHELL_GREETER_PREVIEW=1, run as the session user) reads the same
  * path — before the first deploy the file is absent and the loader falls back
  * to defaults.
  *
  * `dockConfigView()` — the SAME store machinery, over the DOCK's config: the
  * applet strip mounts the shared renderer with the dock's appearance/geometry,
  * and the dock's config module is the one owner of those values. The greeter
- * user cannot read tinoy's home, so the view resolves the dock config dir:
+ * user cannot read the session user's home, so the view resolves the dock config dir:
  *
  *   1. the dock's own config dir (dev/preview/lock — the LIVE dock config, the
  *      exact values the dock paints; also what `tinshell-mode` dev work reads);
@@ -30,7 +30,12 @@
 import GLib from "gi://GLib"
 import type { AppletConfig, AppletConfigSource } from "@common/applets/config"
 import { type ConfigFacade, createConfigFacade } from "@common/config/facade"
-import { appConfigPath, appSchemaDir, type ConfigStore, createConfigStore } from "@common/config/loader"
+import {
+  appConfigPath,
+  appSchemaDir,
+  type ConfigStore,
+  createConfigStore,
+} from "@common/config/loader"
 import { log } from "@common/log/logger"
 
 const DIR = "/etc/greetd/tinshell-greeter"

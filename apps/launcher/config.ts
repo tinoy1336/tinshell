@@ -11,7 +11,9 @@
 import { createConfigFacade } from "@common/config/facade"
 import { appConfigPath, appSchemaDir, createConfigStore } from "@common/config/loader"
 
-const launcher = createConfigFacade(createConfigStore(appSchemaDir("launcher"), appConfigPath("launcher")))
+const launcher = createConfigFacade(
+  createConfigStore(appSchemaDir("launcher"), appConfigPath("launcher")),
+)
 
 /** Read a value by dotted path, e.g. get("calc.debounceMs", 150). */
 export function get<T = any>(path: string, fallback?: T): T {

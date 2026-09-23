@@ -12,7 +12,9 @@
 import { createConfigFacade } from "@common/config/facade"
 import { appConfigPath, appSchemaDir, createConfigStore } from "@common/config/loader"
 
-const clipboard = createConfigFacade(createConfigStore(appSchemaDir("clipboard"), appConfigPath("clipboard")))
+const clipboard = createConfigFacade(
+  createConfigStore(appSchemaDir("clipboard"), appConfigPath("clipboard")),
+)
 
 /** The live clipboard config (stable mirror; read directly). */
 export const config = clipboard.config

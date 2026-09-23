@@ -213,7 +213,8 @@ function errorRowReport(win: any, maxRows: number): string {
 
 app.start({
   main() {
-    const config = createConfigStore(appSchemaDir("dock"), appConfigPath("dock")).config as unknown as AppletConfig
+    const config = createConfigStore(appSchemaDir("dock"), appConfigPath("dock"))
+      .config as unknown as AppletConfig
     const monitor = app.get_monitors()[0]
     if (!monitor) {
       say("no monitor — aborting")
