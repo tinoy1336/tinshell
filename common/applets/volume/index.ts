@@ -196,7 +196,7 @@ export default function mount({ port, config, backend }: AppletContext): void {
     setupSubscriptions: ({ sync }) => {
       // The domain publishes a sink change (a drag, a media key, a sink swap)
       // with the value already resolved, so the applet takes the full-sync path
-      // on every state change — the same path an external change used to take.
+      // on every state change — the same path an external change takes.
       onCleanup(sink.subscribe(() => sync()))
     },
     buildPanel: ({ setDragActive, setPanelOh }) =>

@@ -41,9 +41,9 @@ list, per file — what lets a verdict NAME what moved), `payloadSha256`,
 `run.sh`'s cache-hit test IS the gate's own question — `bundle_stamp_verify`
 over the recorded fingerprint and the payload's sha256. It keeps no second
 fingerprint file: two recorded copies of one fact can disagree, and a build
-interrupted between writing the payload and writing the sidecar used to leave
-an artifact the cache served as current while `npm run check:builds` called it
-stale, with no rebuild ever clearing it. Tests, checks and the cache therefore
+interrupted between writing the payload and writing the sidecar must not leave
+an artifact the cache serves as current while `npm run check:builds` calls it
+stale, with no rebuild clearing it. Tests, checks and the cache therefore
 answer one question with one implementation.
 
 ONE INSTANT: a build captures its input list once (`bundle_inputs_capture`)

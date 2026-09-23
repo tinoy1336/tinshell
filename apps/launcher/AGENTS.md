@@ -579,9 +579,8 @@ The clipboard picker has NO bang: it stays reachable through its own keybind
 (`common/shell/tinshell-route.sh clipboard toggle`, map row `clipboard=shell,clipboard`),
 which is what the retired `!clip` bang spawned. Removing the bang therefore
 changed three tokens and nothing else: `!c` is still the Chromium search (exact
-spelling), while `!cl` and `!cli` — which used to resolve to `!clip` through the
-prefix rule — now name nothing and show the full hint list, because no bang
-starts with `!cl` any more. `bang-token.probe.ts` asserts that removal, so a
+spelling), while `!cl` and `!cli` name nothing and show the full hint list,
+because no bang starts with `!cl`. `bang-token.probe.ts` asserts that removal, so a
 future catalogue edit cannot resurrect the token by accident; adding a bang that
 starts with `!cl` would deliberately have to revisit it.
 
