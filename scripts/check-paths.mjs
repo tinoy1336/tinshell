@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process"
 // check-paths — the portability gate: no tracked file may name where this
 // checkout happens to live.
 //
-//   node scripts/check-paths.mjs [--allow-owner-home=<user>] [--quiet]
+//   node scripts/check-paths.mjs [--allow-owner-home=<user>] [--allow-file=<path>] [--quiet]
 //
 // The reader's own runtime environment is not a hit: the home directory (`~`,
 // `$HOME`, the `__HOME__` install-time token), the XDG directories, a tool's
@@ -21,14 +21,15 @@ import { execFileSync } from "node:child_process"
 //   D3 runtime-id         /run/user/<uid>, uid[-_]<digits>
 //   D4 foreign-uid-home   /home/<digits>/…
 //
-// Accepted exceptions live in `.portability-allow.txt`, one per line, with the
-// reason written on the same line so an accepted reference is justified in the
-// diff that adds it:
+// Accepted exceptions live in `.portability-allow.txt` at the repository root,
+// one per line, with the reason written on the same line so an accepted
+// reference is justified in the diff that adds it:
 //
 //   <path>:<line>|<detector>|<reason>
 //
-// An entry that matches nothing is reported as stale — the reference it excused
-// has moved or gone.
+// `--allow-file=<path>` reads that record from somewhere else, for a repository
+// whose root is not the place to keep it. An entry that matches nothing is
+// reported as stale — the reference it excused has moved or gone.
 //
 // Exit 1 on any unaccepted hit, 0 clean.
 import { existsSync, readFileSync } from "node:fs"
@@ -36,6 +37,8 @@ import { existsSync, readFileSync } from "node:fs"
 const args = process.argv.slice(2)
 const ownerHome =
   (args.find((a) => a.startsWith("--allow-owner-home=")) || "").split("=")[1] || null
+const allowFile =
+  (args.find((a) => a.startsWith("--allow-file=")) || "").split("=")[1] || ".portability-allow.txt"
 const quiet = args.includes("--quiet")
 
 const CHECKOUT = "dev|src|code|projects|git|repos|checkout|workspace"
@@ -50,7 +53,7 @@ const DETECTORS = [
   ["D3", "runtime-id", /uid[-_]?\d{3,}/],
 ]
 
-const ALLOW_FILE = ".portability-allow.txt"
+const ALLOW_FILE = allowFile
 
 /** `path:line|detector|reason` — the reason is required. */
 function readAllowlist() {
