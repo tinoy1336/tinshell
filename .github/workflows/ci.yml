@@ -1,0 +1,78 @@
+# The checks a stock GitHub runner can genuinely run.
+#
+# WHAT IS NOT HERE, AND WHY. The build, the typecheck and the bundle freshness
+# gate resolve the `ags` toolchain and the typings generated from it:
+#
+#   - `@girs/` comes from `ags types` (the AUR package `aylurs-gtk-shell`);
+#   - `shim-types/` comes from `npm run gen-shim-types`, which type-resolves the
+#     installed ags/gnim shims under /usr/share/ags/js;
+#   - every bundle is built by `ags bundle` (common/shell/run.sh);
+#   - `npm run check:builds` re-derives each artifact's fingerprint, so it can
+#     only answer for artifacts that were built on this machine.
+#
+# None of that exists on a stock ubuntu runner, so a job pretending to build or
+# typecheck here would be a green badge over nothing. The route to a build job is
+# an Arch container (archlinux:base-devel) that installs the AUR package and runs
+# `./setup.sh`; that is a much heavier job than this repo's checks justify today.
+# Until then the build is verified where it can be: on the machine it targets,
+# with `npm run check` and `npm run check:builds`.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      # No ags, no typings needed: biome and the schema generator are plain Node.
+      - run: npm ci
+      - name: Lint and format
+        run: npx biome check .
+      - name: Config schemas match their sources
+        run: npm run check:schemas
+
+  # The style tier (SC2015, SC2016, SC2034 …) is not enforced: the tree carries
+  # a set of notes and warnings under it that nobody has been through yet. The
+  # error tier is enforced, and it is the tier that catches a script that cannot
+  # run at all.
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: shellcheck (errors)
+        run: git ls-files -z '*.sh' | xargs -0 shellcheck --severity=error --format=gcc
+
+  # Two scans, because they answer different questions. The history scan proves
+  # what is already committed (and the whole history becomes public at once);
+  # the tree scan sees the checkout as a reader would, so a leak is named by CI
+  # before it is named by whoever reads the diff.
+  secrets:
+    name: secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The history scan reads every commit.
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz
+          tar xzf gitleaks.tar.gz gitleaks
+      - name: Scan the git history
+        run: ./gitleaks detect --source . --redact --no-banner --exit-code 1
+      - name: Scan the checked-out tree
+        run: ./gitleaks dir . --redact --no-banner --exit-code 1
