@@ -228,7 +228,7 @@ check("split !code token", splitBang("!code ~/shot.png").bang, "!code")
 check("split bare token", splitBang("!p").query, "")
 check("split collapses extra spaces", splitBang("!code  ~/x").query, "~/x")
 
-// ── the reported defect, at the parse level ──
+// ── the defect this case covers, at the parse level ──
 {
   const { bang, query } = splitBang("!co ~/some/file".trimStart())
   check("!co ~/some/file resolves to !code", resolveBang(bang), "!code")

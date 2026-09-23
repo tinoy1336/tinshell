@@ -572,7 +572,7 @@ function scores(titleWords: string[], queryWords: string[]): boolean {
 }
 
 /** How much of a title or a query has to be matched by the other side for a
- *  search hit to count as the page the user asked for. */
+ *  search hit to count as the page named. */
 const TITLE_MATCH_THRESHOLD = 0.5
 
 /** Words a title's or a query's words are compared on: case-folded, split on

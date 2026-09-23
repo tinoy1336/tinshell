@@ -4,9 +4,9 @@
 #
 # WHY: the shipped artifacts are snapshots — the universal bundle the shell
 # warms, the per-app caches the boot fleet falls back on, the greeter login
-# bundle and the in-session lock bundle. Each one used to be built by whatever
-# happened to need it, so an artifact could silently predate the sources it
-# runs. This builds all of them through the ONE bundler
+# bundle and the in-session lock bundle. Each one is built by the ONE build path
+# below, so an artifact cannot silently predate the sources it runs. This builds
+# all of them through the ONE bundler
 # (common/shell/run.sh / apps/greeter/build*.sh — the same esbuild invocation,
 # the same bundle guard, the same stamp), and every artifact that is already
 # built from the current sources is a cheap no-op: nothing is re-emitted unless

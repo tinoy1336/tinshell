@@ -103,7 +103,7 @@ export function greeterPalette(): GreeterPalette {
  * off-white (menu.text — the clock/entry text family) instead of the suite's blue
  * `menu.accent`. Only the field rules read this; every OTHER accent consumer keeps
  * the token (the session buttons' selected edge, the shared glow alpha, the
- * shared glyph modules). The user wants the input fields to read as one piece with
+ * shared glyph modules). The input fields deliberately read as one piece with
  * the clock and the entry text, not to carry a second hue — change it here, not by
  * editing `menu.accent` (which would leak into everything else reading the
  * palette) and not as a hex in style.css.

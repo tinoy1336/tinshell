@@ -11,10 +11,10 @@
  *
  * THE INSTALLED INDEX IS MEASURED BY THE SAME HARNESS: with
  * `LOCAL_INDEX_PROBE_REAL=<dir>` pointing at a real index directory (e.g. the
- * shipped `~/.local/share/tinshell/local-index/wordnet-3.0`), phase 6 repeats the
- * reuse, latency, resident and refusal measurements against THAT artifact, at
- * its own key count, sampling its own keys — plus the real manifest's
- * `formatVersion` / `keyRule` / `payloadEncoding` refusals.
+ * shipped `~/.local/share/tinshell/local-index/wordnet-3.0`), the latency phase
+ * repeats the reuse, latency, resident and refusal measurements against THAT
+ * artifact, at its own key count, sampling its own keys — plus the real
+ * manifest's `formatVersion` / `keyRule` / `payloadEncoding` refusals.
  *
  * WHY THIS PROBE IS `.mjs` RATHER THAN `.ts`: the root typecheck program
  * (apps/** + common/**) deliberately carries NO Node types — `scripts/tsconfig.json`

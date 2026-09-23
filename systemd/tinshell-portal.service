@@ -4,10 +4,9 @@
 # complete that activation when the frontend starts concurrently with the
 # unit (25s GDBus timeout — boot-deadlock). Resident = the name
 # is always owned before the frontend probes → probe returns instantly.
-# D-Bus re-activation used to be possible through a session-bus activation
-# file for the impl name; that file is gone on purpose. It fired whenever the
-# name was momentarily unowned — which is also the state at login while the
-# shell is still starting — and the second claimant it created made
+# A session-bus activation file for the impl name is refused ON PURPOSE: it fired
+# whenever the name was momentarily unowned — which is also the state at login
+# while the shell is still starting — and the second claimant it created makes
 # dbus-broker abandon the frontend's StartServiceByName reply, stalling the
 # session for the full 25s D-Bus timeout. One possible owner, no race.
 #

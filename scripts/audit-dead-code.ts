@@ -76,7 +76,7 @@
  *     every app's config trio is written as `apps/<app>/config.defaults.json`.
  *   - palette-role-drift compares only the keys PALETTE_ROLES names, and only in
  *     apps/<app>/config.defaults.json: that file is the SHIPPED design value,
- *     while a live config.json is the user's own per-app choice and is
+ *     while a live config.json is a per-app choice and is
  *     deliberately not compared. A key absent from an app drops out of its role
  *     silently, and a key that merely shares a NAME with a role but carries
  *     another role is left out of the map on purpose (notes' selectionColour is
@@ -845,7 +845,7 @@ const LITERAL_ALLOWLIST: Array<{ value: string; files: string[]; why: string }> 
   {
     value: "#0a0c11",
     files: ["apps/*/config.defaults.json", "apps/*/config.json"],
-    why: "the panel base role in the per-app config trio; common/media/pane.tsx's own fallback for an unparsable colour is deliberately NOT allowed — the report naming it is the worklist line for a token there",
+    why: "the panel base role in the per-app config trio; common/media/pane.tsx's own fallback for an unparsable colour is deliberately NOT allowed — a hit here is the worklist line for a token there",
   },
   {
     value: "rgba(255, 255, 255, 0.18)",
@@ -968,13 +968,13 @@ for (const [value, sites] of literalSites) {
 }
 
 // ── Palette role drift (one role, several apps' shipped default) ──
-/** The suite palette is per-app DATA: each app owns its config trio, the user
- *  overrides the values, and nothing generates them. What must not drift is the
- *  ROLE — two apps shipping a different value for one role means one of them is
- *  out of step and the surfaces stop matching. Each entry names the role and
+/** The suite palette is per-app DATA: each app owns its config trio, the live
+ *  file overrides the values, and nothing generates them. What must not drift
+ *  is the ROLE — two apps shipping a different value for one role means one of
+ *  them is out of step and the surfaces stop matching. Each entry names the role and
  *  every `<app>:<dotted key path>` that carries it in
  *  `apps/<app>/config.defaults.json` (the SHIPPED default; a live `config.json`
- *  is the user's own per-app choice and is deliberately not compared).
+ *  is a per-app choice and is deliberately not compared).
  *
  *  A key ABSENT from an app drops silently out of its role — renaming a key
  *  therefore removes it from the guard without a word, which is this class's

@@ -90,7 +90,7 @@ export default function Prompt() {
 
   // ── Inline action glyphs (eye / ✗ / ✓) — the dock's hoverGlyph, extracted
   // to common/glyph/hover-glyph. At rest muted; on hover brightens to white
-  // with a soft white radial glow (the user's "glow white" treatment).
+  // with a soft white radial glow (the "glow white" treatment).
   const GLYPH_BOX = 24
   const GLYPH_FS = 13
   const REST: [number, number, number, number] = [0.651, 0.651, 0.651, 1]
@@ -289,7 +289,7 @@ export default function Prompt() {
   }
 
   /** Cache-valid mode: re-probe every 20s; on expiry flip to the password
-   *  UI with a notice (the user asked to be TOLD, not silently re-prompted). */
+   *  UI with a notice (a wrong password is TOLD, never silently re-prompted). */
   function startCacheWatch(): void {
     stopCacheWatch()
     cacheTimer = setTimeout(async () => {
@@ -324,7 +324,7 @@ export default function Prompt() {
     entry.grab_focus()
   }
 
-  /** Lock/unlock ALL interaction during validation (the user's request —
+  /** Lock/unlock ALL interaction during validation (the lock is deliberate —
    *  sudo's wrong-password delay must not allow typing/clicking/Escape in
    *  the meantime). Bounded: the 8s force-exit timeout always releases.
    *  The spinner appears at the end of the glyph row while locked and

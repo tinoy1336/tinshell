@@ -257,7 +257,7 @@ export function createAppletCore(aw: AppletWindow, opts: AppletCoreOpts): Applet
     attachPanelEscape(aw.window) // Escape cancels a held drag (keyboard bail)
     // The PanelHub force-closes the current panel when another applet opens —
     // but a menu-pinned panel (keepOpen, e.g. the wifi/bt pill next to its
-    // GUI) must STAY open: the user wants the on/off/scan steps reachable
+    // GUI) must STAY open so the on/off/scan steps stay reachable
     // while browsing other applets. The hub calls this wrapper; the pin
     // suppresses the close. For continuous applets keepOpen is always absent,
     // so hubClose ≡ doClose.

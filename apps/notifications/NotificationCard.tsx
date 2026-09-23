@@ -6,7 +6,7 @@
  * by hand; Centre rebuilds on state change), so per-card behaviour uses
  * explicit GTK wiring — signals, direct property sets, onClockTick for
  * timestamps — never createState. A replaced notification gets a FRESH card
- * (rebuild by the owner), so nothing here needs to react to field changes.
+ * (rebuilt on replace), so nothing here needs to react to field changes.
  *
  * Material (config appearance.* via the dynamic CSS block): frosted
  * rgba(10,12,17,0.5) card (0.62 critical), radius 18, JetBrainsMono Nerd

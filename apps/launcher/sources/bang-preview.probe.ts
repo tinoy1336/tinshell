@@ -66,7 +66,7 @@ const DDG_EMPTY =
 /**
  * `GET https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=de&dt=t&q=hello%20world`
  * — the shape the endpoint is documented to return. NO LIVE FIXTURE: every
- * measurement attempt in this lane answered HTTP 429 with the endpoint's HTML
+ * measurement attempt against this endpoint answered HTTP 429 with its HTML
  * abuse page, so the parser is written defensively against that uncertainty.
  */
 const GTX = '[[["Hallo Welt","hello world",null,null,3,null,null,[[]]]],null,"en"]'
@@ -443,8 +443,8 @@ check("a package version is cached for an hour", previewTtlMs("archpackage"), 60
 
 // ── a transient failure is NOT an answer, so it is never cached ──
 // The defect this pins: one network spike (a timeout, a socket error, a 5xx, a
-// 429, a body that did not parse) used to be cached like a 404, so the preview
-// stayed hidden for that query for a whole minute.
+// 429, a body that did not parse) must not be cached like a 404, or the preview
+// stays hidden for that query for a whole minute.
 check("a timeout is transient", classifyStatus(0), "transient")
 check("a 404 is definitive", classifyStatus(404), "definitive")
 check("a 410 is definitive", classifyStatus(410), "definitive")

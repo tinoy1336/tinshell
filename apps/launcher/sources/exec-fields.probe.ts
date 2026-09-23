@@ -21,7 +21,7 @@ function check(name: string, actual: unknown, expected: unknown): void {
 const eq = (name: string, argv: string[], fields: ExecFields, expected: string[]): void =>
   check(name, JSON.stringify(expandExec(argv, fields)), JSON.stringify(expected))
 
-// ── the reported defect: a file placeholder gets the launch's file ──
+// ── the defect this case covers: a file placeholder gets the launch's file ──
 eq("%f takes the file", ["/e.sh", "%f"], one(["/tmp/shot.png"]), ["/e.sh", "/tmp/shot.png"])
 eq("%f keeps a path with spaces one argument", ["/e.sh", "%f"], one(["/tmp/a b.png"]), [
   "/e.sh",

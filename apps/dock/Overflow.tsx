@@ -257,8 +257,8 @@ const CLOCK_GEOM = {
   minute: { r1: 10 / 18, r2: 16 / 18, t: 2 / 18 },
   second: { r1: 10.2 / 18, r2: 16.5 / 18, t: 1.275 / 18 },
   /** Rim tick marks (12, every 5 minutes): short radial lines (the clean mode
-   *  keeps dots, drawRimDots). Width-matched to the second hand (t 1.275/18)
-   *  per the user's request; geometric length 1.5/18 so that WITH the round
+   *  keeps dots, drawRimDots). Width-matched to the second hand (t 1.275/18);
+   *  geometric length 1.5/18 so that WITH the round
    *  caps
    *  (+t/2 each end) the visual bar is ~2.8/18 — 2.2x its width: reads as a
    *  short LINE, still hugging the rim instead of radiating inward like a
@@ -499,7 +499,7 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
     const rc = config.appearance.recordingColour
     // As the clock fades in, the caret glyph cross-fades into the centre
     // dot (which keeps the glyph's screen-space shadow — the morph preserves
-    // depth). The morph runs even while recording — the user wants ONE
+    // depth). The morph runs even while recording so the readout shows ONE
     // blinking-red element, never caret+dot together.
     const clockOn = config.appearance.clock.enabled && clockFade > 0.001
     const caretFade = clockOn ? 1 - clockFade : 1

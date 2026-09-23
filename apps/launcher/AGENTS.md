@@ -213,7 +213,7 @@ Enter copies the value). The rows join the implicit-calc gate
 shape and never also reaches qalc. Deliberately excluded from it: bare numbers
 (qalc and the unit table own them), bare cron expressions (`looksLikeMath`
 sends them to qalc) and base64-looking words (no safe test) — those stay bangs
-(`!epoch`, `!cron`, `!b64d`), where the user asked.
+(`!epoch`, `!cron`, `!b64d`), where they belong.
 
 The percent-of shape gets its answer from qalc, but not from the text as typed:
 qalc reads `%` as a remainder operator, so `15% of 200` parses as
@@ -655,7 +655,7 @@ SKIPPED, and the scan takes the next hit that has both: `generator=search` +
 `exintro` returned an extract for every mainspace hit measured across the query
 matrix, and the whole ranked list is scanned, so the loss window is "no hit at
 all has an extract" rather than "the top hit does not". No second request is
-staged for it — a re-fetch would add a request for a case the measurements never
+staged for it — a re-fetch would add a request for a case the probe never
 produced.
 
 `!pac` names both versions because the repository and the local pacman database
@@ -715,11 +715,11 @@ TRANSIENT and cached for nothing (the next keystroke retries); only an answer or
 a definite negative (404/410, or a payload that names nothing) is cached.
 
 **`!tr` depends on an UNOFFICIAL endpoint.** `translate.googleapis.com/…/client=gtx`
-is undocumented, unversioned and rate-limited: every measurement attempt in this
-lane answered HTTP 429 with the endpoint's HTML abuse page, so the parser is
-written against the documented shape and checks every step of it — a body that is
-not `[[[translated, …], …], …]` answers nothing, which keeps the bang's plain row
-and caches nothing. The bang's own row keeps its target (the Google Translate
+is undocumented, unversioned and rate-limited: every measurement attempt against
+this endpoint answered HTTP 429 with the endpoint's HTML abuse page, so the
+parser is written against the documented shape and checks every step of it — a
+body that is not `[[[translated, …], …], …]` answers nothing, which keeps the
+bang's plain row and caches nothing. The bang's own row keeps its target (the Google Translate
 page), so Enter is unaffected by the preview failing.
 
 **`!yt` SCRAPES the results page rather than adding a dependency.** `yt-dlp` is

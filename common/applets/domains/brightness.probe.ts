@@ -4,10 +4,10 @@
  *
  * Why it matters: the clock's transient dial measures the user's brightness
  * adjustments against the FIRST reading its lane adopts. A machine sitting at
- * 100 % (a laptop on AC) used to publish nothing at all — its first read landed
- * on the placeholder value and was dropped as "no change" — so the lane took no
- * baseline and adopted the user's first adjustment AS that baseline, never
- * painting it. The other side of the same rule: a process with no backlight
+ * 100 % (a laptop on AC) must still publish that reading: a first read that
+ * lands on the placeholder value is dropped as "no change", which takes no
+ * baseline, so the lane adopts the user's first adjustment AS that baseline and
+ * never paints it. The other side of the same rule: a process with no backlight
  * device answers 100 % without a reading, and that placeholder must never be
  * published, so a published value keeps meaning "a device was read" — the
  * distinction the volume domain draws with `available`.

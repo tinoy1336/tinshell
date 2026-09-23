@@ -486,14 +486,14 @@ function unclamped(): void {
   check(gotW > box.w, `the unclamped harness was expected to pad its box, got ${gotW}x${gotH}`)
 }
 
-/** The case the report came from, spelled out: a full-screen screenshot of
+/** The measured case, spelled out: a full-screen screenshot of
  *  THIS output, first at fit in the app's default window, then at 100%. */
 function surprise(scale: number): void {
   const img = IMAGES[0]
   const fit = fitShot(img, SMALL, scale)
   const oneOne = numericShot(1, img, scale)
   const viewW = SMALL.w * scale
-  console.log(`\n── the reported case (2880x1800 shot in the 670x380 window, scale ${scale}) ──`)
+  console.log(`\n── the measured case (2880x1800 shot in the 670x380 window, scale ${scale}) ──`)
   console.log(`  fit   : ${fit.label} — the whole image at ${(fit.scale * 100).toFixed(1)}%`)
   console.log(
     `  100%  : ${oneOne.label} — ${Math.round(oneOne.drawnW)}x${Math.round(oneOne.drawnH)} screen px, so the window shows ${((viewW / oneOne.drawnW) * 100).toFixed(1)}% of the image width (${(oneOne.scale / fit.scale).toFixed(1)}x the fit scale)`,
