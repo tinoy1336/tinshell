@@ -13,7 +13,7 @@
  *
  * `MIRRORED_DEFAULTS` is the ONE place the greeter carries suite numbers: the
  * fallback for a deployment where the dock config is not readable (the pre-login
- * `greeter` user — the dock trio under /etc/greetd/ags-greeter/dock is a root
+ * `greeter` user — the dock trio under /etc/greetd/tinshell-greeter/dock is a root
  * copy, install.sh's manual step). The values reproduce
  * apps/dock/config.defaults.json (`appearance.menu`, `appearance.textShadow`)
  * verbatim; re-mirror them if that palette changes.

@@ -386,7 +386,7 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   shell restart mid-discharge neither repeats it nor swallows the next crossing.
   The armed flag is durable (`~/.local/state/tinshell/apps/battery/state.json`, key
   `lowBatteryWarned`, the applet's own store; the charge cap stays machine-level
-  in `/var/lib/ags/charge-cap`). A charging battery never warns and charging does
+  in `/var/lib/tinshell/charge-cap`). A charging battery never warns and charging does
   not consume the latch, so unplugging below the threshold still warns, and a
   config without the key warns not at all rather than inventing a level.
   Delivery is in-process through the notifications app's own send
@@ -420,7 +420,7 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
 The dock is the user session's applet OS-call backend: `dockMount()` calls
 `mountAppletsBackend()` (`common/applets/host/mount.ts`), which registers one
 handler per domain under the `applets` request namespace, binds the
-shared-group unix socket `/run/ags/applets.sock` for the pre-login greeter, arms
+shared-group unix socket `/run/tinshell/applets.sock` for the pre-login greeter, arms
 the machine-wide tablet watchdog and re-applies the persisted sleep inhibit
 (`restoreInhibitState`). The namespace therefore lives in whichever instance
 hosts the dock (the shell in production), with no route-map entry and no
@@ -484,7 +484,7 @@ DisplayDevice PropertiesChanged is a payload-less ping every 30s (4 events /
 The charge cap is MACHINE state, not applet state: the dock's applets backend
 and the greeter's strip bind the SAME `chargeThresholdStore`
 (common/applets/domains/battery.ts), and that store OBSERVES
-`/var/lib/ags/charge-cap` (`Gio.FileMonitor`) — a cap set on the lock screen
+`/var/lib/tinshell/charge-cap` (`Gio.FileMonitor`) — a cap set on the lock screen
 reaches the session host instead of being displayed, and healed against, as a
 stale value. `set()` stays authoritative in the writing process: a monitor
 event that arrives while its own write is in flight is ignored.

@@ -508,12 +508,12 @@ fi
 # set before login UNRECORDABLE — the session's drift-heal then re-applied its
 # own stale value over it. World-readable so every account can read it; written
 # through the scoped sudo rules below (never a writable-by-all file).
-CAP_FILE="/var/lib/ags/charge-cap"
+CAP_FILE="/var/lib/tinshell/charge-cap"
 LEGACY_CAP="$HOME_DIR/.local/state/tinshell/apps/battery/state.json"
 if [ -f "$CAP_FILE" ]; then
   skip "charge-cap intent file"
 else
-  sudo install -d -m 755 /var/lib/ags
+  sudo install -d -m 755 /var/lib/tinshell
   if [ -f "$LEGACY_CAP" ]; then
     sudo install -Dm644 "$LEGACY_CAP" "$CAP_FILE" && done_ "seeded $CAP_FILE from the per-user store"
   else
@@ -531,14 +531,14 @@ fi
 # LINE appended to its sudoers.d file (deploy_config_line) and the MERGED file
 # is validated with visudo BEFORE install — a broken file in sudoers.d locks
 # out sudo entirely, so a file that already exists is never replaced unvalidated.
-CAP_TEE='/usr/bin/tee /sys/class/power_supply/BAT0/charge_control_end_threshold, /usr/bin/tee /var/lib/ags/charge-cap'
+CAP_TEE='/usr/bin/tee /sys/class/power_supply/BAT0/charge_control_end_threshold, /usr/bin/tee /var/lib/tinshell/charge-cap'
 if ! deploy_config_line /etc/sudoers.d/tinshell-battery "$(id -un) ALL=(root) NOPASSWD: $CAP_TEE" "charge-cap" 440 visudo -c -f; then
   err "the charge-cap sudoers rule for $(id -un) is NOT installed — the session cannot write the battery cap"
 fi
 if id greeter >/dev/null 2>&1; then
   # Same merge-and-validate path for the greeter user's rule (the login screen
   # needs it before any session exists).
-  if ! deploy_config_line /etc/sudoers.d/50-ags-greeter-battery "greeter ALL=(root) NOPASSWD: $CAP_TEE" "charge-cap" 440 visudo -c -f; then
+  if ! deploy_config_line /etc/sudoers.d/50-tinshell-greeter-battery "greeter ALL=(root) NOPASSWD: $CAP_TEE" "charge-cap" 440 visudo -c -f; then
     err "the charge-cap sudoers rule for greeter is NOT installed — the login screen cannot write the battery cap"
   fi
 else
@@ -552,11 +552,11 @@ fi
 # instead of from the state's start. World-readable so every account reads it;
 # only the SESSION user gets the write rule below, because the session host is
 # the one that records the start.
-STAMP_FILE="/var/lib/ags/plugged-since"
+STAMP_FILE="/var/lib/tinshell/plugged-since"
 if [ -f "$STAMP_FILE" ]; then
   skip "plugged-since stamp file"
 else
-  sudo install -d -m 755 /var/lib/ags
+  sudo install -d -m 755 /var/lib/tinshell
   # Seed the count already running in the per-user store, so the move does not
   # restart a live counter at 0s. The low-battery latch beside it stays per-user.
   LEGACY_SINCE=""
@@ -578,7 +578,7 @@ fi
 # line per account under its own marker (a marker is what makes a re-run a
 # no-op, so the cap's line is never rebuilt). NO greeter rule exists on purpose:
 # the login screen only READS the stamp.
-STAMP_TEE='/usr/bin/tee /var/lib/ags/plugged-since'
+STAMP_TEE='/usr/bin/tee /var/lib/tinshell/plugged-since'
 if ! deploy_config_line /etc/sudoers.d/tinshell-battery "$(id -un) ALL=(root) NOPASSWD: $STAMP_TEE" "plugged-since" 440 visudo -c -f; then
   err "the plugged-since sudoers rule for $(id -un) is NOT installed — the session cannot record when the pack became idle"
 fi
@@ -640,8 +640,8 @@ else
   done_ "greeter lock bundle built"
 fi
 
-if [ -f /etc/greetd/ags-greeter.sh ]; then
-  skip "greeter deploy (/etc/greetd/ags-greeter.sh present)"
+if [ -f /etc/greetd/tinshell-greeter.sh ]; then
+  skip "greeter deploy (/etc/greetd/tinshell-greeter.sh present)"
 else
   (cd "$TINSHELL_HOME/apps/greeter" && sudo ./install.sh) || err "greeter install.sh failed"
   done_ "greeter deployed to /etc/greetd/"
@@ -666,7 +666,7 @@ elif [ -f /etc/greetd/greeter.lua ]; then
   # Copy the config ONLY — install.sh re-deploys the BUNDLE, both config
   # schemas, greeter-handoff.sh and PAM on the machine's only login path, all
   # of which a keybind change does not need. (The LIVE
-  # /etc/greetd/ags-greeter/config.json is no longer a reason to avoid it:
+  # /etc/greetd/tinshell-greeter/config.json is no longer a reason to avoid it:
   # since the seed guard it is preserved unless --force.)
   err "/etc/greetd/greeter.lua lacks the XF86MonBrightness binds — copy the config only: install -Dm644 $TINSHELL_HOME/apps/greeter/templates/greeter.lua /etc/greetd/greeter.lua"
 fi
@@ -676,7 +676,7 @@ fi
 # runs before any graphical login; on a live machine do it from a spare TTY.
 if systemctl is-enabled greetd >/dev/null 2>&1 && ! systemctl is-enabled plasmalogin >/dev/null 2>&1; then
   skip "DM switch (greetd enabled, plasmalogin disabled)"
-elif [ -f /etc/greetd/ags-greeter.sh ] && systemctl is-enabled plasmalogin >/dev/null 2>&1; then
+elif [ -f /etc/greetd/tinshell-greeter.sh ] && systemctl is-enabled plasmalogin >/dev/null 2>&1; then
   sudo systemctl enable greetd
   sudo systemctl disable plasmalogin
   done_ "DM switched: greetd enabled, plasmalogin disabled (reboot lands on the TINSHELL greeter)"
@@ -685,7 +685,7 @@ else
 fi
 
 # ─────── 10c. applets socket dir (greeter ↔ session backend transport) ───────
-# The applets backend (hosted by the dock) serves a unix socket in /run/ags so the
+# The applets backend (hosted by the dock) serves a unix socket in /run/tinshell so the
 # PRE-LOGIN greeter
 # (user `greeter`, no session bus, no access to tinoy's home) can read applet
 # data from the live session. Cross-user access is a shared GROUP on a root
@@ -695,7 +695,7 @@ fi
 # and mode-fixed by the backend process (tinoy) — nothing here needs to run per
 # session. Auto-skipped when already configured.
 
-SOCKET_GROUP="ags-greeter"
+SOCKET_GROUP="tinshell-greeter"
 if getent group "$SOCKET_GROUP" >/dev/null; then
   skip "group $SOCKET_GROUP (applets socket)"
 else
@@ -714,8 +714,8 @@ else
   err "user 'greeter' does not exist (greetd missing?) — the socket group has no member"
 fi
 
-TMPFILES_SRC="$TINSHELL_HOME/systemd/tmpfiles.d/ags-applets.conf"
-TMPFILES_DST="/etc/tmpfiles.d/ags-applets.conf"
+TMPFILES_SRC="$TINSHELL_HOME/systemd/tmpfiles.d/tinshell-applets.conf"
+TMPFILES_DST="/etc/tmpfiles.d/tinshell-applets.conf"
 if [ ! -f "$TMPFILES_SRC" ]; then
   err "tmpfiles template missing: $TMPFILES_SRC"
 elif sudo cmp -s "$TMPFILES_SRC" "$TMPFILES_DST"; then
@@ -727,9 +727,9 @@ fi
 
 if [ -f "$TMPFILES_SRC" ]; then
   if sudo systemd-tmpfiles --create "$TMPFILES_DST"; then
-    done_ "/run/ags ready ($(sudo stat -c '%U:%G %a' /run/ags 2>/dev/null))"
+    done_ "/run/tinshell ready ($(sudo stat -c '%U:%G %a' /run/tinshell 2>/dev/null))"
   else
-    err "systemd-tmpfiles could not create /run/ags — the applets socket will not be served"
+    err "systemd-tmpfiles could not create /run/tinshell — the applets socket will not be served"
   fi
 fi
 

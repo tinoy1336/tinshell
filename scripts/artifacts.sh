@@ -22,7 +22,7 @@
 ARTIFACTS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ARTIFACTS_CACHE="$(bundle_store_dir)"
 ARTIFACTS_GREETER="$ARTIFACTS_ROOT/apps/greeter/dist"
-ARTIFACTS_DEPLOY="/etc/greetd/ags-greeter.sh"
+ARTIFACTS_DEPLOY="/etc/greetd/tinshell-greeter.sh"
 
 # The manifest is the single source of truth for the app list (tinshell-host.sh
 # reads the same file for the same reason).

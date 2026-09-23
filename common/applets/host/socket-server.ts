@@ -13,7 +13,7 @@
  * own compositor. It has no session bus to reach the dock's D-Bus instance and
  * cannot read the user's home, so the one transport that crosses that boundary
  * is a shared-group unix socket (created by setup.sh's root section — see
- * systemd/tmpfiles.d/ags-applets.conf).
+ * systemd/tmpfiles.d/tinshell-applets.conf).
  *
  * Traffic policy (a greeter client is a different user: file permissions alone
  * cannot say WHICH member it may call):

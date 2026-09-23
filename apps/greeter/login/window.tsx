@@ -19,7 +19,7 @@ import type { LoginCardHandle } from "./card"
 
 // Greeter (login) wallpaper — synced to this world-readable path by the lock
 // screen (and a logout hook) so the login card sits on the last-used wallpaper.
-export const GREETER_WALLPAPER = "/etc/greetd/ags-greeter/wallpaper.png"
+export const GREETER_WALLPAPER = "/etc/greetd/tinshell-greeter/wallpaper.png"
 
 const FULLSCREEN_ANCHORS =
   Astal.WindowAnchor.TOP |
@@ -102,7 +102,7 @@ export default function GreeterWindow(child: Gtk.Widget, handle: LoginCardHandle
   }
 
   // The login window is TRANSPARENT: the greeter compositor's own wallpaper
-  // layer (awww, /etc/greetd/ags-greeter/wallpaper.png) shows through it, and
+  // layer (awww, /etc/greetd/tinshell-greeter/wallpaper.png) shows through it, and
   // the compositor's blur layer rule for namespace "greeter" frosts the card
   // AND the applet strip. Painting an app-side wallpaper picture here would
   // make the window opaque and kill that frost — the strip would then read as

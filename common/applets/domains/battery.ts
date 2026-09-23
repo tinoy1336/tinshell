@@ -30,7 +30,7 @@ let state: BatteryReactive | null = null
 
 // ── Machine-level stores ──
 
-/** A ONE-key store whose value lives in a MACHINE-level file (`/var/lib/ags/*`).
+/** A ONE-key store whose value lives in a MACHINE-level file (`/var/lib/tinshell/*`).
  *
  *  A value that both the session and the pre-login greeter read belongs to the
  *  MACHINE, not to one user account: the greeter runs as a different user and

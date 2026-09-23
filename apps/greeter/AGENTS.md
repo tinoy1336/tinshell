@@ -47,7 +47,7 @@ acquires a compositor-enforced lock (ext-session-lock-v1 via gi://Gtk4SessionLoc
 and unlocks via PAM (gi://AstalAuth). hyprlock is retired (installed, dormant).
 Both login and lock cards sit on the user's wallpaper (awww daemon): the lock
 reads the live image at lock time; the login reads a synced copy at
-`/etc/greetd/ags-greeter/wallpaper.png`.
+`/etc/greetd/tinshell-greeter/wallpaper.png`.
 
 **Both bundles carry GPU-WAKE PINS, because neither is launched by
 `tinshell-host.sh`.** The shell and every island inherit the env union of
@@ -68,17 +68,17 @@ carries its own copy of the dock trio — so a dock config KEY RENAME must be
 followed by a rebuild + redeploy in the same change:** `build.sh` +
 `build-lock.sh` (new keys inside the bundles), `install.sh` (deploy), and the
 live dock copy refresh the deploy does NOT cover —
-`sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json /etc/greetd/ags-greeter/dock/config.json`.
+`sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json /etc/greetd/tinshell-greeter/dock/config.json`.
 A stale bundle reading a renamed key throws `<key> is undefined` while the strip
 mounts; the lock then logs `[lock] applet strip: … composing without the strip`
 and paints no applets (the card and the wallpaper still map — lock/surface.ts
 composes without the strip rather than dropping the whole backdrop). The lock
 bundle reads the LIVE dock config (`source=` in its `[greeter-dock]` log line,
 the best signal for which copy is in play); the pre-login greeter reads
-`/etc/greetd/ags-greeter/dock`.
+`/etc/greetd/tinshell-greeter/dock`.
 
 **A SHARED-MODULE change reaches the login screen only after a rebuild + a
-redeploy.** `dist/*.sh` and `/etc/greetd/ags-greeter.sh` are SNAPSHOTS of
+redeploy.** `dist/*.sh` and `/etc/greetd/tinshell-greeter.sh` are SNAPSHOTS of
 `common/` + `apps/greeter/` inlined at build time: editing
 `common/glyph/*`, `common/applets/*` or any other inlined module changes
 nothing on the pre-login screen until `build.sh` runs AND
@@ -102,7 +102,7 @@ by `bundle_stamp_record <artifact> <outfile> <stampfile> <captured-file>`), so a
 stale verdict names real inputs. `npm run build:all` builds both
 bundles (plus every other shipped artifact) through the same guarded path, and
 `npm run check:builds` exits non-zero naming this app when `dist/` or the
-deployed `/etc/greetd/ags-greeter.sh` predates the sources — the stale-bundle
+deployed `/etc/greetd/tinshell-greeter.sh` predates the sources — the stale-bundle
 failure this section describes is caught before the lock screen runs it.
 
 ## Greeter dock — REAL dock applets on the SHARED renderer
@@ -136,7 +136,7 @@ another window.
   machinery (schema + defaults + live) and logs the source:
   1. the dock's own config dir (dev/preview/lock: the LIVE dock config — the
      exact values the dock paints);
-  2. `/etc/greetd/ags-greeter/dock` — the deployed copy of the dock config
+  2. `/etc/greetd/tinshell-greeter/dock` — the deployed copy of the dock config
      trio, the pre-login greeter's only route to the live values
      (`install.sh` seeds it; the LIVE `config.json` is a separate root copy —
      see the decision item in the deploy flow).
@@ -167,9 +167,9 @@ another window.
   anything starts it). The applet backend that DOES live in the user session
   (hosted by the dock — `apps/dock/mount.ts` → `mountAppletsBackend`) is reached
   over its shared-group
-  unix socket `/run/ags/applets.sock` (`common/applets/backend-socket-client`
+  unix socket `/run/tinshell/applets.sock` (`common/applets/backend-socket-client`
   client side, `common/applets/host/socket-server` + `common/applets/socket-protocol`
-  server side; the `ags-greeter` group and the `/run/ags` tmpfiles.d entry come
+  server side; the `tinshell-greeter` group and the `/run/tinshell` tmpfiles.d entry come
   from setup.sh's root section) — that path carries the SESSION domains the
   strip needs: `mpris` and `mediaWindow`. The volume cell reads the sink
   through the greeter's OWN in-process `volume` domain (`strip/backend.ts`),
@@ -200,9 +200,9 @@ another window.
   `writeFileAsync`, and binds the SAME `chargeThresholdStore` the dock uses, so
   a cap set here is RECORDED, not merely applied. Both targets are root-owned,
   so each write escalates through a scoped `sudo -n tee` rule: the sysfs
-  attribute and the machine-level intent file `/var/lib/ags/charge-cap`.
+  attribute and the machine-level intent file `/var/lib/tinshell/charge-cap`.
   setup.sh creates and seeds that file and installs one rule per account
-  (`/etc/sudoers.d/tinshell-battery` for tinoy, `/etc/sudoers.d/50-ags-greeter-battery`
+  (`/etc/sudoers.d/tinshell-battery` for tinoy, `/etc/sudoers.d/50-tinshell-greeter-battery`
   for the greeter), each visudo-validated before install; sudoers names those
   exact paths, so the generic `writeFileAsync` cannot escalate elsewhere.
   **The intent file is the whole point:** a greeter-local sysfs reading left the
@@ -269,7 +269,7 @@ another window.
   `common/applets/config.schema.ts`). `style.css` is LAYOUT/SHAPE ONLY: add
   colours in `theme.ts`, never there (one owner per value). The dock config is the
   one already loaded for the strip (`dockConfigView()`); where it is unreadable —
-  the pre-login `greeter` user, whose dock trio under /etc/greetd/ags-greeter/dock
+  the pre-login `greeter` user, whose dock trio under /etc/greetd/tinshell-greeter/dock
   is a root copy — `MIRRORED_DEFAULTS` in `theme.ts` reproduces
   apps/dock/config.defaults.json verbatim (the ONE place suite numbers are copied;
   a shared token export in `common/` would remove it). Legibility with no panel
@@ -303,7 +303,7 @@ Apps in this home come in three categories:
 boot → systemd → greetd.service (root, VT 1)
         └─ [default_session] user = "greeter"
            └─ start-hyprland -- -c /etc/greetd/greeter.lua   (greeter compositor, VT 1)
-              └─ exec-once: awww wallpaper + /etc/greetd/ags-greeter.sh
+              └─ exec-once: awww wallpaper + /etc/greetd/tinshell-greeter.sh
                  │            (NO 'hyprctl dispatch exit' — the app spawns
                  │             /etc/greetd/greeter-handoff.sh on login, which
                  │             SIGKILLs this compositor tree so the last
@@ -414,11 +414,11 @@ The in-session LOCK mode is a SEPARATE deployment of the same app (no greetd):
   the active seat.
 - **Gio.File.copy(OVERWRITE) unlinks the destination first** — needs write on
   the parent DIRECTORY. To overwrite the world-writable greeter wallpaper
-  file (tinoy can't write the greeter-owned /etc/greetd/ags-greeter dir), use
+  file (tinoy can't write the greeter-owned /etc/greetd/tinshell-greeter dir), use
   `src.load_contents()` + `dst.replace_contents(bytes, null, false,
   Gio.FileCreateFlags.NONE, null)` (O_TRUNC in place).
 - **Login wallpaper must be greeter-readable:** tinoy's home is 700, so the
-  login screen reads the world-readable `/etc/greetd/ags-greeter/wallpaper.png`,
+  login screen reads the world-readable `/etc/greetd/tinshell-greeter/wallpaper.png`,
   synced by the wallpaper rotation (`~/.local/bin/wallpapers-sync apply`) and the
   lock screen.
 
@@ -442,9 +442,9 @@ greeter/
 │                             workspace 10; TINSHELL_GREETER_PREVIEW=login|lock; never locks anything)
 ├── @girs → ../@girs       ← symlink (per-app @girs pattern; picks up AstalGreet after `ags types`)
 ├── config.defaults.json / config.schema.ts → config.schema.json / config.ts
-│                          ← config store bound to /etc/greetd/ags-greeter (NOT ~/dev/tinshell!)
+│                          ← config store bound to /etc/greetd/tinshell-greeter (NOT ~/dev/tinshell!)
 │                            (+ the `dock` section — see "Greeter dock — REAL dock applets")
-├── state.ts               ← last-login username (`/etc/greetd/ags-greeter/last-user`)
+├── state.ts               ← last-login username (`/etc/greetd/tinshell-greeter/last-user`)
 ├── style.css              ← layered on common/shell/theme.css; LAYOUT/SHAPE only
 ├── theme.ts               ← generated colour layer (suite palette: the dock config's
 │                             appearance.menu / textShadow / glyphColour tokens)
@@ -529,7 +529,7 @@ plus `ags bundle` compiling for both bundles.
   it re-deploys the bundle, both config schemas, the dock trio,
   `templates/greeter.lua`, `greeter-handoff.sh` and `/etc/pam.d/greetd` — i.e.
   code and PAM on this machine's only login path in order to ship one keybind.
-  (The LIVE `/etc/greetd/ags-greeter/config.json` sits outside that argument:
+  (The LIVE `/etc/greetd/tinshell-greeter/config.json` sits outside that argument:
   `install.sh` seeds it only when it is absent and otherwise PRESERVES it —
   root AGENTS.md, "Deploy writes to live config".)
   `install` truncates the destination IN PLACE, so an interrupted copy (full
@@ -544,20 +544,20 @@ plus `ags bundle` compiling for both bundles.
       sudo mv -f /etc/greetd/greeter.lua.new /etc/greetd/greeter.lua
       Hyprland --verify-config -c /etc/greetd/greeter.lua   # must print: config ok
 
-  Rollback copies of this file live in `~/.cache/ags-greeter-rollback/` (NOT
+  Rollback copies of this file live in `~/.cache/tinshell-greeter-rollback/` (NOT
   /tmp — see the README there).
 - **Deploy (root):** `sudo_approve ./install.sh` — installs the bundle +
   config store + templates into `/etc/greetd/`, AND the dock config trio into
-  `/etc/greetd/ags-greeter/dock/` (`apps/dock/config.{schema,defaults}.json`).
+  `/etc/greetd/tinshell-greeter/dock/` (`apps/dock/config.{schema,defaults}.json`).
   It REBUILDS the bundle first (the build is unprivileged; `--no-build` deploys
   the artifact already in `dist/`), then verifies it against the sources it was
   built from and REFUSES (exit 3, nothing written under `/etc/greetd/`) when
   the stamp does not match — a stale login bundle cannot be deployed by
-  accident. The matching `ags-greeter.sh.stamp.json` is installed beside it, so
+  accident. The matching `tinshell-greeter.sh.stamp.json` is installed beside it, so
   `npm run check:builds` reads the DEPLOYED copy, not just `dist/`.
   Idempotent. Does NOT switch the DM. Config safety (root AGENTS.md,
   "Deploy writes to live config"): the LIVE
-  `/etc/greetd/ags-greeter/config.json` is SEEDED from `config.defaults.json`
+  `/etc/greetd/tinshell-greeter/config.json` is SEEDED from `config.defaults.json`
   only when ABSENT and otherwise PRESERVED (it holds the deployed dock values
   the login strip reads — the loader merges the defaults UNDER it), with
   `--force` as the explicit re-seed that prints the md5 it DESTROYS;
@@ -568,7 +568,7 @@ plus `ags bundle` compiling for both bundles.
   announced with the md5 it superseded. The pre-login strip also needs the
   dock's LIVE values there — a root copy the morning owner must run once
   (root-only, cannot be done by an agent):
-  `sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json /etc/greetd/ags-greeter/dock/config.json`
+  `sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json /etc/greetd/tinshell-greeter/dock/config.json`
   (without it the login strip paints the dock config DEFAULTS — the loader's
   own values, logged with the source line — while dev/preview/lock read the
   live dock config directly).
@@ -593,7 +593,7 @@ plus `ags bundle` compiling for both bundles.
 - **Harness (dev):** `dev/greetd-dummy.py` + `TINSHELL_GREETER_HARNESS=1` + `GREETD_SOCK`
   → the real AstalGreet flow against a fake greetd (no logout/PAM/faillock).
   Password `789`; state file overridden via `TINSHELL_GREETER_STATE_FILE` (harness
-  uses /tmp — the production /etc/greetd/ags-greeter/last-user is
+  uses /tmp — the production /etc/greetd/tinshell-greeter/last-user is
   greeter-owned; permission noise if written as tinoy).
 - **Syntax-check greeter.lua safely:** `start-hyprland -- --verify-config -c /etc/greetd/greeter.lua`
 - **Bus:** `io.Astal.greeter` (instance `greeter`) exists only pre-login on
@@ -626,14 +626,14 @@ placement or pointer semantics in an app — extend the shared renderer + port.
   with a warm sudo timestamp.
 - **Recovery when the greeter itself fails:** from a TTY (Ctrl+Alt+F2, log in
   as tinoy) restore the pre-restructure bundle and reboot —
-  `sudo cp ~/.cache/ags-greeter-rollback/greeter-tinshell-pre-restructure.sh /etc/greetd/ags-greeter.sh`
+  `sudo cp ~/.cache/tinshell-greeter-rollback/greeter-tinshell-pre-restructure.sh /etc/greetd/tinshell-greeter.sh`
   — or start a session by hand with `/usr/bin/start-hyprland` (what
   hyprland.desktop execs). A hand-restored bundle carries no stamp for this
   tree, which is exactly what `npm run check:builds` then reports for
   `greeter-deployed` (a deliberate rollback is reported, not prevented; the
   deploy is what refuses a mismatch, never a plain file copy). There is NO second display manager to flip back to:
   greetd is the only DM unit installed and display-manager.service points at it.
-  The persistent rollback copies live in `~/.cache/ags-greeter-rollback/`
+  The persistent rollback copies live in `~/.cache/tinshell-greeter-rollback/`
   (`greeter-tinshell-*` and `tinshell-lock-*`, pre-restructure builds, plus
   `greeter.lua-pre-brightness-binds` for the compositor config itself — see the
   README in that directory) — /tmp is wiped by a reboot, so never keep the only
@@ -652,7 +652,7 @@ placement or pointer semantics in an app — extend the shared renderer + port.
   = false` in hyprland.lua kills post-login tty1 log spam.
 - **Wallpaper sync:** `~/.local/bin/wallpapers-sync apply` picks a random
   `~/wallpapers/*.png`, runs `awww img` (fade), then `cp`s it to
-  `/etc/greetd/ags-greeter/wallpaper.png` (best-effort); the lock screen also
+  `/etc/greetd/tinshell-greeter/wallpaper.png` (best-effort); the lock screen also
   syncs it at lock time. Login reads that file; lock queries `awww query`
   live. `awww` is the swww successor (background layer, namespace
   `awww-daemon`); rotation = `wallpaper-cycle.timer` (10 min) →

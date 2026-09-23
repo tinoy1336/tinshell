@@ -2,7 +2,7 @@
  * Last-login username persistence.
  *
  * The greeter runs as the `greeter` user pre-login and CANNOT read/write
- * tinoy's home — but it owns /etc/greetd/ags-greeter/ (install.sh chowns it
+ * tinoy's home — but it owns /etc/greetd/tinshell-greeter/ (install.sh chowns it
  * to greeter:greeter), so a small state file there persists across greeter
  * respawns. A separate file (not a config.json key) survives redeploys:
  * install.sh overwrites config.json with the defaults each time.
@@ -18,7 +18,7 @@ import GLib from "gi://GLib"
 import { bytesToUtf8 } from "@common/fs/bytes"
 import { log } from "@common/log/logger"
 
-const STATE_FILE = GLib.getenv("TINSHELL_GREETER_STATE_FILE") ?? "/etc/greetd/ags-greeter/last-user"
+const STATE_FILE = GLib.getenv("TINSHELL_GREETER_STATE_FILE") ?? "/etc/greetd/tinshell-greeter/last-user"
 
 /** The last successfully-attempted username ("" when never logged in). */
 export function readLastUser(): string {

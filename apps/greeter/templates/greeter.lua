@@ -90,9 +90,9 @@ hl.on("hyprland.start", function()
     -- compositor's default background would otherwise flash until the TINSHELL
     -- window maps). The retry loop gives awww-daemon a moment to bind its
     -- socket before awww img can reach it.
-    hl.exec_cmd("/bin/sh -c 'awww-daemon >/tmp/greeter-awww.log 2>&1 & for i in 1 2 3 4 5 6 7 8 9 10; do awww img /etc/greetd/ags-greeter/wallpaper.png --transition-type none && break; sleep 0.2; done'")
+    hl.exec_cmd("/bin/sh -c 'awww-daemon >/tmp/greeter-awww.log 2>&1 & for i in 1 2 3 4 5 6 7 8 9 10; do awww img /etc/greetd/tinshell-greeter/wallpaper.png --transition-type none && break; sleep 0.2; done'")
     -- Run the bundled TINSHELL greeter. On successful login the app spawns
     -- /etc/greetd/greeter-handoff.sh which SIGKILLs this compositor — no
     -- `hyprctl dispatch exit` here, the handoff owns teardown.
-    hl.exec_cmd("/bin/sh -c '/etc/greetd/ags-greeter.sh'")
+    hl.exec_cmd("/bin/sh -c '/etc/greetd/tinshell-greeter.sh'")
 end)

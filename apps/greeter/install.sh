@@ -41,7 +41,7 @@ for arg in "$@"; do
     --no-build) NO_BUILD=1 ;;
     -h | --help)
       echo "usage: install.sh [--force] [--no-build]"
-      echo "  --force     re-seed /etc/greetd/ags-greeter/config.json from config.defaults.json, destroying its current contents"
+      echo "  --force     re-seed /etc/greetd/tinshell-greeter/config.json from config.defaults.json, destroying its current contents"
       echo "  --no-build  deploy the bundle already in dist/ instead of rebuilding it (it is STILL refused when its stamp does not match the sources)"
       exit 0
       ;;
@@ -76,11 +76,11 @@ if ! bundle_stamp_verify greeter "$(pwd)/dist/greeter-tinshell.sh.stamp.json" \
   exit 3
 fi
 
-install -Dm755 dist/greeter-tinshell.sh /etc/greetd/ags-greeter.sh
-install -Dm644 dist/greeter-tinshell.sh.stamp.json /etc/greetd/ags-greeter.sh.stamp.json
-deploy_seed_config config.defaults.json /etc/greetd/ags-greeter/config.json
-install -Dm644 config.defaults.json /etc/greetd/ags-greeter/config.defaults.json
-install -Dm644 config.schema.json /etc/greetd/ags-greeter/config.schema.json
+install -Dm755 dist/greeter-tinshell.sh /etc/greetd/tinshell-greeter.sh
+install -Dm644 dist/greeter-tinshell.sh.stamp.json /etc/greetd/tinshell-greeter.sh.stamp.json
+deploy_seed_config config.defaults.json /etc/greetd/tinshell-greeter/config.json
+install -Dm644 config.defaults.json /etc/greetd/tinshell-greeter/config.defaults.json
+install -Dm644 config.schema.json /etc/greetd/tinshell-greeter/config.schema.json
 # The applet strip mounts the SHARED renderer (common/applets/surface) with the
 # DOCK's config: the greeter user cannot read tinoy's home, so the dock config
 # trio ships here too (apps/greeter/config.ts dockConfigView). schema + defaults
@@ -88,16 +88,16 @@ install -Dm644 config.schema.json /etc/greetd/ags-greeter/config.schema.json
 # separate root copy (data in tinoy's home) — run it when the dock config
 # changes:
 #   sudo install -Dm644 ~/dev/tinshell/apps/dock/config.json \
-#     /etc/greetd/ags-greeter/dock/config.json
+#     /etc/greetd/tinshell-greeter/dock/config.json
 # That copy stays a plain install (no seed guard): its SOURCE is the live dock
 # config itself, so it is a refresh of a mirror and cannot revert a setting.
-install -Dm644 ../dock/config.schema.json /etc/greetd/ags-greeter/dock/config.schema.json
-install -Dm644 ../dock/config.defaults.json /etc/greetd/ags-greeter/dock/config.defaults.json
+install -Dm644 ../dock/config.schema.json /etc/greetd/tinshell-greeter/dock/config.schema.json
+install -Dm644 ../dock/config.defaults.json /etc/greetd/tinshell-greeter/dock/config.defaults.json
 # the dock's LIVE values now live OUTSIDE the tree (~/.config/tinshell/dock.json), so the
 # greeter's dock view pairs the deployed schema/defaults with that flat file; ship the
 # deployed copy too when it is readable (root deploy, data in the user's home)
 if [ -r "$HOME/.config/tinshell/dock.json" ]; then
-  install -Dm644 "$HOME/.config/tinshell/dock.json" /etc/greetd/ags-greeter/dock/config.json
+  install -Dm644 "$HOME/.config/tinshell/dock.json" /etc/greetd/tinshell-greeter/dock/config.json
 fi
 # The three PAYLOAD configs (see the header): always installed, each one naming
 # the md5 it superseded.
@@ -115,14 +115,14 @@ deploy_payload_config templates/pam.d.greetd /etc/pam.d/greetd
 # access to the bundle + config. Root-owned 755/644 would suffice; chown for
 # clarity and future edits.
 if id greeter >/dev/null 2>&1; then
-  chown -R greeter:greeter /etc/greetd/ags-greeter.sh /etc/greetd/ags-greeter
+  chown -R greeter:greeter /etc/greetd/tinshell-greeter.sh /etc/greetd/tinshell-greeter
 fi
 
 echo "greeter deployed:"
-echo "  /etc/greetd/ags-greeter.sh          (the bundle, runs as user greeter)"
-echo "  /etc/greetd/ags-greeter.sh.stamp.json (the sources it was built from — \`npm run check:builds\` reads it)"
-echo "  /etc/greetd/ags-greeter/config*.json"
-echo "  /etc/greetd/ags-greeter/dock/       (the dock config the applet strip renders)"
+echo "  /etc/greetd/tinshell-greeter.sh          (the bundle, runs as user greeter)"
+echo "  /etc/greetd/tinshell-greeter.sh.stamp.json (the sources it was built from — \`npm run check:builds\` reads it)"
+echo "  /etc/greetd/tinshell-greeter/config*.json"
+echo "  /etc/greetd/tinshell-greeter/dock/       (the dock config the applet strip renders)"
 echo "  /etc/greetd/config.toml             (greetd → greeter compositor)"
 echo "  /etc/greetd/greeter.lua             (greeter compositor config)"
 echo "  /etc/greetd/greeter-handoff.sh      (login handoff: freezes the last frame)"

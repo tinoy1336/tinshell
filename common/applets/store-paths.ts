@@ -19,7 +19,7 @@ import { appStateFilePath } from "@common/state"
  *  this cap as a different user and cannot read the session user's state dir.
  *  World-readable; written through the scoped `sudo -n tee` rules setup.sh
  *  installs (one per account that may set it). */
-export const CHARGE_CAP_FILE = "/var/lib/ags/charge-cap"
+export const CHARGE_CAP_FILE = "/var/lib/tinshell/charge-cap"
 
 /** The fully-charged counter's start time (epoch seconds; 0 = the count is not
  *  running). MACHINE-level for the same reason as the charge cap: the pre-login
@@ -29,7 +29,7 @@ export const CHARGE_CAP_FILE = "/var/lib/ags/charge-cap"
  *  installs the scoped `sudo -n tee` rule for the session user and leaves it
  *  out of the greeter's rules), because the session host is the one that
  *  observes the pack become idle with a state dir on record. */
-export const PLUGGED_SINCE_FILE = "/var/lib/ags/plugged-since"
+export const PLUGGED_SINCE_FILE = "/var/lib/tinshell/plugged-since"
 
 /** Durable file behind `<domain> <store>`. Defaults to the per-user state file
  *  for the domain; stores that belong to the machine name their own path. */

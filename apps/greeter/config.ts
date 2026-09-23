@@ -2,7 +2,7 @@
  * greeter config — the login screen's knobs + the DOCK config the strip renders.
  *
  * The greeter's own store is bound to the DEPLOYED config dir
- * (/etc/greetd/ags-greeter), NOT the user config dir: the greeter runs as the
+ * (/etc/greetd/tinshell-greeter), NOT the user config dir: the greeter runs as the
  * `greeter` user pre-login and cannot read tinoy's home. install.sh ships
  * config.defaults.json / config.schema.json / config.json there (read-only for
  * the greeter — the login screen never writes config). Preview mode
@@ -17,7 +17,7 @@
  *
  *   1. the dock's own config dir (dev/preview/lock — the LIVE dock config, the
  *      exact values the dock paints; also what `tinshell-mode` dev work reads);
- *   2. /etc/greetd/ags-greeter/dock — the deployed copy of the dock's config
+ *   2. /etc/greetd/tinshell-greeter/dock — the deployed copy of the dock's config
  *      trio (install.sh), the pre-login greeter's only route to the live
  *      values.
  *
@@ -33,7 +33,7 @@ import { type ConfigFacade, createConfigFacade } from "@common/config/facade"
 import { appConfigPath, appSchemaDir, type ConfigStore, createConfigStore } from "@common/config/loader"
 import { log } from "@common/log/logger"
 
-const DIR = "/etc/greetd/ags-greeter"
+const DIR = "/etc/greetd/tinshell-greeter"
 
 const store: ConfigStore = createConfigStore(DIR)
 
@@ -44,7 +44,7 @@ export function get<T = any>(path: string, fallback?: T): T {
 }
 
 /** The deployed copy of the dock's config trio (install.sh, root). */
-const DEPLOYED_DOCK_CONFIG_DIR = "/etc/greetd/ags-greeter/dock"
+const DEPLOYED_DOCK_CONFIG_DIR = "/etc/greetd/tinshell-greeter/dock"
 
 interface DockConfigView {
   /** The dock's config every hosted applet and the shared renderer read. */

@@ -7,7 +7,7 @@
  *       locally — a socket client cannot read the sysfs threshold at all;
  *   (b) a store read that has not been answered yet is `ready() === false` and
  *       `get() === undefined` — UNKNOWN, not "no value configured";
- *   (c) the machine-level charge-cap intent file (`/var/lib/ags/charge-cap`,
+ *   (c) the machine-level charge-cap intent file (`/var/lib/tinshell/charge-cap`,
  *       the file the store actually reads and writes) is byte-identical
  *       (content + mtime) afterwards: a runtime read never writes the user's
  *       value back;

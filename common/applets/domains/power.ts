@@ -40,7 +40,7 @@ function requestInhibit(gen: number): void {
     "Inhibit",
     new GLib.Variant("(ssss)", [
       "idle",
-      "ags-applets",
+      "tinshell-applets",
       "TINSHELL applets backend: sleep inhibit",
       "block",
     ]),

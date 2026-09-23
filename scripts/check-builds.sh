@@ -36,7 +36,7 @@
 # Exit: 0 all fresh; 1 one or more artifacts stale/unbuilt; the named artifact
 # and the named changed sources are printed.
 #
-# The greeter deploy (/etc/greetd/ags-greeter.sh) is checked when it is
+# The greeter deploy (/etc/greetd/tinshell-greeter.sh) is checked when it is
 # deployed; a machine that never deployed it is not a failure (the artifact is
 # absent, not stale).
 

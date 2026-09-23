@@ -79,7 +79,7 @@ GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
   // write, so a cap set here is recorded rather than a greeter-local reading.
   check(
     "cap intent lives in the shared machine file",
-    d.battery.chargeThresholdStore.path() === "/var/lib/ags/charge-cap",
+    d.battery.chargeThresholdStore.path() === "/var/lib/tinshell/charge-cap",
     d.battery.chargeThresholdStore.path(),
   )
   // Rejected as OUT OF RANGE: proves validation without writing the file (a
@@ -94,7 +94,7 @@ GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
   void Promise.all([
     d.fs.readFileAsync("/proc/uptime"),
     d.fs.readFileAsync("/sys/class/power_supply/AC0/online"),
-    d.fs.readUserFileAsync("/etc/greetd/ags-greeter/config.json"),
+    d.fs.readUserFileAsync("/etc/greetd/tinshell-greeter/config.json"),
     d.powerProfile.readProfile(),
     greeterLocalSamples.battery(),
     greeterLocalSamples.brightness(),

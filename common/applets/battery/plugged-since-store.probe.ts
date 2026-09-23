@@ -2,7 +2,7 @@
  * plugged-since-store.probe — the fully-charged counter's start time, as the
  * applet reaches it on the SESSION side.
  *
- * The stamp is MACHINE-level (`/var/lib/ags/plugged-since`) because the pre-login
+ * The stamp is MACHINE-level (`/var/lib/tinshell/plugged-since`) because the pre-login
  * greeter paints the same counter the session's battery applet paints, and the
  * greeter cannot read the session user's state dir. Both sides therefore depend
  * on one contract, which this probe asserts without a session, a compositor or a

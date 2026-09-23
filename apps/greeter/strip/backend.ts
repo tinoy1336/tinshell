@@ -33,7 +33,7 @@
  * The charge cap IS mutable from here (login AND lock). A set needs TWO writes
  * and both escalate through scoped `sudo -n tee` rules: the sysfs attribute
  * itself, and the machine-level intent file the applet heals towards
- * (`/var/lib/ags/charge-cap`, owned by the battery domain). setup.sh installs
+ * (`/var/lib/tinshell/charge-cap`, owned by the battery domain). setup.sh installs
  * one rule per account and path, so the generic `writeFileAsync` cannot
  * escalate anywhere else. The greeter binds the SAME store the dock does
  * (`chargeThresholdStore`); that is what makes a cap set here stick — a

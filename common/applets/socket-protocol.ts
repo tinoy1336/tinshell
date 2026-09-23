@@ -31,7 +31,7 @@ import GLib from "gi://GLib"
 import { requestLine } from "./backend-protocol"
 
 /** The socket directory created by setup.sh's root section (tmpfiles.d). */
-const APPLETS_SOCKET_DIR = "/run/ags"
+const APPLETS_SOCKET_DIR = "/run/tinshell"
 
 /** The socket file name inside it. */
 const APPLETS_SOCKET_FILE = "applets.sock"
@@ -60,7 +60,7 @@ export const MAX_LINE_BYTES = 256 * 1024
 /** The handshake verb. Not a domain name, so it can never collide with one. */
 const HELLO_VERB = "hello"
 
-/** The `ags-applets` bundle identity, when the launcher exports one. Absent in
+/** The `tinshell-applets` bundle identity, when the launcher exports one. Absent in
  *  the universal-bundle path (no build id is exported yet) — the client then
  *  reports `build: null` rather than inventing one. */
 function bundleId(): string | null {

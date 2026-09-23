@@ -3,7 +3,7 @@
  *
  * The ASUS asus_wmi driver resets charge_control_end_threshold to 100 on every
  * power cycle (AC plug/unplug/reboot); the chosen threshold is persisted in the
- * MACHINE-level intent file (`/var/lib/ags/charge-cap`, reached through the
+ * MACHINE-level intent file (`/var/lib/tinshell/charge-cap`, reached through the
  * battery domain's `chargeThresholdStore`) and re-applied whenever sysfs
  * drifts. Machine-level rather than per-user because the pre-login greeter sets
  * this cap as a different user.
@@ -45,7 +45,7 @@ const LOW_WARNING_KEY = "lowBatteryWarned" as const
 
 /** Durable start of the plugged-and-idle state, in epoch SECONDS; 0 = the state
  *  is not running. The key of the battery domain's MACHINE-level store
- *  (`pluggedSinceStore` → /var/lib/ags/plugged-since), NOT of this applet's
+ *  (`pluggedSinceStore` → /var/lib/tinshell/plugged-since), NOT of this applet's
  *  per-user state file: the pre-login greeter paints the same counter and cannot
  *  read this user's state dir, so the stamp has to live where both hosts read
  *  it. The counter reads it so a host restart mid-state resumes the count

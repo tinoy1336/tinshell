@@ -87,7 +87,7 @@ export default function LockScreen(): void {
           const src = Gio.File.new_for_path(wallpaperPath)
           const dst = Gio.File.new_for_path(GREETER_WALLPAPER)
           // Gio.File.copy(OVERWRITE) unlinks the destination first, which
-          // needs write on the /etc/greetd/ags-greeter DIRECTORY (greeter-
+          // needs write on the /etc/greetd/tinshell-greeter DIRECTORY (greeter-
           // owned, not writable by tinoy). Truncate in place instead:
           // load the source bytes and replace_contents with
           // G_FILE_CREATE_NONE (O_TRUNC on the world-writable file, no dir

@@ -4,7 +4,7 @@
  * Third app category: BOOT-LEVEL, owned by greetd (NOT a systemd user unit,
  * NOT on-demand). greetd spawns a minimal Hyprland compositor
  * (/etc/greetd/greeter.lua) as user `greeter`; its exec-once runs the bundled
- * app via `/etc/greetd/ags-greeter.sh`. The login IPC is the multi-request
+ * app via `/etc/greetd/tinshell-greeter.sh`. The login IPC is the multi-request
  * AstalGreet `Greeter` object (login/auth.ts); the environment-selected
  * products (login / lock / preview / harness) are resolved in mode.ts.
  *
