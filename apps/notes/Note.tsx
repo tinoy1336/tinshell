@@ -11,7 +11,7 @@
  *  - Ctrl+S = save: silently rewrite the file named by Ctrl+Shift+S — inert
  *    until a save-as names one, and never the autosave file.
  *  - Ctrl+Shift+S = save as: promptd input dialog for the target path, then a
- *    swaync notification; the named path becomes this note's Ctrl+S target
+ *    desktop notification; the named path becomes this note's Ctrl+S target
  *    (persisted per note path in the state store). No in-window UI beyond
  *    the text itself.
  *  - Ctrl+Shift+T = reopen the most recently closed note (the persisted
@@ -406,7 +406,7 @@ export function createNote(
     }
   })
 
-  // ── Ctrl+Shift+S = save as file (promptd input → write → swaync notify) ──
+  // ── Ctrl+Shift+S = save as file (promptd input → write → notify-send) ──
   // Also this note's Ctrl+S target from then on (saveNamed above).
   let saving = false // guards the textview + window key controllers (double-fire)
   async function saveAs(): Promise<void> {
