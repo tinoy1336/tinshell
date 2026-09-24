@@ -126,24 +126,19 @@ window.notifications-centre .widget {
 }
 
 window.notifications-centre .widget-title > box,
-window.notifications-centre .widget-inhibitors > box,
-window.notifications-centre .widget-dnd > box {
+window.notifications-centre .widget-inhibitors > box {
   margin: 0 8px;
 }
 
 window.notifications-centre .widget-title label,
-window.notifications-centre .widget-inhibitors label,
-window.notifications-centre .widget-dnd label {
+window.notifications-centre .widget-inhibitors label {
   font-size: 14px;
 }
 
-window.notifications-centre .widget-dnd switch slider {
-  border-radius: 12px;
-}
-
-window.notifications-centre .dnd-switch {
-  border-radius: 12px;
-}
+/* The centre's controls are `hoverGlyph` Cairo glyphs (the DND toggle, the two
+   clear buttons, the per-group clear) — a DrawingArea paints no box, so no rule
+   here sizes or pads a control: the glyph centres its own ink in a fixed square
+   box and paints its hover halo itself. */
 
 window.notifications-centre .centre-list {
   margin: 0 8px 8px 8px;
@@ -166,6 +161,8 @@ window.notifications-centre .centre-group .card {
   margin-bottom: 4px;
 }
 
+/* The group header is a ROW (a box with its own click gesture) and every part
+   of it rides in that one line, so nothing is positioned under it. */
 window.notifications-centre .group-header {
   min-height: 36px;
   background: transparent;
@@ -173,10 +170,6 @@ window.notifications-centre .group-header {
 
 window.notifications-centre .group-icon {
   border-radius: 50%;
-}
-
-window.notifications-centre .group-close {
-  margin: 0 8px 8px 8px;
 }
 
 window.notifications-centre .empty-state {

@@ -10,7 +10,14 @@
  *   - mirrors dont-disturb from config dnd.enabled (AstalNotifd's shared
  *     daemon DND value — the TINSHELL-idiomatic DND, persisted in config.json);
  *   - keeps the reactive state consumed by Popups/Centre: notifications
- *     (unresolved, newest first), popup ids, inhibitors, centre visibility;
+ *     (unresolved, newest first — what the popups render), history (EVERY
+ *     notification seen this session, newest first, each flagged live while the
+ *     daemon still holds it — what the centre lists), popup ids, inhibitors,
+ *     centre visibility;
+ *   - separates the two kinds of removal: a DISMISS takes a notification off
+ *     the screen and leaves its history entry standing (the popup is transient,
+ *     the centre is what the user reads back), while `forget` removes the entry
+ *     from the history and `closeAll` wipes both;
  *   - arms per-notification expiry timers ONLY when a popup is shown (swaync
  *     semantics: DND'd/inhibited notifications stay in the centre until
  *     dismissed — the timeout timer lives in the popup window, not the daemon);
@@ -143,6 +150,21 @@ export function notify(opts: {
 
 /** All unresolved notifications, newest first (mirrors notifd's list). */
 export const [notifications, setNotifications] = createState<AstalNotifd.Notification[]>([])
+
+/** One entry of the notification history. */
+export interface HistoryEntry {
+  noti: AstalNotifd.Notification
+  /** The daemon still holds it: it is on screen (or held back by DND/inhibitors)
+   *  and its sender actions are live. False once the daemon resolved it — the
+   *  entry stays listed, at the same contrast, as history. */
+  live: boolean
+}
+
+/** Every notification seen this session, newest first — the centre's list. A
+ *  resolved notification keeps its entry (see `HistoryEntry.live`), so leaving
+ *  the screen never erases what the user read. */
+export const [history, setHistory] = createState<HistoryEntry[]>([])
+
 /** Ids currently shown as popups (newest first, capped at popup.maxVisible). */
 export const [popupIds, setPopupIds] = createState<number[]>([])
 /** Inhibiting app ids (swaync-compat). Any entry suppresses popups. */
@@ -225,7 +247,9 @@ function showPopup(id: number): void {
 
 // ── Public actions (commands / centre / cards) ──
 
-/** Dismiss a notification (DISMISSED_BY_USER — leaves popup AND centre). */
+/** Dismiss a notification: it leaves the screen (popup and, if it was the
+ *  popup's own id, the popup stack) and its HISTORY ENTRY STAYS — the centre
+ *  keeps listing it at full contrast. `forget` is the call that removes an entry. */
 export function dismiss(id: number): void {
   const n = getNotifd().get_notification(id)
   if (!n) return
@@ -236,20 +260,38 @@ export function dismiss(id: number): void {
   }
 }
 
+/** Remove one notification from the history (the centre row's ✕ / Delete):
+ *  dismissed from the screen if the daemon still holds it, and dropped from the
+ *  list either way. */
+export function forget(id: number): void {
+  const n = getNotifd().get_notification(id)
+  if (n) {
+    try {
+      n.dismiss()
+    } catch (e) {
+      log(`forget(${id}) dismiss failed: ${e}`)
+    }
+  }
+  setHistory((prev) => prev.filter((e) => e.noti.id !== id))
+}
+
 /** Look up a notification by id (for the request API). */
 export function getNotification(id: number): AstalNotifd.Notification | null {
   return getNotifd().get_notification(id)
 }
 
-/** Close every unresolved notification (Clear All / Shift+C). */
+/** Clear All / Shift+C: every unresolved notification is dismissed AND the
+ *  history is wiped — the one action that empties the centre's list. */
 export function closeAll(): void {
-  for (const n of notifications()) {
+  for (const entry of history()) {
+    if (!entry.live) continue
     try {
-      n.dismiss()
+      entry.noti.dismiss()
     } catch (e) {
-      log(`closeAll dismiss(${n.id}) failed: ${e}`)
+      log(`closeAll dismiss(${entry.noti.id}) failed: ${e}`)
     }
   }
+  setHistory([])
 }
 
 /** Invoke an action by id; hide-on-action closes the popup; non-resident dismisses. */
@@ -339,12 +381,15 @@ export function initNotifd(): void {
       return
     }
     if (replaced) {
-      // Update in place (same id, fresh card) + restart the clock.
+      // Update in place (same id, fresh card) + restart the clock. The history
+      // entry goes back to live: the sender re-sent the notification.
       setNotifications((prev) => prev.map((x) => (x.id === id ? noti : x)))
+      setHistory((prev) => prev.map((e) => (e.noti.id === id ? { noti, live: true } : e)))
       if (popupIds().includes(id)) armExpiry(noti)
       return
     }
     setNotifications((prev) => [noti, ...prev])
+    setHistory((prev) => [{ noti, live: true }, ...prev])
     if (shouldShowPopup(noti)) {
       showPopup(id)
       armExpiry(noti)
@@ -357,6 +402,9 @@ export function initNotifd(): void {
     clearExpiry(id)
     setNotifications((prev) => prev.filter((x) => x.id !== id))
     setPopupIds((prev) => prev.filter((x) => x !== id))
+    // The entry stays listed: resolution is what takes a notification off the
+    // screen, not what erases it from the centre.
+    setHistory((prev) => prev.map((e) => (e.noti.id === id ? { noti: e.noti, live: false } : e)))
   })
 
   // The daemon PERSISTS unresolved notifications in gsettings (io.astal.notifd
@@ -367,7 +415,9 @@ export function initNotifd(): void {
   try {
     const existing = (getNotifd().get_notifications() ?? []) as AstalNotifd.Notification[]
     if (existing.length > 0) {
-      setNotifications([...existing].sort((a, b) => (b.time ?? 0) - (a.time ?? 0)))
+      const ordered = [...existing].sort((a, b) => (b.time ?? 0) - (a.time ?? 0))
+      setNotifications(ordered)
+      setHistory(ordered.map((n) => ({ noti: n, live: true })))
       // Re-arm per-urgency expiry so a restored pile self-cleans instead of
       // accumulating across restarts (restored notifications have no popup;
       // the timer still applies — critical stays sticky).

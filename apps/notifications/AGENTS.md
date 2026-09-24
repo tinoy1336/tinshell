@@ -35,6 +35,15 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
     newest first), popup ids, inhibitors, centre visibility.
   - per-notification expiry timers ONLY while a popup is shown (swaync
     semantics: DND'd/inhibited notifications stay in the centre).
+  - TWO reactive lists, and the difference is the whole surface contract:
+    `notifications` (unresolved, newest first — what the popups render) and
+    `history` (`HistoryEntry[]` = every notification seen this session, each
+    flagged `live` while the daemon still holds it — what the centre lists).
+    Resolution marks an entry `live: false`; it never removes it.
+  - the two kinds of removal: `dismiss(id)` takes a notification off the screen
+    and leaves its history entry standing, `forget(id)` dismisses it AND drops
+    the entry, `closeAll()` (Clear All / Shift+C) dismisses every live one and
+    wipes the history.
   - swaync-compat inhibitors DBus interface
     (`org.erikreider.swaync.cc` at `/org/erikreider/swaync/cc` —
     AddInhibitor/RemoveInhibitor/ClearInhibitors/NumberOfInhibitors/
@@ -48,8 +57,58 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   the card column's rect.
 - `Centre.tsx` — the control centre (swaync's control-centre window): 500×600
   layer surface, layer TOP, anchored top-centre, keymode EXCLUSIVE while open.
+  Its list IS the history: a resolved entry keeps full contrast and loses only
+  its sender actions, and only `forget` (the card's ✕, Delete) or Clear All
+  removes it — no rule dims a listed entry. Its controls are the project's own
+  glyphs (`hoverGlyph`, common/glyph/hover-glyph — muted ink at rest, ink under
+  an accent halo on hover): the DND bell toggle, the clear-inhibitors and
+  clear-all glyphs, and the per-group clear, with the words in their tooltips,
+  not on the surface. The DND glyph carries its state — the plain bell in muted
+  ink while off, the slashed bell in the accent while on — and repaints from a
+  `createEffect` on the state. A group of ONE entry renders its card directly:
+  the header stands for several entries, and a collapsed header with its card
+  inside the revealer lists nothing. A multi-entry group's header is ONE row (a
+  `Gtk.Box`, not a `Gtk.Button`: a Button claims every press inside its box, so
+  the trailing clear glyph would never see its own click) carrying the app icon,
+  the name, the count, the chevron and the group's clear glyph; the row's own
+  `Gtk.GestureClick` toggles the group and bails over the glyph's box. The
+  list is a plain `Gtk.ScrolledWindow` — GTK's own scroll path, no app-side
+  controller and no app-side momentum — whose scroller is capped by
+  `applyViewport()` (see Gotchas). Its HEIGHT follows the content between
+  `centre.minHeight` and `centre.maxHeight`: `applySize()` reads the root box's
+  own natural height (the scroller propagates the list's natural height, so this
+  is the chrome plus the content) and holds it in that range — a two-entry list
+  makes a short panel, a long history sits at the maximum and scrolls. Width
+  stays fixed at `centre.width`. Keyboard navigation steps the entries the list
+  RENDERS (`visibleEntries()`: a single-entry group's card, or a multi-entry
+  group's entries while that group is the expanded one), never `history()` — Tab
+  and the arrows must not land on a row inside a collapsed group. The surface has
+  exactly TWO ways off
+  the screen — the key backstop (Escape / Caps_Lock) and the toggle the keybind
+  and the request surface drive — and both log their reason
+  (`centre shown (…)` / `centre hidden (…)`); no click, dismissal or history
+  change moves this window.
 - `NotificationCard.tsx` — imperative card factory (no gnim state inside;
-  Popups manages children).
+  Popups manages children). Its ✕ reads by VARIANT: a popup's dismisses, a
+  centre card's removes its history entry. A LEFT/RIGHT SWIPE on the card body
+  dismisses (the drag fades the card; a release past a third of its width is
+  the swipe), and a card built with `live: false` renders no sender actions.
+  The centre variant's 48px square slot renders SENDER ARTWORK ONLY
+  (`noti.image` — the file the daemon cached from the sender's own image): a
+  notification with no sender image gets NO slot, because a slot resolved from
+  `app_icon`, `desktop_entry` or the icon-theme fallback drew the app icon a
+  second time on top of the 18px header indicator that already carries it. NO
+  PIECE OF ARTWORK IS PAINTED TWICE ON ONE CARD. `noti.image` has exactly ONE
+  surface per variant: the centre's 48px slot (`senderImagePicture`) or the
+  popup's body-row thumbnail (`bodyImagePicture`, popup cards only — they have no
+  slot, and the centre card must not draw the same file beside its text as well).
+  The header indicator is the app identity's own surface (`app_icon` →
+  `desktop_entry` → theme fallback, never `noti.image`), and it SKIPS the file
+  the artwork slot paints — which is what `notify-send -i <file>` needs, since
+  libnotify sends that file as `app_icon`. The
+  card hugs its content height — nothing inside it expands (`textBox` carries no
+  `vexpand`), because an expanding child turns slack handed down by a holder
+  into a void under the text with the action row pushed to the far bottom.
 - `commands.ts` — request handlers (prefixed `["notifications", …]`).
 - `config.ts` — owns the app's config store + facade (`createConfigStore`
   via `common/config/facade.ts`; no shared surface registry).
@@ -64,7 +123,7 @@ The notifications app's OWN config (apps/notifications/config.{defaults,schema,j
 | --- | --- |
 | `dnd` | enabled (↔ daemon `dont-disturb`) |
 | `popup` | timeout/timeoutLow/timeoutCritical (urgency-tiered), positioning |
-| `centre` | geometry, grouping |
+| `centre` | geometry: `width` (fixed), `minHeight` / `maxHeight` (the panel's height follows its content between the two; the maximum is also the scroller's cap), grouping |
 | `grouping` | collapse/grouping rules |
 | `code` | COPY-button gate: `apps` (browser/mail allowlist) + `keywords.{strong,weak,context}` (auth-code keyword signal) — see Gotchas. Set as JSON arrays (`notifications config set code.apps '["firefox"]'`) or by editing `config.json` + `config reload` |
 | `appearance` | colours, card theming |
@@ -78,13 +137,15 @@ All registered PREFIXED (`["notifications", …]`):
 | Path | Purpose |
 | --- | --- |
 | `notifications ping` | alive check (pong) |
-| `notifications dnd get/set` | read/write DND (persisted) |
+| `notifications dnd get/set` | read/write DND through its ONE owner in `Notifd` (`setDndEnabled`: reactive state + the daemon's `dont_disturb` + the persisted config). `get` answers the owner's live state, not the config file |
 | `notifications toggle-centre/show-centre/hide-centre` | control centre |
-| `notifications close-all` | clear the stack |
-| `notifications dismiss` | dismiss one notification |
+| `notifications close-all` | dismiss every live notification AND wipe the history (the one path that empties the centre's list) |
+| `notifications dismiss` | dismiss one notification — it leaves the screen, its history entry stays |
+| `notifications forget` | dismiss one notification and drop its history entry |
 | `notifications invoke` | invoke an action |
-| `notifications history` | notification history |
+| `notifications history` | notification history — one line per entry, `live`/`gone` prefixed |
 | `notifications debug dump` | state introspection |
+| `notifications debug centre` | centre geometry + list state (surface size, panel min/max/applied height, scroller adjustment and its cap, list allocation against its own natural height plus the first rows' heights, the SELECTED entry id, the visible entry ids, entry/live/VISIBLE/group counts) |
 | `notifications inhibitor add/remove/clear/get` | swaync-compat inhibitors |
 | `notifications config get/set/reload` | live config via facade |
 
@@ -102,6 +163,41 @@ No quit hook (the daemon dies with the process; state is config-persisted).
 
 ## Gotchas
 
+- **The list's scroller must be capped or it grows the layer surface.** A
+  `Gtk.ScrolledWindow` with a vertical policy of `AUTOMATIC` reports its child's
+  full natural height until `max-content-height` bounds it, and a layer surface
+  is sized from its widget — a long history stretched the centre past the screen
+  and CLIPPED the list instead of scrolling it. `applyViewport()` (Centre.tsx)
+  caps it at the CONFIGURED `centre.maxHeight` minus the list's bottom padding and
+  re-runs on `map`, on show and after every history change. Do not compute the
+  cap from a measured height: the scroller reports 0 until it has been laid out,
+  and every pass that could react to that (map, show, history change) runs
+  before the first frame — `get_height`, `get_allocation`, `compute_bounds` and
+  `translate_coordinates` all answered 0 there, and `notify::allocation` did not
+  fire again. Never bound it by the surface's live height either: that height is
+  the growth the cap exists to stop.
+- **The list's scroll is GTK's own path, and this app installs no controller.**
+  A `Gtk.ScrolledWindow` scrolls itself: it runs its own scroll controllers, so
+  the wheel, a trackpad's delta (scaled by its own surface factor) and the
+  momentum after a flick (`GtkKineticScrolling`, with an overshoot spring at the
+  ends) are all the widget's. An app-side `Gtk.EventControllerScroll` is a
+  NON-GESTURE controller, `gtk_widget_add_controller` PREPENDS it, and
+  `gtk_widget_run_controllers` stops the dispatch at the first non-gesture
+  controller that returns TRUE — so a controller that consumed the continuous
+  delta would latch that kinetic path off for the whole gesture and leave the app
+  to imitate it. This surface therefore carries no controller, no tail, no eased
+  step and no position accumulator; the keyboard's selection reveal
+  (`revealChild`) writes the adjustment directly.
+- **The swipe gesture is grouped with the card's click, and the click acts on
+  `released`.** Two sibling gestures on one widget are mutually exclusive, so
+  the `Gtk.GestureDrag` never starts unless `click.group(swipe)` groups them —
+  and grouping does NOT stop `GestureClick::released` from firing when the drag
+  wins, so a swipe would also run the card's default action at the release
+  point. The click sets the flag on `pressed` (which fires before the drag
+  threshold) and the drag claims it from `drag-begin`. **Grouping runs AFTER
+  both controllers are attached**: GTK refuses to group a controller that has no
+  widget yet (`gtk_gesture_group: assertion … failed`, one Gtk-CRITICAL per card
+  created), and the ungrouped pair leaves the swipe dead.
 - **A removal REFLOWS, it does not remap.** Each popup card sits in a
   `Gtk.Revealer` slot that collapses over `timing.transitionMs`; the column
   re-lays out every frame, so the cards below slide up into the vacated height.
@@ -189,7 +285,9 @@ No quit hook (the daemon dies with the process; state is config-persisted).
   symbolic fallbacks alike), so that picture keeps its request.
 - **The card is one row: the image is a column on the LEFT, the content column
   (header line, text, actions) sits beside it.** `bodyRow` (horizontal, spacing
-  12) holds the optional thumbnail and a vertical `card-content` box carrying the
+  12) holds the optional thumbnail — a POPUP-only element: the centre card paints
+  the sender's image in its large slot instead, since one card never shows one
+  piece of artwork twice — and a vertical `card-content` box carrying the
   head, the main area and the action row — the click gesture still owns `main`,
   and the close button still lives in the head. The popup's own `popup.width`
   request stays the card's minimum, and the thumbnail's box is capped, so an image
@@ -225,6 +323,19 @@ No quit hook (the daemon dies with the process; state is config-persisted).
   centre's top-centre placement.
 - **ONE-OWNER RULE**: two processes instantiating the daemon race the
   `org.freedesktop.Notifications` name — shell or the island, never both.
+- **DND has ONE owner: `Notifd.setDndEnabled`** — it sets the reactive state, the
+  daemon's `dont_disturb` and the persisted config in one call, and both the
+  `notifications dnd set` handler and the centre's bell glyph call it. Nothing
+  else may write `dnd.enabled`: a config write on its own leaves the daemon and
+  the reactive state stale, so popups keep arriving (or stay suppressed) until a
+  restart re-seeds the state from the file. The generic
+  `notifications config set dnd.enabled …` is still such a write: the config
+  facade's `set()` mutates the live tree without firing change listeners (only
+  `applyToLive`, and a reload whose JSON actually changed, notify), so the
+  `store.onConfigChanged` mirrors in `Notifd` and `Centre` do not run for ANY key
+  the request surface sets live — `grouping.enabled` shows the same staleness.
+  Closing that hole belongs in `common/config/facade.ts` (its `set()` should fire
+  the listeners), not in an app-side bridge.
 - **DND bypass**: `critical` urgency and the `swaync:bypass-dnd` hint bypass
   DND (swaync semantics).
 - **`notify-send --action` IMPLIES `--wait`** — it blocks until the action is

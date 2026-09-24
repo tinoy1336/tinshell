@@ -12,7 +12,8 @@
   },
   "centre": {
     "width": 500,
-    "height": 600
+    "minHeight": 220,
+    "maxHeight": 600
   },
   "grouping": {
     "enabled": true

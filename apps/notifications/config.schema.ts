@@ -20,7 +20,8 @@ export const schema = obj({
   }),
   centre: obj({
     width: Type.Integer({ minimum: 300, maximum: 1200 }),
-    height: Type.Integer({ minimum: 300, maximum: 1600 }),
+    minHeight: Type.Integer({ minimum: 120, maximum: 1600 }),
+    maxHeight: Type.Integer({ minimum: 200, maximum: 1600 }),
   }),
   grouping: obj({
     enabled: Type.Boolean(),

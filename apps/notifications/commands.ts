@@ -18,11 +18,13 @@ import { ignore } from "./log"
 import {
   addInhibitor,
   clearInhibitors,
+  dndEnabled,
   getNotification,
   inhibitors,
   invokeAction,
   invokeDefault,
   removeInhibitor,
+  setDndEnabled,
 } from "./Notifd"
 
 /** Array values (code.apps) parse from JSON through the shared array-aware
@@ -41,8 +43,11 @@ interface NotificationsControl {
   hideCentre(): void
   closeAll(): void
   dismiss(id: number): void
-  /** Snapshot of the current history (one line per notification). */
+  forget(id: number): void
+  /** Snapshot of the history (one line per entry, `live`/`gone` prefixed). */
   history(): string[]
+  /** Centre geometry + list state, for the `notifications debug centre` probe. */
+  centreDebug(): string
 }
 
 let control: NotificationsControl | null = null
@@ -57,18 +62,22 @@ register(["notifications", "ping"], (_t, res) => {
   res("pong")
 })
 
-// DND — lives in config, applied live by the Notifd wiring.
+// DND — `Notifd` owns the live state (reactive state + the daemon's
+// dont_disturb + the persisted config, all three in `setDndEnabled`), so the
+// request surface drives that ONE owner: writing the config here instead left the
+// daemon and the reactive state untouched, and popups stayed suppressed until a
+// restart re-seeded the state from the file.
 register(["notifications", "dnd", "set"], (tokens, res) => {
   const arg = tokens[0]
-  if (arg === "on") setConfig("dnd.enabled", "true")
-  else if (arg === "off") setConfig("dnd.enabled", "false")
-  else if (arg === "toggle") setConfig("dnd.enabled", String(!getConfig("dnd.enabled")))
+  if (arg === "on") setDndEnabled(true)
+  else if (arg === "off") setDndEnabled(false)
+  else if (arg === "toggle") setDndEnabled(!dndEnabled())
   else return res("usage: dnd set on|off|toggle")
-  res(`ok (dnd ${getConfig("dnd.enabled") ? "on" : "off"})`)
+  res(`ok (dnd ${dndEnabled() ? "on" : "off"})`)
 })
 
 register(["notifications", "dnd", "get"], (_t, res) => {
-  res(getConfig("dnd.enabled") ? "on" : "off")
+  res(dndEnabled() ? "on" : "off")
 })
 
 // Centre window control.
@@ -87,15 +96,26 @@ register(["notifications", "hide-centre"], (_t, res) => {
   res("ok")
 })
 
+// Clear All: dismisses every notification still on the daemon AND wipes the
+// centre's history — the one command that empties the list.
 register(["notifications", "close-all"], (_t, res) => {
   control?.closeAll()
   res("ok")
 })
 
+// Dismiss leaves the screen; the entry stays in the centre's history.
 register(["notifications", "dismiss"], (tokens, res) => {
   const id = Number(tokens[0])
   if (!Number.isInteger(id)) return res("usage: dismiss <id>")
   control?.dismiss(id)
+  res("ok")
+})
+
+// Forget = dismiss AND drop the entry from the centre's history.
+register(["notifications", "forget"], (tokens, res) => {
+  const id = Number(tokens[0])
+  if (!Number.isInteger(id)) return res("usage: forget <id>")
+  control?.forget(id)
   res("ok")
 })
 
@@ -115,6 +135,14 @@ register(["notifications", "invoke"], (tokens, res) => {
 
 register(["notifications", "history"], (_t, res) => {
   res(control?.history()?.join("\n") ?? "")
+})
+
+// Debug: the centre's surface geometry and list state — the scroller's
+// adjustment (value / page / upper / the cap it was bounded with), the surface
+// size, and how many history entries are still live.
+register(["notifications", "debug", "centre"], (_t, res) => {
+  const c = control?.centreDebug()
+  res(c ?? "error: centre not built")
 })
 
 // Debug: dump a notification's raw fields (icon debugging).

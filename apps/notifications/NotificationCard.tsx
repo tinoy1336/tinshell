@@ -11,14 +11,22 @@
  * Material (config appearance.* via the dynamic CSS block): frosted
  * rgba(10,12,17,0.5) card (0.62 critical), radius 18, JetBrainsMono Nerd
  * Font (suite default), 200×100 body image radius 12, action buttons radius 12,
- * circular 22px close button. The 48px circular main icon exists ONLY in the
- * centre variant — popup cards have no big icon: the small 18px header
- * app-indicator beside the app-name label is the only icon, and the body text
- * uses the full popup width.
+ * circular 22px close button. The 48px square slot exists ONLY in the centre
+ * variant AND only for SENDER ARTWORK (`noti.image`): popup cards have no slot,
+ * and a notification whose sender supplied no image gets none either, because
+ * the app icon already rides in the 18px header indicator beside the app-name
+ * label. ONE PIECE OF ARTWORK PER CARD. `noti.image` has exactly one surface
+ * per variant: the centre's 48px slot (`senderImagePicture`) or, in a popup —
+ * which has no slot — the body-row thumbnail (`bodyImagePicture`), never both.
+ * The header indicator resolves the app identity (`app_icon` / `desktop_entry` /
+ * the theme fallback) and SKIPS the file the artwork slot paints, so
+ * `notify-send -i <file>` — whose `app_icon` argument is that same file — cannot
+ * draw the picture twice either.
  *
  * Behaviour parity (swaync):
  *   - primary click on the card body → "default" action if present, else dismiss;
- *     middle/right click → dismiss;
+ *     middle/right click → dismiss; a LEFT or RIGHT SWIPE on the body dismisses
+ *     as well;
  *   - actions: one button per (id,label); a 2FA code detected in the summary
  *     or body (regex (?<= |^)(\d{3}(-| )\d{3}|\d{4,8}|[A-Za-z0-9]{5} mixed
  *     letter+digit)(?= |$|\.|,), first match, filtered to alphanumerics)
@@ -32,7 +40,16 @@
  *     sanitizer) — set via Pango markup with a plain-text fallback;
  *   - progress bar when the "value" hint (0–100) is present;
  *   - relative timestamps ("Now" / "N min(s) ago" / ...), refreshed by the 60s
- *     clock.
+ *     clock;
+ *   - the swipe's own rules: the pointer's travel fades the card and a release
+ *     past a third of its width (never less than `SWIPE_MIN_PX`) is the swipe;
+ *   - the card's ✕ reads by VARIANT: a popup's dismisses (the notification
+ *     leaves the screen and its history entry stands), a centre card's removes
+ *     that entry from the list (`forget`);
+ *   - a card built for an entry the daemon already resolved (`live: false`)
+ *     renders no sender actions — nothing is left to answer them;
+ *   - a card for a resolved entry still dismisses nothing on a swipe: the drag
+ *     is claimed (so it stays a drag, not a click) and moves nothing.
  */
 
 import GLib from "gi://GLib"
@@ -42,14 +59,22 @@ import { NullIntrinsicPaintable } from "@common/media/paintable"
 import { Gdk, Gtk } from "ags/gtk4"
 import { get } from "./config"
 import { ignore, log } from "./log"
-import { dismiss, invokeAction, invokeDefault, onClockTick } from "./Notifd"
+import { dismiss, forget, invokeAction, invokeDefault, onClockTick } from "./Notifd"
 
 interface NotificationCardProps {
   noti: any // AstalNotifd.Notification
   variant: "popup" | "centre"
+  /** False for a history entry the daemon has already resolved: the sender's
+   *  actions are dead, so the card renders only the local copy action and no
+   *  action row. Defaults to live. */
+  live?: boolean
   /** Centre-only: click body = invoke default (like swaync); selection is keyboard. */
   onActivate?: (n: any) => void
 }
+
+/** Floor for the swipe threshold, which is otherwise a third of the card's own
+ *  width (`swipeThreshold`). */
+const SWIPE_MIN_PX = 80
 
 // 2FA code detector: swaync's original (src/notification/notification.vala)
 // matched digit codes; extended with a 5-char alphanumeric branch (Steam
@@ -190,7 +215,21 @@ function bound(paintable: Gdk.Paintable): Gdk.Paintable {
   return new NullIntrinsicPaintable(paintable) as unknown as Gdk.Paintable
 }
 
-function appIconPicture(noti: any, sizeOverride?: number, cssClass = "app-icon"): Gtk.Picture {
+/** The card's SMALL identity indicator (an 18px slot in the head row) — the app
+ *  icon and nothing else: `app_icon` and `desktop_entry` as icon names, a
+ *  path-shaped name as the file it names, then the icon theme's generic
+ *  fallback. `noti.image` is deliberately NOT a candidate: that file belongs to
+ *  the card's large artwork slot, and a card paints one piece of artwork ONCE.
+ *  `skipPath` is the file the large slot already paints — a candidate naming it
+ *  is dropped here (this is the `notify-send -i <file>` case, where the sender's
+ *  `app_icon` argument IS the image), so the same picture never appears twice on
+ *  one card. */
+function appIconPicture(
+  noti: any,
+  sizeOverride?: number,
+  cssClass = "app-icon",
+  skipPath?: string,
+): Gtk.Picture {
   const size = sizeOverride ?? get<number>("appearance.iconSize", 48)
   const picture = new Gtk.Picture()
   picture.add_css_class(cssClass)
@@ -205,11 +244,11 @@ function appIconPicture(noti: any, sizeOverride?: number, cssClass = "app-icon")
   picture.set_halign(Gtk.Align.START)
   // @ts-expect-error runtime accepts this argument shape (type-only gap, msg: Argument of type 'Display | null' is not)
   const theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
-  // Icon source candidates, in order: app_icon (name), desktop_entry (name),
-  // then the image-path hint — many senders (notify-send -i) deliver their
-  // icon as image-path with a THEME NAME value, with an empty app_icon.
-  const candidates = [noti?.app_icon, noti?.desktop_entry, noti?.image].filter(
-    (v): v is string => typeof v === "string" && v.length > 0,
+  // App-identity candidates, in order: app_icon (name or path), desktop_entry
+  // (name). A candidate that names the large slot's own artwork is dropped —
+  // that is the same picture, and the card paints it once.
+  const candidates = [noti?.app_icon, noti?.desktop_entry].filter(
+    (v): v is string => typeof v === "string" && v.length > 0 && v !== skipPath,
   )
   // 1) Theme-name lookups.
   for (const name of candidates) {
@@ -241,6 +280,7 @@ function appIconPicture(noti: any, sizeOverride?: number, cssClass = "app-icon")
   // (GdkPixbuf.Pixbuf.new_from_file_async is undefined), so that route can
   // never load a file.
   for (const path of candidates) {
+    if (path === skipPath) continue
     if (!GLib.file_test(path, GLib.FileTest.EXISTS)) continue
     try {
       picture.paintable = bound(loadStill(path).texture)
@@ -289,7 +329,9 @@ function thumbnailBox(width: number, height: number): { width: number; height: n
   }
 }
 
-/** Notification image → the card's left thumbnail. The daemon caches
+/** Notification image → the card's left thumbnail, POPUP cards only (the centre
+ *  card shows the sender's image in its large slot instead, and one card never
+ *  paints one piece of artwork twice). The daemon caches
  *  image-data/icon-data to a file itself (daemon.vala: cache_image) and exposes
  *  it via the image-path hint — so `noti.image` covers BOTH path and raw-image
  *  notifications; no manual image_data decode is needed here.
@@ -328,9 +370,58 @@ function bodyImagePicture(noti: any): Gtk.Picture | null {
   }
 }
 
+/** The centre card's large square slot — SENDER ARTWORK ONLY: the file the
+ *  daemon cached out of the notification's own image (the `image-path` hint,
+ *  which covers raw image-data and icon-data alike) and exposed as `noti.image`.
+ *  The app icon is deliberately NOT a candidate here: the header row already
+ *  renders it, so a slot resolved from `app_icon`, `desktop_entry` or the icon
+ *  theme's generic fallback drew the same artwork a second time, at 48px. A
+ *  notification whose sender supplied no image therefore renders NO slot at all
+ *  rather than a placeholder.
+ *
+ *  Decoded and wrapped exactly like the other bound pictures: `loadStill` is
+ *  synchronous and throws on a file it cannot decode, and `bound` reports no
+ *  intrinsic size so the sender's pixel dimensions never reach the card's
+ *  layout. */
+function senderImagePicture(noti: any): Gtk.Picture | null {
+  const path = noti?.image
+  if (!path || !GLib.file_test(path, GLib.FileTest.EXISTS)) return null
+  const size = get<number>("appearance.iconSize", 48)
+  try {
+    const picture = new Gtk.Picture()
+    picture.add_css_class("app-icon")
+    picture.set_size_request(size, size)
+    picture.content_fit = Gtk.ContentFit.COVER
+    picture.set_valign(Gtk.Align.START)
+    picture.set_halign(Gtk.Align.START)
+    picture.paintable = bound(loadStill(path).texture)
+    return picture
+  } catch (e) {
+    log(`sender image decode failed for ${path}: ${e}`)
+    return null
+  }
+}
+
 export default function NotificationCard(props: NotificationCardProps): Gtk.Box {
   const { noti, variant } = props
+  const live = props.live !== false
   const iconSize = get<number>("appearance.iconSize", 48)
+
+  // ONE PIECE OF ARTWORK PER CARD. `noti.image` gets exactly one surface on
+  // this card — the centre's large slot or the popup's body-row thumbnail — and
+  // no other surface may paint that same file, so the head row's identity
+  // indicator is told to skip it. This is the file both of those surfaces
+  // resolve, and both bail on a path that is not on disk, so the predicate
+  // matches what actually renders.
+  const artworkPath =
+    typeof noti?.image === "string" &&
+    noti.image.length > 0 &&
+    GLib.file_test(noti.image, GLib.FileTest.EXISTS)
+      ? noti.image
+      : undefined
+  // That file's one surface: the centre's 48px slot. A popup has no slot and
+  // paints it as the body-row thumbnail instead (see bodyRow below).
+  const artwork = variant === "centre" ? senderImagePicture(noti) : null
 
   // Root card box: head row + clickable main + actions — the close button
   // lives in the HEAD, a SIBLING of the clickable main (swaync's structure:
@@ -358,7 +449,7 @@ export default function NotificationCard(props: NotificationCardProps): Gtk.Box 
   // dynamic block pins .app-icon to the 48px main-row size, so reusing it
   // here would force the small Picture to 48px min.
   const HEADER_ICON_SIZE = 18
-  const headerIcon = appIconPicture(noti, HEADER_ICON_SIZE, "header-app-icon")
+  const headerIcon = appIconPicture(noti, HEADER_ICON_SIZE, "header-app-icon", artworkPath)
   headerIcon.set_valign(Gtk.Align.CENTER)
   head.append(headerIcon)
 
@@ -387,7 +478,10 @@ export default function NotificationCard(props: NotificationCardProps): Gtk.Box 
   close.set_can_focus(false)
   close.connect("clicked", () => {
     log(`card close clicked id=${noti.id}`)
-    dismiss(noti.id)
+    // The popup's ✕ takes the notification off the screen (its history entry
+    // stands); the centre's ✕ removes the entry from the list it sits in.
+    if (variant === "centre") forget(noti.id)
+    else dismiss(noti.id)
   })
 
   head.append(summary)
@@ -399,18 +493,19 @@ export default function NotificationCard(props: NotificationCardProps): Gtk.Box 
   main.add_css_class("card-main")
   main.set_hexpand(true)
 
-  // Popup cards have NO big 48px main icon — the body text claims the
-  // full popup width (the head row's small 18px header-app-icon is the only
-  // icon there). The centre variant keeps the main icon.
-  if (variant === "centre") {
-    const icon = appIconPicture(noti)
-    main.append(icon)
-  }
+  // The big slot is the SENDER's artwork and the card's only copy of it: the
+  // head row's 18px indicator carries the app identity instead, and it skips
+  // this file (see artworkPath above). Popup cards have no big slot at all —
+  // the body text claims the full popup width.
+  if (artwork) main.append(artwork)
 
   const textBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 2 })
   textBox.add_css_class("text-box")
   textBox.set_hexpand(true)
-  textBox.set_vexpand(true)
+  // No vexpand here: an expanding child of the card absorbs any height the card
+  // is handed beyond its content and renders it as a void under the text (the
+  // actions row then sits at the far bottom). The card hugs its content; a
+  // holder with slack must not be able to stretch it.
 
   const body = new Gtk.Label({ xalign: 0, wrap: true })
   body.add_css_class("body")
@@ -439,14 +534,15 @@ export default function NotificationCard(props: NotificationCardProps): Gtk.Box 
 
   main.append(textBox)
 
-  // ── Assembly: the image is a COLUMN on the LEFT of the card, and the card's
-  // own content — header line, text, actions — is the column beside it. The
-  // column splits the card's width: the image carries its own bounded box
-  // (`bodyImagePicture`) and the content keeps hexpand, so nothing the sender
-  // ships can widen the card past its own `popup.width` request. ──
+  // ── Assembly: the sender's artwork is a COLUMN on the LEFT of the card and
+  // the card's own content — header line, text, actions — is the column beside
+  // it. That column belongs to the POPUP variant only: a popup card has no large
+  // slot, so the thumbnail is the sender image's one surface there, while the
+  // centre card paints the same file in its large slot and must not draw a
+  // second copy beside the text. ──
   const bodyRow = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 12 })
   bodyRow.add_css_class("card-row")
-  const thumb = bodyImagePicture(noti)
+  const thumb = variant === "popup" ? bodyImagePicture(noti) : null
   if (thumb) bodyRow.append(thumb)
 
   const content = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
@@ -460,9 +556,19 @@ export default function NotificationCard(props: NotificationCardProps): Gtk.Box 
   // ── Click behaviour (swaync parity) ──
   const click = new Gtk.GestureClick()
   click.set_button(0)
-  click.connect("pressed", (_g: unknown, _n: number, _x: number, _y: number) => {
+  // A drag still ends with a GestureClick release on this GTK — grouping does
+  // NOT suppress it (annotate's phantom-dot bug). Without the flag a swipe would
+  // also fire the card's default action at the release point, so the click acts
+  // on `released` and is gated on the drag that owned the sequence. The flag is
+  // reset on click-press, which fires before the drag threshold is crossed.
+  let swipeOwned = false
+  click.connect("pressed", () => {
+    swipeOwned = false
+  })
+  click.connect("released", (_g: unknown, _n: number, _x: number, _y: number) => {
+    if (swipeOwned) return
     const btn = (click as any).get_current_button()
-    log(`card gesture pressed id=${noti.id} btn=${btn}`)
+    log(`card gesture released id=${noti.id} btn=${btn}`)
     if (btn === 1) {
       if (props.onActivate) props.onActivate(noti)
       else invokeDefault(noti)
@@ -472,9 +578,48 @@ export default function NotificationCard(props: NotificationCardProps): Gtk.Box 
   })
   main.add_controller(click)
 
+  // ── Swipe to dismiss ──
+  // Left or right on the card body: the card fades under the pointer by as much
+  // of the gesture as its own width allows, and a release past a third of the
+  // width dismisses it. GTK4 has no per-widget translate an app may set (a
+  // layout-managed child is re-allocated by its parent every frame), so the drag
+  // reads through the fade rather than sliding the card sideways.
+  const swipe = Gtk.GestureDrag.new()
+  // Grouped with the click: two sibling gestures on one widget are otherwise
+  // mutually exclusive and the drag never starts (annotate's pattern). The
+  // grouping runs AFTER both controllers are attached — GTK refuses to group a
+  // controller that has no widget yet, so grouping before `add_controller(swipe)
+  // left the two ungrouped and logged a Gtk-CRITICAL per card.
+  const swipeThreshold = (): number =>
+    Math.max(SWIPE_MIN_PX, Math.round(Math.max(card.get_width(), 1) / 3))
+  swipe.connect("drag-begin", () => {
+    swipeOwned = true
+  })
+  swipe.connect("drag-update", () => {
+    // A history entry has nothing left on the screen to dismiss: the drag is
+    // claimed (so it stays a drag, not a click) and moves nothing.
+    if (!live) return
+    const [ok, dx] = swipe.get_offset()
+    if (!ok) return
+    card.opacity = Math.max(0.3, 1 - Math.abs(dx) / swipeThreshold())
+  })
+  swipe.connect("drag-end", () => {
+    const [ok, dx] = swipe.get_offset()
+    // Whatever the outcome the card returns to full opacity: a dismissed popup
+    // runs its own exit fade, and a centre row that stays listed must not keep
+    // the pointer's last opacity.
+    card.opacity = 1
+    if (!live || !ok || Math.abs(dx) < swipeThreshold()) return
+    log(`card swipe id=${noti.id} dx=${Math.round(dx)}`)
+    dismiss(noti.id)
+  })
+  main.add_controller(swipe)
+  click.group(swipe)
+
   // ── Actions row (2FA COPY first, then each action) — FlowBox, one line
-  // up to 7 (swaync's alt-actions layout).
-  const actions: any[] = noti?.actions ?? []
+  // up to 7 (swaync's alt-actions layout). A history entry has no sender left
+  // to answer an action, so only the local COPY button renders for it.
+  const actions: any[] = live ? (noti?.actions ?? []) : []
   // Scan summary first, fall back to body (separate scans — concatenating
   // would let a summary/body boundary merge into a false grouped code). The
   // scan only runs for an allowlisted sender or an auth-code keyword signal

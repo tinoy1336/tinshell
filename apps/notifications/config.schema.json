@@ -56,9 +56,14 @@
           "minimum": 300,
           "maximum": 1200
         },
-        "height": {
+        "minHeight": {
           "type": "integer",
-          "minimum": 300,
+          "minimum": 120,
+          "maximum": 1600
+        },
+        "maxHeight": {
+          "type": "integer",
+          "minimum": 200,
           "maximum": 1600
         }
       },

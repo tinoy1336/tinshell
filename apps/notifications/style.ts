@@ -134,13 +134,11 @@ window.notifications-centre .centre-row.selected {
   background: ${focusBg};
   border-radius: ${radius}px;
 }
-window.notifications-centre .centre-group.not-expanded {
-  opacity: 0.4;
-}
+/* No opacity rule dims a listed entry. An entry the daemon no longer holds is
+   told apart by its missing sender actions (NotificationCard renders none for a
+   live: false entry); dimming it made readable content unreadable. */
 window.notifications-centre .group-header {
   background: transparent;
-  border: none;
-  box-shadow: none;
   padding: var(--tinshell-row-padding);
   border-radius: var(--tinshell-row-radius);
   color: ${ink};
@@ -152,38 +150,10 @@ window.notifications-centre .group-count,
 window.notifications-centre .group-chevron {
   color: ${muted};
 }
-window.notifications-centre .group-close {
-  background: ${closeBg};
-  color: ${muted};
-  border-radius: 100%;
-  min-width: 22px;
-  min-height: 22px;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-}
-window.notifications-centre .group-close:hover {
-  background: ${closeBgHover};
-  color: ${ink};
-}
 window.notifications-centre .widget-title label,
 window.notifications-centre .widget-inhibitors label,
 window.notifications-centre .widget-dnd label {
   color: ${ink};
-}
-window.notifications-centre .widget-title button,
-window.notifications-centre .widget-inhibitors button {
-  color: ${muted};
-  background: ${actionBg};
-  border-radius: var(--tinshell-row-radius);
-}
-window.notifications-centre .widget-title button:hover,
-window.notifications-centre .widget-inhibitors button:hover {
-  background: ${hoverBg};
-  color: ${ink};
-}
-window.notifications-centre .dnd-switch:checked {
-  background: ${accent};
 }
 window.notifications-centre .empty-state {
   color: ${muted};
