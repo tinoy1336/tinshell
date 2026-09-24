@@ -31,11 +31,12 @@
 
 import GLib from "gi://GLib"
 import { hyprctlJson } from "@common/hyprland/dispatch"
+import { createStateStore } from "@common/state"
 import { Astal, Gtk } from "ags/gtk4"
 import {
   config,
+  store as configStore,
   getShowMode as getShowModeCfg,
-  set as setConfig,
   setShowMode as setShowModeCfg,
 } from "./config"
 import { sendKey, sendText } from "./keys/backend"
@@ -54,7 +55,9 @@ export interface KeyboardControl {
   /** Set the show policy (auto|show|hide) and apply it immediately. */
   setShowMode(mode: string): string
   getShowMode(): string
-  /** Rebuild rows from live config (layout / keyScale). */
+  /** The active layout name (the state store's value). */
+  getLayout(): string
+  /** Rebuild rows from the live layout + keyScale. */
   rebuild(): void
   /** Refresh the cached monitor width from Hyprland and rebuild if it
    *  changed (used by the auto-rotate script to re-fit instantly on
@@ -82,7 +85,60 @@ let shift = false
 let caps = false
 let symbols = false
 let emoji = false
-let layoutName = "standard"
+/**
+ * The layout is not configuration: the surface switches it itself (the
+ * `layout` keycap, the dock applet's Mode step, `keyboard layout set|next`),
+ * so it lives in the app's state store —
+ * `~/.local/state/tinshell/apps/keyboard/state.json` — instead of the config
+ * file. A validator admits only a layout the engine actually ships.
+ */
+const layoutState = createStateStore({
+  app: "keyboard",
+  version: 1,
+  keys: { layout: (v) => typeof v === "string" && layoutNames().includes(v) },
+})
+
+/**
+ * Adopt the pre-store value on first run: the state store's own value when it
+ * has one, otherwise the `layout` config key (still readable after the schema
+ * drop — the loader's initial load merges without schema filtering), otherwise
+ * the engine default. A user's current layout is therefore carried across, and
+ * the default never overrides a real value.
+ */
+function adoptLayout(): string {
+  const stored = layoutState.get("layout")
+  if (typeof stored === "string") return stored
+  const legacy = config.layout
+  const adopted = typeof legacy === "string" && layoutNames().includes(legacy) ? legacy : "standard"
+  layoutState.set("layout", adopted)
+  return adopted
+}
+
+/** The stored layout name — the ONE source every read goes through, so a
+ *  switch and the rows it rebuilds cannot disagree about which layout is on. */
+function storedLayout(): string {
+  const v = layoutState.get("layout")
+  return typeof v === "string" ? v : "standard"
+}
+
+/**
+ * Drop the migrated `layout` key from the live config. The root schema is
+ * closed, so a leftover key makes the next `keyboard config reload` refuse the
+ * file ("additional property not allowed"); the prune is what keeps the live
+ * file valid. Written through the facade's own two primitives — the in-place
+ * live swap and the serialized write chain — so the file and the running tree
+ * carry the same key set. Idempotent: a second mount finds no key to drop.
+ */
+function pruneLayoutKey(): void {
+  if (!("layout" in config)) return
+  const clone = JSON.parse(JSON.stringify(configStore.all()))
+  delete clone.layout
+  configStore.applyToLive(clone)
+  void configStore.queueWrite(clone)
+}
+
+let layoutName = adoptLayout()
+pruneLayoutKey()
 
 // Keys of the current build — for state-driven classes (shift/caps).
 const keyWidgets: { btn: Gtk.Widget; action?: string }[] = []
@@ -447,7 +503,7 @@ function buildRow(row: RowDef, rowIdx: number, isThumbs: boolean): Gtk.Widget {
 
 function rebuild(): void {
   if (!root) return
-  const name = config.layout === "thumbs" ? "thumbs" : "standard"
+  const name = storedLayout()
   layoutName = name
   keyWidgets.length = 0
   let child = root.get_first_child()
@@ -612,7 +668,8 @@ function setLayout(name: string): string {
   if (!layoutNames().includes(name)) {
     return `error: unknown layout '${name}' (${layoutNames().join("|")})`
   }
-  setConfig("layout", name)
+  layoutState.set("layout", name)
+  layoutName = name
   rebuild()
   return `layout=${name}`
 }
@@ -621,9 +678,14 @@ function nextLayout(): string {
   const names = layoutNames()
   const i = names.indexOf(layoutName)
   const next = names[(i + 1) % names.length]
-  setConfig("layout", next)
+  layoutState.set("layout", next)
+  layoutName = next
   rebuild()
   return `layout=${next}`
+}
+
+function getLayoutName(): string {
+  return layoutName
 }
 
 // ── Show policy (auto | show | hide) ──
@@ -808,6 +870,7 @@ export default function Main(): Astal.Window {
     hide: hideKeyboard,
     status,
     setLayout,
+    getLayout: getLayoutName,
     nextLayout,
     setShowMode,
     getShowMode,

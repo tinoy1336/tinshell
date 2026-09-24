@@ -18,6 +18,7 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 | Keybinds | **NONE — touch-first by design**: auto-show on tablet mode, summon via the dock applet (see hyprland.lua comment at the rule)
 | Router | `route-map.conf`: `keyboard=shell,keyboard` |
 | Gate | `keyboard.enabled` (own trio, `apps/keyboard/config.json`) — startup-read only, restart to apply |
+| Runtime state | `~/.local/state/tinshell/apps/keyboard/state.json` (the active layout — not config) |
 
 ## CONFIG-GATED (the memory guarantee)
 
@@ -53,6 +54,8 @@ same shape as every other surface; TRUE on this machine, schema default false).
 - `config.ts` — owns the app's config store + facade (`createConfigStore`
   via `common/config/facade.ts`); `keyboardEnabled()` gate (the dock's
   Keyboard applet imports it from here as `@apps/keyboard/config`).
+- `Main.tsx` also owns the layout's state store (`createStateStore`, app id
+  `keyboard`) — see §Runtime state.
 
 ## Config
 
@@ -63,12 +66,30 @@ owns the store; `apps/keyboard/config.schema.ts` is the authored source,
 | Section | Purpose |
 | --- | --- |
 | `enabled` | the gate (startup-read) |
-| `layout` | active layout |
 | `keyScale` | key size scaling |
 | `repeat` | key-repeat parameters |
 | `appearance` | colours/fonts (dynamic tokens via `refreshCss`) |
 | `showMode` | show/hide policy (auto/manual) |
 | `autoTextApps` | apps that auto-show the keyboard |
+
+## Runtime state
+
+The active **layout** is NOT configuration: the surface switches it itself (the
+`layout` keycap, the dock applet's Mode step, `keyboard layout set|next`), so a
+value the app mutates on its own would otherwise dirty the tracked live config
+file on every toggle. It lives in the app's state store
+(`apps/keyboard/Main.tsx` owns it beside `layoutName`):
+
+| Key | File |
+| --- | --- |
+| `layout` (`standard`/`thumbs`) | `~/.local/state/tinshell/apps/keyboard/state.json` |
+
+The store is written by the layout setters only; `keyboard layout get` and
+`keyboard status` report the live value. There is no `layout` config key — a
+pre-store value in the live config is adopted on mount (state, else the
+leftover config key, else `standard`) and the key is then pruned from the live
+tree, because the closed root schema would make the next `keyboard config
+reload` refuse the file.
 
 ## Command surface
 
@@ -82,7 +103,7 @@ All registered PREFIXED (`["keyboard", …]`):
 | `keyboard status` | state line (layout, showMode, visibility, shift/caps, …) |
 | `keyboard key` | inject a key |
 | `keyboard repeat get` | repeat state |
-| `keyboard layout get/next/set` | layout switching |
+| `keyboard layout get/next/set` | layout switching — `get` reads the state store, not config |
 | `keyboard show-mode get/set` | show policy |
 | `keyboard tablet get/set` | tablet-mode override |
 | `keyboard config all/get/set/reload` | live config via facade |

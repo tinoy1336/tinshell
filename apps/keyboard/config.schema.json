@@ -1,11 +1,6 @@
 {
   "type": "object",
   "properties": {
-    "layout": {
-      "type": "string",
-      "enum": ["standard", "thumbs"],
-      "x-tier": "live"
-    },
     "keyScale": {
       "type": "number",
       "x-tier": "live"

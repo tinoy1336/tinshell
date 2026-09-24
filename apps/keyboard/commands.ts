@@ -73,7 +73,7 @@ register(["keyboard", "layout", "next"], (_t, res) => {
 })
 
 register(["keyboard", "layout", "get"], (_t, res) => {
-  res(getConfig("layout") ?? "error: no layout")
+  res(control?.getLayout() ?? "error: no control")
 })
 
 register(["keyboard", "show-mode", "set"], (a, res) => {

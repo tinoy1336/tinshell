@@ -7,7 +7,6 @@
 import { arr, enumOf, obj, type Static, Type } from "../../common/config/schema-build.ts"
 
 export const schema = obj({
-  layout: enumOf(["standard", "thumbs"]),
   keyScale: Type.Number(),
   repeat: obj({
     delayMs: Type.Integer(),
@@ -45,7 +44,6 @@ export type Config = Static<typeof schema>
 /** x-tier placement (loader ancestor-fallback). "" = the root node. */
 export const tiers: Record<string, string> = {
   "": "live",
-  layout: "live",
   keyScale: "live",
   repeat: "live",
   appearance: "live",
