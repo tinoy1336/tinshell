@@ -660,8 +660,11 @@ own Hyprland blur rule (`dock-.*`, `launcher`, `notifications-.*`,
 `keyboard-.*`, `clipboard-picker`; promptd uses `promptd`; notes/files/
 annotate/media/portal are regular WINDOWS with float rules in hyprland.lua).
 One-owner names: `org.freedesktop.Notifications` (notifications surface —
-never shell + notifications island together; setup.sh disables the packaged
-`swaync.service`, whose daemon would be a second claimant), the polkit agent slot
+never shell + notifications island together; setup.sh MASKS the packaged
+`swaync.service` — a mask occupies the unit name itself, so a manual start, a
+D-Bus activation and a package's own wants link are all refused, where a disable
+would only drop the enablement links and leave the daemon startable), the polkit
+agent slot
 (the packaged `hyprpolkitagent.service` is disabled for the same reason — a
 second agent silently replaces the first), the portal impl name.
 
@@ -673,8 +676,12 @@ root `node_modules` shims + links AFTER npm install (npm prunes undeclared
 links and walks inside in-project symlink targets), regenerates
 `@girs/` via `ags types`, installs ALL unit templates, ENABLES only
 `tinshell-shell.service` + `tinshell-warm.service` (per-app units stay installed for dev),
-disables the packaged daemons that would race a name this home owns
-(`swaync.service` for `org.freedesktop.Notifications`, `hyprpolkitagent.service`
+masks the packaged daemon that would race a name this home owns
+(`swaync.service` masked for `org.freedesktop.Notifications`, whether or not the
+package is installed: the mask occupies the unit name with a symlink to /dev/null
+and refuses every start path, so nothing can claim the name — the daemon's
+package, a D-Bus activation or a manual start alike), disables the packaged daemon
+that would race a registration slot (`hyprpolkitagent.service`
 for the polkit agent slot),
 installs the portal backend files, installs every `apps/*/tinshell-<app>.desktop` entry — the four desktop apps
 (annotate, files, media, notes) ship one — into

@@ -387,12 +387,21 @@ fi
 # surface claims org.freedesktop.Notifications and must be the only daemon on
 # that name — two daemons mean a client's notification lands on whichever
 # claimed the name first.
-if systemctl --user is-enabled swaync.service >/dev/null 2>&1; then
-  systemctl --user disable swaync.service >/dev/null 2>&1 &&
-    done_ "swaync.service disabled (notification slot reserved for the notifications surface)" ||
-    err "could not disable swaync.service — two notification daemons would race for org.freedesktop.Notifications"
+#
+# MASKED, not disabled: a disable only drops the enablement links, so the unit
+# file stays startable through a manual `systemctl --user start`, a D-Bus
+# activation, or a wants link a package dropped itself. A mask occupies the
+# unit name with a symlink to /dev/null and refuses every start path. The mask
+# is taken whether or not the package is installed — masking a unit that does
+# not exist yet is what reserves the name for the daemon that arrives later
+# (systemctl answers "does not exist, proceeding anyway" and exits 0).
+swaync_state=$(systemctl --user is-enabled swaync.service 2>/dev/null || true)
+if [ "$swaync_state" = "masked" ]; then
+  skip "swaync.service (masked)"
+elif systemctl --user mask swaync.service >/dev/null 2>&1; then
+  done_ "swaync.service masked (notification slot reserved for the notifications surface)"
 else
-  skip "swaync.service (not enabled)"
+  err "could not mask swaync.service — two notification daemons would race for org.freedesktop.Notifications"
 fi
 
 # ──────────────── 8b. portal backend (user-local, RESIDENT) ──────────────
