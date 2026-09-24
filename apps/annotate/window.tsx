@@ -52,7 +52,7 @@ import { expandPath } from "@common/path/complete"
 import { run } from "@common/subprocess/run"
 import app from "ags/gtk4/app"
 import Cairo from "cairo"
-import { get as getConfig, set as setConfig } from "./config"
+import { applyLive, get as getConfig, set as setConfig } from "./config"
 import { recentColours, rememberColour } from "./state"
 import { hexToRgb, renderStroke, type Stroke, type ToolMode } from "./tools"
 
@@ -509,10 +509,25 @@ function createEditorWindow(): EditorHandle {
   const widthPopover = new Gtk.Popover()
   widthPopover.add_css_class("annotate-popover")
   widthPopover.set_parent(btnWidth)
+  // Stroke width: the scale drives the LIVE config so a stroke draws with the
+  // new width as soon as the slider moves, but the PERSISTED write waits for
+  // the interaction to settle — `value-changed` fires once per integer step of
+  // a drag, and persisting in that handler rewrites the whole config file the
+  // dotfiles repo tracks on every frame (one dirty tracked file per step).
+  let widthLive = Math.round(getConfig("tools.lineWidth"))
+  let widthSaved = widthLive
+  /** Persist the settled width, once: a popover closed without a change writes
+   *  nothing, and `teardown` calls this for a window closed with the width
+   *  popover still open. */
+  function commitWidth(): void {
+    if (widthLive === widthSaved) return
+    setConfig("tools.lineWidth", widthLive)
+    widthSaved = widthLive
+  }
   // Slider + value: GTK's own drawValue paints the number above the trough with
   // the theme's tall scale metrics (the picker grew a large empty half), so the
   // value rides BESIDE the slider in the family's muted status ink instead.
-  const widthValue = new Gtk.Label({ label: String(getConfig("tools.lineWidth")) })
+  const widthValue = new Gtk.Label({ label: String(widthLive) })
   widthValue.add_css_class("card-status")
   widthValue.set_size_request(24, -1)
   widthValue.set_halign(Gtk.Align.END)
@@ -525,20 +540,26 @@ function createEditorWindow(): EditorHandle {
       upper: 24,
       stepIncrement: 1,
       pageIncrement: 4,
-      value: getConfig("tools.lineWidth"),
+      value: widthLive,
     }),
   })
   widthScale.add_css_class("annotate-width")
   widthScale.connect("value-changed", () => {
     const v = Math.round(widthScale.get_value())
-    setConfig("tools.lineWidth", v)
     widthValue.label = String(v)
+    if (v === widthLive) return
+    widthLive = v
+    applyLive("tools.lineWidth", v)
   })
   const widthRow = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 6 })
   widthRow.set_size_request(POPOVER_WIDTH, -1)
   widthRow.append(widthScale)
   widthRow.append(widthValue)
   widthPopover.child = widthRow
+  // The settle point: the popover closing is what ends the slider interaction
+  // (drag release, a trough click, an arrow key, Escape and a click outside all
+  // land here), so exactly one persistence follows a whole drag.
+  widthPopover.connect("closed", commitWidth)
   btnWidth.connect("clicked", () => widthPopover.popup())
 
   const btnUndo = headerButton(G_UNDO, "undo (Ctrl+Z)")
@@ -1109,6 +1130,7 @@ function createEditorWindow(): EditorHandle {
   function teardown(): void {
     if (torn) return
     torn = true
+    commitWidth() // a window closed with the width popover still open keeps the width
     const i = editors.indexOf(handle)
     if (i >= 0) editors.splice(i, 1)
     if (editors.length === 0) {

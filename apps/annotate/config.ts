@@ -23,6 +23,13 @@ export function set(path: string, value: any): void {
   app.set(path, value)
 }
 
+/** Set a dotted-path value in the live config WITHOUT persisting it: a surface
+ *  applies an in-progress interaction live and persists the settled value with
+ *  `set` once the interaction ends. */
+export function applyLive(path: string, value: any): void {
+  app.store.setLive(path, value)
+}
+
 /** Re-read config.json + validate (atomic). */
 export function reloadConfig(): Promise<void> {
   return app.reloadConfig()

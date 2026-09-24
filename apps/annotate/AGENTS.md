@@ -228,11 +228,16 @@ limitation). Config `set` coerces the CLI string to the existing field's type
   popover's `Custom…` (`card-btn` inside a plain Box), so no control here sits
   in a FlowBox/Grid wrapper; a row that did would carry `card-actions`, which
   flattens the wrapper's padding and its theme hover tint.
-- **Stroke width lives in its own popover**: a 1–24 scale written straight to
-  the live `tools.lineWidth`, with the value BESIDE the slider in the family's
-  muted status ink (`card-status`), not through GTK's own `drawValue`: that
+- **Stroke width lives in its own popover**: a 1–24 scale over `tools.lineWidth`,
+  with the value BESIDE the slider in the family's muted status ink
+  (`card-status`), not through GTK's own `drawValue`: that
   paints the number above the trough with the theme's tall scale metrics, which
-  leaves the picker mostly empty space.
+  leaves the picker mostly empty space. The scale moves the value through the
+  config's LIVE tree (`applyLive`, so a stroke drawn mid-drag uses the new
+  width) and persists ONCE when the interaction settles — the popover's
+  `closed` signal, or the window's teardown if the popover was still open:
+  `value-changed` fires per integer step of a drag, and persisting in that
+  handler rewrote the dotfiles-tracked config file on every frame.
 - **The two pickers are ONE surface in two shapes** — `.annotate-popover` + one
   inner width (`POPOVER_WIDTH` 140 = exactly one row of six 20px chips, 4px
   gaps), so the colour picker and the width picker are the same size. The
