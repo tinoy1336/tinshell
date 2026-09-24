@@ -782,6 +782,29 @@ the deploy prints the preserved path and the command that overrides it.
   unrecoverable: `cp -r . /tmp/tinshell-backup-$(date +%F)` before any structural
   or delete edit.
 
+## Committing
+
+One commit per landing change, made in the same pass that finishes and verifies
+it. [`CONTRIBUTING.md`](CONTRIBUTING.md) §Commits is the normative rule set; the
+parts that bite hardest:
+
+- **Shape:** `type(scope): imperative subject`, then a body that states why the
+  code changed in terms of the code. At most one co-authorship trailer, and only
+  where machine assistance applies: `Co-Authored-By: Pi (<model-id>)`.
+- **Never staged:** build artifacts and bundle caches (`dist/`, `*-tinshell.js`,
+  the stamp sidecars), `node_modules/`, the generated `@girs/` typings, an app's
+  live `config.json`, and anything under `$XDG_RUNTIME_DIR` or
+  `~/.local/state/tinshell/`. The generated `apps/<app>/config.schema.json` is the
+  exception — committed, regenerated, never hand-edited.
+- **Never in a message:** an absolute home path, a hostname, an account outside
+  the org in the remote, a credential, a date, or the story of how the change was
+  found.
+- **`main` is the only long-lived branch**, and nothing is tagged or versioned:
+  the tree installs itself from the working copy, so the checkout is the
+  deployable. An edit under `apps/` or `common/` reaches a running instance only
+  once that instance restarts.
+- CI checks the shape of every commit a push or a pull request adds.
+
 ## gjs binding gaps (all bite)
 
 - `Graphene.Rect.contains_point` DOES NOT throw (manual + compute_bounds
