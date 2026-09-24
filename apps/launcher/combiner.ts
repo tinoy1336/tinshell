@@ -92,7 +92,7 @@ interface Pending {
 
 /**
  * Order the merged list by source priority. There is NO result cap: the card
- * shows `listHeight` rows and SCROLLS the rest (`Launcher.tsx` + `./scroll.ts`),
+ * shows `listHeight` rows and SCROLLS the rest (`Launcher.tsx` + `@common/scroll`),
  * the scroller's `max-content-height` holding it at `listHeight` x the measured
  * row pitch. The emoji row sorts last and needs no reserved slot — nothing can
  * push it out of a list that is not cut.

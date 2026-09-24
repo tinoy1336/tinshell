@@ -170,6 +170,8 @@ All registered PREFIXED (`["launcher", …]`) — same paths in shell and island
 | `launcher emoji-debug` | emoji introspection JSON (table size, mode, typer, grid, recents) |
 | `launcher apps reload` | re-index desktop apps (eager at startup) |
 | `launcher debug` / `launcher debug activate` | debug surface / activate a specific entry |
+| `launcher debug entry` | the entry's own text, cursor and the ghost range a Tab completion selected |
+| `launcher debug scroll <wheel\|surface\|status> <delta> [list\|grid]` | drive or read one row surface's scroll: apply a decision, or report without moving. Neither surface has a tail to start — a released gesture's momentum is the scroller's own kinetic scrolling — so a `surface` delta answers `consumed:false`, the hand-over itself |
 | `launcher debug preview` | the bang previews' record: what each fetched, and the reason it produced no rows |
 | `launcher debug query <query>` | run one query through the live combiner with the card HIDDEN and answer the rows it settles on |
 | `launcher config get/set/reload` | live config via facade |
@@ -814,7 +816,7 @@ and SCROLLS the rest, so a source may offer as many rows as it has.
 **The viewport.** `.matches` lives in a `Gtk.ScrolledWindow` whose VERTICAL policy
 is `AUTOMATIC` and which carries `propagate-natural-height` plus
 `max-content-height` = `viewportHeightPx()` = `viewportPixels(listHeight,
-rowPitchPx)` (`./scroll.ts`). That trio IS the cap, and the policy is what makes
+rowPitchPx)` (`@common/scroll`). That trio IS the cap, and the policy is what makes
 it bind: with `NEVER` a `Gtk.ScrolledWindow` propagates its child's full natural
 height (and its minimum) and ignores `max-content-height`, so the card grows to
 the height of every row at once — GTK sizes a window from its content, and the
@@ -836,65 +838,95 @@ after the card has been mapped, so the first measure of a session falls back to
 **The controller.** ONE `Gtk.EventControllerScroll` on the scroller, built with
 `SCROLL_CONTROLLER_FLAGS` = `VERTICAL | KINETIC` (1 | 8) and **never `DISCRETE`**:
 with the DISCRETE flag `get_unit()` always answers `WHEEL`, which would turn every
-trackpad into a notched wheel and erase the linear mapping. `KINETIC` is what
-makes `::decelerate` fire when a continuous gesture ends — and that signal IS
-connected: it carries the velocity GTK measured for the gesture, which is the
-only source the momentum tail has (see below). The unit is read per
+trackpad into a notched wheel and erase the unit distinction. The unit is read per
 event from `get_unit()` (valid for the LAST `::scroll` signal) and the event goes
-through `scrollDecision(unit, dy, emojiGridActive())` in `./scroll.ts`:
+through `scrollDecision(unit, dy, emojiGridActive())` in `@common/scroll`:
 
 | Input | Decision | Effect |
 | --- | --- | --- |
-| wheel notch | `selection`, whole steps (`trunc(dy)`) | the SELECTION moves one entry per notch and the viewport animates to it (120 ms), so Enter acts on the row you scrolled to |
-| trackpad | `position`, raw pixels | the position moves linearly (`linearOffset`, pixels ÷ the measured row pitch) and the SELECTION is pulled back into the view by `selectionInView`; the tail after the fingers lift is the glide (below) |
-| fractional wheel click | `ignore` | nothing moves |
-| either, emoji grid active | `ignore` | the LIST does not act (and still CONSUMES — see below) |
+| wheel notch | `selection`, whole steps (`trunc(dy)`) | the SELECTION moves one entry per notch and the viewport animates to it (120 ms), so Enter acts on the row you scrolled to — and the event is CONSUMED, so the scroller's own wheel handling never applies it a second time |
+| trackpad | `position`, raw pixels | NOT acted on: `applyScrollEvent` returns FALSE and the event is left to the SCROLLER — its own surface scaling while the fingers are down, then its kinetic scrolling after they lift (below) |
+| fractional wheel click | `ignore` | nothing moves, and the event is CONSUMED so the scroller's own path cannot nudge the list either |
+| either, emoji grid active | `ignore` | the LIST does not act, and CONSUMES: the list must stay still under the grid |
 
 **Arrows** move exactly one entry (wrapping at the ends, as before) and the view
 follows rigidly (`offsetForSelection`); a wheel notch's own move is animated
 instead. The position is clamped to `[0, rows − viewport]`.
 
-**The momentum tail.** GDK sends no momentum: the deltas stop arriving with the
-gesture. The velocity is GTK's own measurement of that gesture, handed over as
-`::decelerate(vel_x, vel_y)` in pixels per millisecond when a continuous scroll
-ends, and the launcher spends it itself — `startGlide(vy)` maps it into rows per
-millisecond (`glideVelocity`) and runs ONE `runFrames` loop that applies
-`glideStep` per frame.
+**The momentum is GTK's own kinetic scrolling.** `Gtk.ScrolledWindow` already
+scrolls the way the notes text view does: it runs its own scroll controllers over
+the gesture, scales a continuous delta by its own factor while the fingers are
+down, and at the end of the gesture spends the velocity it measured in
+`GtkKineticScrolling` — a friction curve (`DECELERATION_FRICTION` 4, a ~250 ms
+time constant) with an overshoot spring at either end — driven per frame from the
+widget's frame clock. That IS the scrolling this surface wants, and the one thing
+that takes it away is a controller of this file's own: a
+`Gtk.EventControllerScroll` is a NON-GESTURE controller, `gtk_widget_add_controller`
+PREPENDS, and `gtk_widget_run_controllers` breaks out of the dispatch as soon as a
+non-gesture controller returns TRUE — so a TRUE for a continuous delta means the
+scroller's own scroll handler never runs, the state its `::decelerate` handler
+gates on stays unset, and GTK's kinetic path is latched off for that whole
+gesture. `applyScrollEvent` therefore returns FALSE for every CONTINUOUS delta
+(wheel notches and the emoji rule are the only events it consumes), and the result
+list keeps `@common/scroll`'s laws without keeping a physics of its own: the
+module note in `@common/scroll` states the rule, and NO surface in the suite
+carries a tail, a decay curve or a position accumulator of its own.
 
-The launcher's own controller is the reason GTK's kinetic scrolling cannot do
-this: it is a NON-GESTURE controller, `gtk_widget_add_controller` PREPENDS, and
-`gtk_widget_run_controllers` breaks out of the dispatch as soon as a non-gesture
-controller returns TRUE. The controller returns TRUE for everything it decides
-(wheel notches and the emoji rule's consumed events), so `GtkScrolledWindow`'s
-own scroll controller never receives those events, its `priv->scrolling` stays
-FALSE and its `::decelerate` handler returns early — GTK's kinetic path is
-latched off for this scroller, and nothing else would move the list once the
-events stop. Handing the gesture over instead would mean accepting GTK's own
-surface scaling (a touchpad delta is multiplied by GTK's `MAGIC_SCROLL_FACTOR`,
-2.5) and its rubber-band overshoot at the ends, i.e. changing the drag as well
-as the tail.
+**The position is READ BACK, not accumulated.** The scroller moves the adjustment
+itself (a trackpad delta, then every frame of its kinetic tail), so `scrollOffset`
+is a VIEW of the adjustment: `syncListFromAdjustment` (the adjustment's
+`value-changed`) maps it through `rowOffset` + `clampOffset` (`@common/scroll`) and
+pulls the SELECTION into the viewport (`selectionInView`), so Enter still acts on a
+row the user can see while the tail is still running. Two guards keep this file's
+own writes out of the tail's way: a wheel notch's 120 ms step skips the read-back
+while it animates (`scrollAnim` — its intermediate positions would drag the
+selection along), and `followSelection` writes nothing while the selection is
+already in view.
 
-The laws are `./scroll.ts`'s: EXPONENTIAL decay (`GLIDE_DECAY_PER_MS`, applied as
-the decay's own integral over the frame so the tail travels the same distance at
-60 and at 120 fps), a floor of `GLIDE_START_ROWS_PER_MS` under which the gesture
-was a drag and starts nothing, a stop threshold (`GLIDE_STOP_ROWS_PER_MS`), a
-`GLIDE_MAX_STEP_MS` cap so a stalled frame clock cannot spend the whole tail in
-one tick, and a hard end at either end of the list. The glide is CANCELLED by any
-new scroll event (a wheel notch included), by `hide()`, and by the list reaching
-an end; the selected row follows the tail frame by frame.
+The laws are `@common/scroll`'s: the wheel's whole steps (`wheelSteps`), the
+selection-follow (`offsetForSelection`, `selectionInView`), the position bound
+(`clampOffset`), the pixel/row conversions (`offsetPixels` / `rowOffset`)
+and the viewport arithmetic (`viewportRows`, `viewportPixels`).
+
+**The emoji grid scrolls the same way, in its own row unit.** The grid's scroller
+is a `Gtk.ScrolledWindow` of its own — that is what a glyph grid is, an inner
+scroller inside the emoji row — and it owns the grid's gesture exactly as the
+list's scroller owns the list's: `applyEmojiScrollEvent` returns FALSE for a
+CONTINUOUS delta, so the scroller's own handler runs and the drag scaling plus the
+`GtkKineticScrolling` tail are GTK's in BOTH surfaces. This file keeps only the
+unit mapping and the read-back for the grid: a wheel notch moves whole grid ROWS
+(`scrollDecision`'s `step`, applied to `emojiScrollRow` through `clampOffset`),
+the grid's rows being its own unit because they are one row of
+`grid.columns` cells. There is no `gridTail` and no `::decelerate` hand-off: a
+surface that hands the gesture on has no tail to start, and the momentum the user
+feels is the scroller's own.
+
+**The grid's rendered row window follows the scroller.** The grid renders only the
+visible rows plus a margin and carries the rest as spacers, so the scroller's
+`value-changed` read-back does two things for a gesture this file did not run:
+`rowOffset` maps the adjustment into `emojiScrollRow`, and `ensureEmojiWindow`
+re-renders the window the viewport has left — without that second half a natively
+scrolled grid would scroll into blank spacer cells. The app's own writes
+(`setEmojiScrollRow`) set `emojiRendering` while they re-render and re-set the
+value, and the read-back ignores them.
 
 **The emoji interaction rule.** The emoji row is one list item that owns an inner
 glyph-grid scroller. While that row holds the selection the arrows drive the grid
-(as they always did) and the LIST does not act on any wheel event
-(`scrollDecision(…, gridActive: true)` → `ignore`). The grid's own scroller is
-DEEPER in the event path, so it is the grid that consumes the event when it can
-scroll — the two scrollers never both move. An event that still reaches the LIST
-is a grid that cannot scroll, and the list CONSUMES it without acting: this
-controller shares its scroller with GTK's own scroll controller, whose native
-path is live under the `AUTOMATIC` policy that caps the list, so consuming is
-what keeps the list still under the grid (and what keeps that native path from
-ever starting, as the momentum paragraph states). The grid keeps GTK's native
-wheel/kinetic behaviour.
+(as they always did) and the LIST does not act on any scroll event
+(`scrollDecision(…, gridActive: true)` → `ignore`) and consumes it — the case that
+still matters is a grid with nothing to scroll, where its own scroller propagates
+the event and the list must not take it. Neither surface consumes a CONTINUOUS
+delta, so a gesture carries exactly ONE of them (the inner scroller handles it
+before the list's controller is reached, and `gtk_widget_run_controllers` breaks
+the ancestor walk at the first widget that handled it).
+
+`common/scroll.probe.ts` pins the laws themselves without a window — `ags bundle
+--gtk 4 common/scroll.probe.ts /tmp/scroll-probe.sh && bash
+/tmp/scroll-probe.sh` — including the read-back of a position a scroller moved
+(`rowOffset`) and the two row pitches the suite scrolls at (a short-pitch and a
+tall-pitch one, i.e. a list row and the emoji grid's rows). The grid's own row maths
+stays the launcher's: `emoji.probe.ts` (`ags bundle --gtk 4
+apps/launcher/emoji.probe.ts /tmp/emoji-probe.sh && bash /tmp/emoji-probe.sh`).
 
 **Per-source limits** (a scrollable list is pointless if a source stops early):
 apps `APP_LIMIT = 60` (`sources/apps.ts`, every visible desktop entry); the emoji
@@ -908,18 +940,25 @@ height is the window's own allocation — so it is proven on a mapped card
 (screenshot / `hyprctl layers`), never by the debug path: `launcher debug
 query`/`debug scroll` run with the card HIDDEN, and they report the scroll
 arithmetic plus the last allocation (`shownHeight`) rather than deciding the
-size. The debug path is what proves the WIRING — `debug scroll` applies a
-decision through the same function the controller calls, and
-`debug scroll glide <px/ms>` starts a tail through the `::decelerate` hand-off
-(`startGlide`) with the velocity a trackpad would report, so the glide's start,
-its cancellation by the next event, the rows/ms it is carrying (the reply's
-`glideVelocity`) and how many frames the tail has run (`glideFrames`) are all
-readable without a device.
+size. The debug path is what proves the WIRING — `debug scroll <unit> <delta>
+[list|grid]` applies a decision through the same function the controller calls
+(the result list's `applyScrollEvent` or the emoji grid's
+`applyEmojiScrollEvent`), and `debug scroll status [grid]` moves nothing and
+reports a surface a REAL gesture moved. `consumed:false` for a `surface` delta is
+the hand-over itself: the event is left to the surface's own scroller, which is
+what gives both surfaces GTK's kinetic scrolling. There is no `glide` unit —
+neither surface has a tail this file could start, so the reply carries no tail
+numbers. The reply carries the surface's rows and offset, its scroller's live
+adjustment value (the authoritative position a real gesture and the kinetic tail
+it starts both move) plus the emoji grid's own numbers — so a gesture's effect on
+either surface is readable without a device.
 
 ### The app-owned and interpreter bangs
 
-- `!n <name>` — open or create a note: spawns
-  `apps/notes/ensure-new.sh` in this tree (router → shell notes).
+- `!n <name-or-path>` — open or create a note: spawns
+  `apps/notes/ensure-new.sh` in this tree (router → shell notes). The notes app's
+  own `open` takes a note NAME or a PATH, so the argument is Tab-completed like
+  every other path bang's (see Tab autofill).
 - `!q <expr>` — qalc math · `!py <code>` — python evaluation.
 - `!code <path>` — open a file/directory in VS Code (spawn `code <expanded
   path>`).
@@ -1075,13 +1114,21 @@ the launcher owns the list, the grid and the config.
   adding the clicked cell (hold Shift to add one more).
 - **Scrolling: every match is reachable.** The search is UNCAPPED — the label
   counts every match — and the grid renders them all inside a vertical scroller
-  whose visible area is `grid.visibleRows` rows (`emojiGridHeight()` in
-  `emoji.ts`). Arrowing past the last visible row scrolls exactly one row (the
+  of its own whose visible area is `grid.visibleRows` rows (`emojiGridHeight()`
+  in `emoji.ts`). Arrowing past the last visible row scrolls exactly one row (the
   selection never leaves the viewport; `emojiScrollTop()` is the pure row
-  maths); the mouse wheel over the card scrolls the view one row per notch
-  without touching the selection or the per-cell clicks. Because the scroller's
-  natural height is capped, the card's height stabilises at that cap for large
-  match counts instead of growing without bound.
+  maths). The WHEEL scrolls it through `@common/scroll`'s `scrollDecision` and
+  `clampOffset`, applied in grid rows instead of entries, so a notch moves
+  whole rows; a TRACKPAD gesture is left to that scroller's own scroll handler —
+  the grid's scroller scales the delta and spends the gesture's velocity in
+  `GtkKineticScrolling` after the fingers lift, exactly as the result list's does
+  (see "Scrolling the result list").
+  The position is FRACTIONAL while a gesture moves it (the adjustment carries the
+  pixels) and whole for the arrows, which snap the viewport to the row the
+  selection needs; the WHEEL moves the VIEW and never
+  the selection, so the current cell and the per-cell clicks are untouched.
+  Because the scroller's natural height is capped, the card's height stabilises
+  at that cap for large match counts instead of growing without bound.
 
 ### The keybind contract (mod+. and `:`)
 

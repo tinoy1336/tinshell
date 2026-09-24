@@ -53,6 +53,20 @@ import { ignore } from "@common/log/logger"
 import { createPathAutofill } from "@common/path/autofill"
 import { isPathShaped } from "@common/path/complete"
 import { treeRoot } from "@common/path/tree-root"
+import {
+  clampOffset,
+  offsetForSelection,
+  offsetPixels,
+  ROW_PITCH_FALLBACK_PX,
+  rowOffset,
+  SCROLL_CONTROLLER_FLAGS,
+  type ScrollUnit,
+  scrollDecision,
+  selectionInView,
+  stepSelection,
+  viewportPixels,
+  viewportRows,
+} from "@common/scroll"
 import { bindFocusLoss, bindOutsideClick } from "@common/window/popup-dismiss"
 import { type Accessor, createEffect, createState, For } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
@@ -80,23 +94,6 @@ import {
   ROW_CHROME,
   textBudget,
 } from "./row-caps"
-import {
-  clampOffset,
-  glideStarts,
-  glideStep,
-  glideVelocity,
-  linearOffset,
-  offsetForSelection,
-  offsetPixels,
-  ROW_PITCH_FALLBACK_PX,
-  SCROLL_CONTROLLER_FLAGS,
-  type ScrollUnit,
-  scrollDecision,
-  selectionInView,
-  stepSelection,
-  viewportPixels,
-  viewportRows,
-} from "./scroll"
 import { pathBangArgument, spliceBangToken } from "./sources/bang-token"
 import { setEntryApply } from "./sources/bangs"
 import type { Result } from "./types"
@@ -228,7 +225,7 @@ export default function Launcher() {
   /** Previous selection observed by the height effect (avoids idle churn). */
   let lastSelected = -1
   /** The result list's SCROLL VIEWPORT and the row units it works in. The laws
-   *  are `./scroll.ts`; this holds the widget state they act on: the scroller
+   *  are `@common/scroll`; this holds the widget state they act on: the scroller
    *  itself, the `.matches` box the rows are appended to (the pitch is measured
    *  off ITS first child — the scroller's own `get_child()` answers the
    *  `GtkViewport` GTK wraps a non-scrollable child in, whose first child is the
@@ -241,12 +238,17 @@ export default function Launcher() {
   let scrollOffset = 0
   let scrollAnim: FrameRunner | null = null
   let wheelDriven = false
-  /** The glide's frame source, the row velocity it is still carrying after the
-   *  trackpad gesture ended, and the frames it has run (the debug path's answer
-   *  to "did the tail actually move?" — `./scroll.ts` glide laws). */
-  let glide: FrameRunner | null = null
-  let glideVelocityRows = 0
-  let glideFrames = 0
+  // The result list's position is NOT kept here: the scroller itself moves it
+  // (`@common/scroll` module note) and `syncListFromAdjustment` reads it back,
+  // so `scrollOffset` is a view of the adjustment rather than an accumulator
+  // that would drift from it.
+
+  // Neither row surface here carries a tail: the result list and the emoji grid
+  // both leave a CONTINUOUS gesture to their own `Gtk.ScrolledWindow`, whose
+  // kinetic scrolling is the momentum the user feels (`@common/scroll` module
+  // note). This file owns the WHEEL's unit mapping — a notch steps the list's
+  // selection and steps the grid's view by whole rows — and the read-back of
+  // the position the scroller produced, never a physics of its own.
 
   // Shift/Ctrl-held tracking. The Gtk.Entry 'activate' signal carries no
   // modifier state, so Shift+Enter / Ctrl+Enter arriving via onActivate (the
@@ -314,7 +316,6 @@ export default function Launcher() {
     shiftHeld = false
     ctrlHeld = false
     combiner.cancel()
-    stopGlide()
     // Any insertion this session still had scheduled is stale.
     emojiCancelPick()
     // The commit buffer dies with the card: Escape / click-outside /
@@ -424,20 +425,26 @@ export default function Launcher() {
     setEmojiScrollRow(top)
   }
 
-  /** Move the viewport to `topRow` (the row math is the caller's): re-render the
-   *  rendered row window around it when the new viewport leaves it, then apply
-   *  the scroll value. One entry point for the arrows and the wheel, so both
-   *  scroll the same way. */
-  function setEmojiScrollRow(topRow: number): void {
-    if (!emojiScroller) {
-      emojiScrollRow = topRow
-      return
-    }
+  /** The grid's row units: one row per `emojiColumns()` cells — the unit the
+   *  scroll laws work in, exactly as the result list works in entries. */
+  function emojiGridRows(): number {
+    return Math.ceil((emojiGrid?.entries.length ?? 0) / Math.max(1, emojiColumns()))
+  }
+
+  /** Move the grid's viewport to `row` (the row math is the caller's): re-render
+   *  the rendered row window when the new viewport leaves it, then apply the
+   *  scroll value. The position is FRACTIONAL while a gesture moves it (the
+   *  adjustment carries the pixels) and whole for the arrows, which only need the
+   *  row they land on. One entry point for the arrows and the wheel, so both move
+   *  the grid the same way; a gesture the scroller takes moves the adjustment
+   *  itself and the `value-changed` read-back follows it. */
+  function setEmojiScrollRow(row: number): void {
+    emojiScrollRow = row
+    if (!emojiScroller) return
     emojiRendering = true
     try {
-      emojiScrollRow = topRow
-      ensureEmojiWindow(topRow)
-      emojiScroller.get_vadjustment().set_value(topRow * EMOJI_ROW_PITCH)
+      ensureEmojiWindow(Math.floor(row))
+      emojiScroller.get_vadjustment().set_value(row * EMOJI_ROW_PITCH)
     } finally {
       emojiRendering = false
     }
@@ -453,15 +460,37 @@ export default function Launcher() {
     renderEmojiWindow(topRow)
   }
 
-  /** Wheel step over the card: move the VIEWPORT one row (clamped by the
-   *  visible-rows cap). The wheel scrolls the grid; the selection stays where
-   *  the keyboard put it, and the next arrow move scrolls it back into view. */
-  function scrollEmojiGrid(delta: number): void {
-    if (!emojiScroller || !emojiGrid) return
-    const rows = Math.ceil(emojiGrid.entries.length / Math.max(1, emojiColumns()))
-    const maxTop = Math.max(0, rows - emojiVisibleRows())
-    const top = Math.min(Math.max(0, emojiScrollRow + delta), maxTop)
-    setEmojiScrollRow(top)
+  /** ONE scroll event over the card, applied to the GRID — the ONE path the
+   *  grid's `::scroll` handler calls and `launcher debug scroll` drives, so the
+   *  wiring is exercised without a device event. The GRID's ROW UNIT is the
+   *  difference from the result list, never the momentum behind it:
+   *
+   *  - a WHEEL notch moves whole grid rows (`scrollDecision` → `clampOffset`)
+   *    and is CONSUMED, so the scroller's own path cannot apply it a second
+   *    time, and a notch carries no momentum;
+   *  - a CONTINUOUS (trackpad) delta is returned FALSE, i.e. handed to the grid
+   *    scroller's own scroll handler — the same hand-over `applyScrollEvent`
+   *    makes for the result list, and what makes the two surfaces share ONE
+   *    kinetic feel: the scroller scales the delta by its own factor while the
+   *    fingers are down and spends the gesture's velocity in
+   *    `GtkKineticScrolling` after they lift. This controller runs BEFORE the
+   *    scroller's own (a non-gesture controller is prepended to the widget's
+   *    list and `gtk_widget_run_controllers` breaks the dispatch at the first
+   *    one that returns TRUE), so a TRUE here would latch GTK's kinetic path
+   *    off for the whole gesture (`@common/scroll` module note).
+   *
+   *  The SELECTION stays where the keyboard put it; the next arrow move pulls it
+   *  back into view (`syncEmojiScroll`). */
+  function applyEmojiScrollEvent(unit: ScrollUnit, dy: number): boolean {
+    const decision = scrollDecision(unit, dy, false)
+    // A fractional wheel click has nothing to move, and is CONSUMED so the
+    // scroller's own path cannot nudge a surface this file decided not to move.
+    if (decision.kind === "ignore") return true
+    // A continuous delta is the scroller's — see the note above.
+    if (decision.kind === "continuous") return false
+    const rows = emojiGridRows()
+    setEmojiScrollRow(clampOffset(emojiScrollRow + decision.steps, rows, emojiVisibleRows()))
+    return true
   }
 
   /** Is Shift down right now? Gtk.Button's 'clicked' signal carries no modifier
@@ -678,17 +707,42 @@ export default function Launcher() {
     })
   }
 
+  /** Debug: the entry's own text and the ghost range a Tab completion left
+   *  selected — the autofill's result, readable without a screenshot. */
+  function debugEntry(): {
+    text: string
+    cursor: number
+    selectionStart: number
+    selectionEnd: number
+  } {
+    // `get_selection_bounds()` is an (out start, out end) → bool method, which
+    // gjs exposes as [ok, start, end]; no selection is -1 on both ends.
+    const bounds = (entry.get_selection_bounds() ?? []) as unknown as number[]
+    const hasSelection = bounds.length === 3 && !!bounds[0]
+    return {
+      text: entry.get_text(),
+      cursor: entry.get_position(),
+      selectionStart: hasSelection ? bounds[1] : -1,
+      selectionEnd: hasSelection ? bounds[2] : -1,
+    }
+  }
+
   /** Debug: apply ONE scroll decision through the real path the controller
-   *  calls (`applyScrollEvent`) and report where the list ended up — selection,
-   *  row offset, viewport height, the scroller's live adjustment value, the
-   *  card's height and the glide velocity still in hand. The unit `glide`
-   *  instead calls the `::decelerate` hand-off (`startGlide`) with a velocity a
-   *  trackpad would report, which is how a request starts a tail without a
-   *  device. The device event is the only thing it does not exercise. */
+   *  calls (`applyScrollEvent` for the result list, `applyEmojiScrollEvent` for
+   *  the emoji grid) and report where that surface ended up — selection, row
+   *  offset, viewport height, the scroller's live adjustment value and the card's
+   *  height. The unit `status` moves nothing and only reports: it is how a
+   *  position a real gesture left behind is read back — neither surface has a
+   *  tail this file could start, their momentum being their own scroller's
+   *  kinetic scrolling (`consumed:false` for the list is what says the
+   *  continuous gesture is handed on rather than kept). The device event is the
+   *  only thing these do not exercise. */
   function debugScroll(
     unit: string,
     dy: number,
+    target: "list" | "grid" = "list",
   ): {
+    target: string
     consumed: boolean
     selected: number
     rows: number
@@ -696,24 +750,33 @@ export default function Launcher() {
     adjustment: number
     viewportPx: number
     cardHeight: number
-    /** Rows/ms the glide is carrying; 0 when no tail is running. */
-    glideVelocity: number
-    /** Frames the running tail has taken so far. */
-    glideFrames: number
+    /** The emoji grid's own numbers, always reported (the grid is only on
+     *  screen in emoji mode, where the numbers above are the list's). */
+    grid: { rows: number; offset: number; adjustment: number; viewportPx: number }
   } {
     let consumed = false
-    if (unit === "glide") startGlide(dy)
-    else consumed = applyScrollEvent(unit === "wheel" ? "wheel" : "surface", dy)
+    if (unit !== "status") {
+      const read = unit === "wheel" ? "wheel" : "surface"
+      consumed = target === "grid" ? applyEmojiScrollEvent(read, dy) : applyScrollEvent(read, dy)
+    }
     return {
+      target,
       consumed,
       selected: selected.peek(),
-      rows: results.peek().length,
-      offset: scrollOffset,
-      adjustment: listAdjustment()?.get_value() ?? -1,
-      viewportPx: viewportHeightPx(),
+      rows: target === "grid" ? emojiGridRows() : results.peek().length,
+      offset: target === "grid" ? emojiScrollRow : scrollOffset,
+      adjustment:
+        target === "grid"
+          ? (emojiScroller?.get_vadjustment().get_value() ?? -1)
+          : (listAdjustment()?.get_value() ?? -1),
+      viewportPx: target === "grid" ? emojiGridHeight() : viewportHeightPx(),
       cardHeight: currentH,
-      glideVelocity: glideVelocityRows,
-      glideFrames,
+      grid: {
+        rows: emojiGridRows(),
+        offset: emojiScrollRow,
+        adjustment: emojiScroller?.get_vadjustment().get_value() ?? -1,
+        viewportPx: emojiGridHeight(),
+      },
     }
   }
 
@@ -796,7 +859,7 @@ export default function Launcher() {
     }
   }
 
-  // ── the result list's scroll viewport (`./scroll.ts` laws) ──
+  // ── the result list's scroll viewport (`@common/scroll` laws) ──
 
   /** The rows the viewport shows. */
   function viewportRowCount(): number {
@@ -884,97 +947,77 @@ export default function Launcher() {
     })
   }
 
-  /** The selection-follow: keep the selected row inside the viewport. */
+  /** The selection-follow: keep the selected row inside the viewport. A
+   *  selection already in view moves nothing — the view then belongs to whatever
+   *  else is moving it (the scroller's own gesture and the kinetic tail it
+   *  starts), and a write here would fight that tail frame by frame. */
   function followSelection(animate: boolean): void {
     const rows = results.peek().length
     if (rows === 0) return
-    applyScrollOffset(
-      offsetForSelection(selected.peek(), scrollOffset, viewportRowCount(), rows),
-      animate,
-    )
+    const viewport = viewportRowCount()
+    const target = offsetForSelection(selected.peek(), scrollOffset, viewport, rows)
+    if (target === scrollOffset) return
+    applyScrollOffset(target, animate)
   }
 
-  /** Stop the glide — a new gesture, a wheel notch, a closing card or the list
-   *  reaching an end all end the tail here. */
-  function stopGlide(): void {
-    if (glide) {
-      glide.cancel()
-      glide = null
-    }
-    glideVelocityRows = 0
-  }
-
-  /**
-   * Start the momentum tail of a trackpad flick from the velocity GTK measured
-   * for the gesture that just ended (`::decelerate`, pixels/ms). The velocity is
-   * carried frame by frame through `glideStep`, so the tail decelerates and
-   * stops rather than stopping dead the moment the deltas stop arriving.
-   *
-   * A gesture slower than `GLIDE_START_ROWS_PER_MS` starts nothing: lifting the
-   * fingers after positioning the list leaves it where it was put.
-   */
-  function startGlide(velocityPxPerMs: number): void {
-    stopGlide()
-    const velocity = glideVelocity(velocityPxPerMs, rowPitchPx)
-    if (!glideStarts(velocity)) return
-    glideVelocityRows = velocity
-    glideFrames = 0
-    let last = GLib.get_monotonic_time()
-    glide = runFrames(win, (nowUs) => {
-      const dtMs = (nowUs - last) / 1000
-      last = nowUs
-      glideFrames++
-      const rows = results.peek().length
-      const next = glideStep(scrollOffset, glideVelocityRows, dtMs, rows, viewportRowCount())
-      glideVelocityRows = next.velocity
-      applyScrollOffset(next.offset, false)
-      setSelected((cur) => selectionInView(cur, scrollOffset, viewportRowCount(), rows))
-      if (next.velocity === 0) {
-        glide = null
-        return false
-      }
-      return true
-    })
-  }
-
-  /** ONE scroll event's effect — the ONE path the controller calls and the
-   *  `launcher debug scroll` request drives, so the wiring is exercised by the
-   *  request surface instead of by a synthetic device event. Returns true when
-   *  the event was consumed. */
-  function applyScrollEvent(unit: ScrollUnit, dy: number): boolean {
-    // A delta of any kind is a gesture under way, so the previous flick's tail
-    // is over before this event is read.
-    stopGlide()
-    const decision = scrollDecision(unit, dy, emojiGridActive())
-    // CONSUMED even when the list does not act: this controller sits on the
-    // same scroller as GTK's own scroll controller, and under the AUTOMATIC
-    // policy that caps the list the native path is live (`may_vscroll`). The
-    // grid's scroller is deeper in the event path and stops the event when it
-    // scrolls, so anything reaching here is a grid that cannot scroll — and the
-    // LIST must then stay still rather than let the native path move it under
-    // the grid. A fractional wheel click lands here too, where moving nothing
-    // is the notched-wheel feel `./scroll.ts` exists for.
-    if (decision.kind === "ignore") return true
-    if (decision.kind === "selection") {
-      const rows = results.peek().length
-      if (rows === 0) return false
-      wheelDriven = true
-      setSelected((cur) => stepSelection(cur, decision.steps, rows))
-      followSelection(true)
-      return true
-    }
+  /** The scroller's own position, read back as row units. GTK's scroll path
+   *  moves the adjustment directly — the continuous deltas while the fingers are
+   *  down, then the kinetic tail it starts after they lift — so the tracked
+   *  position is READ from the adjustment on every change instead of accumulated
+   *  from the events: one view of one position, whichever of the two moved it.
+   *  The selection is pulled back into the viewport as it moves, so Enter still
+   *  acts on a row the user can see. */
+  function syncListFromAdjustment(): void {
+    const adj = listAdjustment()
     const rows = results.peek().length
-    applyScrollOffset(
-      linearOffset(scrollOffset, decision.pixels, rowPitchPx, rows, viewportRowCount()),
-      false,
-    )
-    setSelected((cur) => selectionInView(cur, scrollOffset, viewportRowCount(), rows))
+    if (!adj || rows === 0) return
+    // A wheel notch's own step animates the adjustment frame by frame towards
+    // the row the selection already moved to; reading those intermediate
+    // positions back would drag the selection along with the animation.
+    if (scrollAnim) return
+    const viewport = viewportRowCount()
+    scrollOffset = clampOffset(rowOffset(adj.get_value(), rowPitchPx), rows, viewport)
+    setSelected((cur) => selectionInView(cur, scrollOffset, viewport, rows))
+  }
+
+  /** ONE scroll event's effect on the RESULT LIST — the ONE path the
+   *  controller's `::scroll` handler calls and the `launcher debug scroll`
+   *  request drives, so the wiring is exercised by the request surface instead
+   *  of by a synthetic device event. Returns true when the event was consumed.
+   *
+   *  THE WHEEL IS THIS FILE'S, A CONTINUOUS GESTURE IS NOT. A notch steps the
+   *  SELECTION and the view animates to it — that is what makes Enter act on the
+   *  row the user scrolled to — and a wheel event carries no momentum, so
+   *  consuming it costs nothing. A CONTINUOUS (trackpad) delta is returned
+   *  FALSE, i.e. handed to the scroller's own scroll handler: that handler is
+   *  what gives the list the kinetic scrolling notes has (the scroller's surface
+   *  scaling while the fingers are down, then `GtkKineticScrolling` — a friction
+   *  curve with an end overshoot — after they lift, driven from the frame
+   *  clock). `gtk_widget_run_controllers` stops the dispatch at the first
+   *  NON-gesture controller that returns TRUE, and this controller is added
+   *  after the scroller's own, so a TRUE here would latch GTK's kinetic path off
+   *  for the whole gesture: the scroller's handler never runs, the state its
+   *  `::decelerate` handler gates on stays unset, and a hand-rolled tail would
+   *  be the only momentum left (`@common/scroll` module note). */
+  function applyScrollEvent(unit: ScrollUnit, dy: number): boolean {
+    const decision = scrollDecision(unit, dy, emojiGridActive())
+    // A fractional wheel click (nothing to move) and the emoji rule (the list
+    // stays still under the grid) both CONSUME: the scroller's own path must not
+    // move the list where this file decided it should not move.
+    if (decision.kind === "ignore") return true
+    // A continuous delta is the scroller's — see the note above.
+    if (decision.kind === "continuous") return false
+    const rows = results.peek().length
+    if (rows === 0) return false
+    wheelDriven = true
+    setSelected((cur) => stepSelection(cur, decision.steps, rows))
+    followSelection(true)
     return true
   }
 
   /** The unit of a scroll event: `get_unit()` reads the LAST `::scroll`
    *  signal, which is why the controller must not carry the DISCRETE flag
-   *  (`./scroll.ts` documents the trap). */
+   *  (`@common/scroll` documents the trap). */
   function eventUnit(ctrl: Gtk.EventControllerScroll): ScrollUnit {
     try {
       return ctrl.get_unit() === Gdk.ScrollUnit.WHEEL ? "wheel" : "surface"
@@ -1152,6 +1195,7 @@ export default function Launcher() {
           hide,
           emoji: emojiMode,
           activateSelected,
+          debugEntry,
           debugQuery,
           debugScroll,
         }
@@ -1325,7 +1369,7 @@ export default function Launcher() {
         </box>
 
         {/* matches — the SCROLL VIEWPORT: the scroller's maximum content height
-            is `listHeight` rows x the measured row pitch (`./scroll.ts`), so the
+            is `listHeight` rows x the measured row pitch (`@common/scroll`), so the
             card stops growing there and the rows scroll inside it. The VERTICAL
             policy must stay `AUTOMATIC` for that bound to hold: a
             `Gtk.ScrolledWindow` with `NEVER` propagates its child's full natural
@@ -1337,17 +1381,22 @@ export default function Launcher() {
             matchesScroll = self
             self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
             self.set_propagate_natural_height(true)
+            // This controller takes the WHEEL (a notch steps the selection) and
+            // the emoji rule; a continuous gesture it returns FALSE for, i.e.
+            // leaves to the scroller's own scroll handler — see
+            // `applyScrollEvent` and the `@common/scroll` module note. There is
+            // deliberately no `::decelerate` hand-off here: the momentum of a
+            // gesture is GTK's own kinetic scrolling, started by the handler
+            // that received the gesture.
             const ctrl = Gtk.EventControllerScroll.new(SCROLL_CONTROLLER_FLAGS)
             ctrl.connect("scroll", (c: Gtk.EventControllerScroll, _dx: number, dy: number) =>
               applyScrollEvent(eventUnit(c), dy),
             )
-            // The end of a continuous gesture: the KINETIC flag makes GTK emit
-            // the velocity it measured for the gesture, and that velocity is
-            // the momentum tail's only source (GDK sends no further deltas).
-            ctrl.connect("decelerate", (_c: Gtk.EventControllerScroll, _vx: number, vy: number) =>
-              startGlide(vy),
-            )
             self.add_controller(ctrl)
+            // The position belongs to the scroller: every move it makes — a
+            // gesture, its kinetic tail, this file's own write — is read back
+            // here, which is also what keeps the selection on a visible row.
+            self.get_vadjustment().connect("value-changed", syncListFromAdjustment)
             applyViewport()
           }}
         >
@@ -1622,25 +1671,35 @@ export default function Launcher() {
           scroller.set_propagate_natural_height(true)
           scroller.set_max_content_height(emojiGridHeight(visibleRows))
           scroller.set_child(createEmojiGrid(entries))
-          // Wheel over the card scrolls the grid one row per notch. Consuming
-          // the event (true) keeps the scroller's own handler from applying it
-          // twice; a scroll controller never sees clicks, so the per-cell
-          // click-to-insert (and the section's select-on-click) are untouched.
-          const wheel = new Gtk.EventControllerScroll({
-            flags: Gtk.EventControllerScrollFlags.VERTICAL,
-          })
-          wheel.connect("scroll", (_c: any, _dx: number, dy: number) => {
-            scrollEmojiGrid(dy > 0 ? 1 : -1)
-            return true
-          })
+          // The grid scrolls through the SAME laws as the result list
+          // (`@common/scroll`): the flags are the list's own (VERTICAL | KINETIC,
+          // never DISCRETE, so `get_unit()` still tells a wheel from a
+          // trackpad), a wheel notch goes through `applyEmojiScrollEvent`, and a
+          // CONTINUOUS delta is left to the scroller's own scroll handler — the
+          // same hand-over the result list makes, so the drag scaling and the
+          // kinetic tail after the fingers lift are GTK's in both surfaces and
+          // this file carries no physics of its own. There is deliberately no
+          // `::decelerate` hand-off: the momentum is the scroller's. A scroll
+          // controller never sees clicks, so the per-cell click-to-insert (and
+          // the section's select-on-click) are untouched.
+          const wheel = Gtk.EventControllerScroll.new(SCROLL_CONTROLLER_FLAGS)
+          wheel.connect("scroll", (c: Gtk.EventControllerScroll, _dx: number, dy: number) =>
+            applyEmojiScrollEvent(eventUnit(c), dy),
+          )
           scroller.add_controller(wheel)
           emojiScroller = scroller
           emojiScrollRow = 0
-          // Keep the tracked top row in step with the real scroll position
-          // (wheel scrolling moves the adjustment without going through us).
+          // Keep the tracked top row AND the rendered row window in step with the
+          // real scroll position: the scroller moves the adjustment itself (a
+          // continuous gesture, then every frame of the kinetic tail it starts),
+          // and this grid renders only the visible rows plus a margin — a
+          // position the window does not follow would scroll into blank spacer
+          // cells.
           scroller.get_vadjustment().connect("value-changed", () => {
             if (emojiRendering) return
-            emojiScrollRow = Math.round(scroller.get_vadjustment().get_value() / EMOJI_ROW_PITCH)
+            const row = rowOffset(scroller.get_vadjustment().get_value(), EMOJI_ROW_PITCH)
+            emojiScrollRow = row
+            ensureEmojiWindow(Math.max(0, Math.floor(row)))
           })
           self.append(scroller)
         }}

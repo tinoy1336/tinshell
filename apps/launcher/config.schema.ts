@@ -12,7 +12,7 @@ export const schema = obj({
     maxWidth: Type.Integer({ minimum: 200 }),
   }),
   /** Result entries the card shows before it SCROLLS instead of growing
-   *  (`./scroll.ts` + `Launcher.tsx`). */
+   *  (`@common/scroll` + `Launcher.tsx`). */
   listHeight: Type.Integer({ minimum: 1, maximum: 20 }),
   sources: obj({
     applications: Type.Boolean(),

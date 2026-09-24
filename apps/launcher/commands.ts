@@ -15,7 +15,9 @@
  * the reason a preview kept the bang's own row is only visible there (and in
  * the log sink). `debug query <text>` drives the live combiner with the card
  * hidden and answers the rows it settles on, so a preview can be read without
- * showing or typing into the card.
+ * showing or typing into the card. `debug scroll` drives or reads the two row
+ * surfaces (the result list and the emoji grid), and `debug entry` answers the
+ * entry's own text — the Tab completion's ghost included.
  */
 
 import { registerConfigCommands } from "@common/commands/config-commands"
@@ -54,12 +56,25 @@ export interface LauncherControl {
       }
     | { error: string }
   >
+  /** Debug: the entry's own text — what Tab path autofill filled in, and which
+   *  part of it is still the uncommitted ghost (the selection range). */
+  debugEntry?(): {
+    text: string
+    cursor: number
+    selectionStart: number
+    selectionEnd: number
+  }
   /** Debug: apply one scroll decision through the real controller path, or
-   *  start a glide with the velocity a trackpad flick would report (`glide`). */
+   *  report a surface's live position (`status`); the target names the surface
+   *  (the result list, or the emoji grid). Neither surface owns a momentum tail
+   *  — a continuous gesture is its scroller's own kinetic scrolling — so the
+   *  reply carries no tail numbers. */
   debugScroll?(
     unit: string,
     dy: number,
+    target?: "list" | "grid",
   ): {
+    target: string
     consumed: boolean
     selected: number
     rows: number
@@ -67,10 +82,8 @@ export interface LauncherControl {
     adjustment: number
     viewportPx: number
     cardHeight: number
-    /** Rows/ms the glide is carrying; 0 when no tail is running. */
-    glideVelocity: number
-    /** Frames the last tail ran. */
-    glideFrames: number
+    /** The emoji grid's own numbers, always reported. */
+    grid: { rows: number; offset: number; adjustment: number; viewportPx: number }
   }
 }
 
@@ -126,18 +139,30 @@ register(["launcher", "debug", "activate"], (_t, res) => {
   res(JSON.stringify(out ?? { error: "activateSelected unavailable" }))
 })
 
+register(["launcher", "debug", "entry"], (_t, res) => {
+  // The entry's text as the surface holds it: what a Tab completion filled in
+  // and which part of it is still the ghost (the selection). The completion is
+  // a blind cycle over the same `common/path/autofill` every surface uses, so
+  // this is where the bang an argument completes under is read back.
+  const out = control?.debugEntry?.()
+  res(JSON.stringify(out ?? { error: "debugEntry unavailable" }))
+})
+
 register(["launcher", "debug", "scroll"], (tokens, res) => {
   // Applies ONE scroll decision through the same path the controller's
-  // ::scroll handler calls (`applyScrollEvent`), so the wiring is exercised by
-  // the request surface: `debug scroll wheel 1`, `debug scroll surface -40`.
-  // The unit is a parameter here because no device event exists in a request;
-  // `debug scroll glide <px/ms>` goes through the `::decelerate` hand-off
-  // (`startGlide`) instead, so the momentum tail's start and its cancellation
-  // are exercisable the same way.
+  // ::scroll handler calls — `applyScrollEvent` on the result list,
+  // `applyEmojiScrollEvent` on the emoji grid — so the wiring is exercised by
+  // the request surface: `debug scroll wheel 1`, `debug scroll surface -40`
+  // (which reports `consumed:false`, the continuous gesture being handed to
+  // the surface's own scroller), and `debug scroll status [grid]` reads a
+  // surface a real gesture or its kinetic tail moved without moving it again.
+  // The target token names the surface; the list is the default.
+  const target = tokens.includes("grid") ? "grid" : "list"
   const unit = tokens[0] ?? "surface"
-  const dy = Number.parseFloat(tokens[1] ?? "")
-  if (!Number.isFinite(dy)) return res("usage: debug scroll <wheel|surface|glide> <delta>")
-  const out = control?.debugScroll?.(unit, dy)
+  const dy = unit === "status" ? 0 : Number.parseFloat(tokens[1] ?? "")
+  if (!Number.isFinite(dy))
+    return res("usage: debug scroll <wheel|surface|status> <delta> [list|grid]")
+  const out = control?.debugScroll?.(unit, dy, target)
   res(JSON.stringify(out ?? { error: "debugScroll unavailable" }))
 })
 
