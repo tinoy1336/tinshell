@@ -22,7 +22,9 @@ interface AppStore {
   get<T = any>(path: string, fallback?: T): T
   /** The whole live config object (read-only access by convention). */
   all(): any
-  /** Schema-validated dotted-path set + serialized persist. */
+  /** Schema-validated dotted-path set + serialized persist. The store's own
+   *  `setLive` announces the change, so `store.onConfigChanged` subscribers
+   *  see it without a restart. */
   set(path: string, value: any): { ok: boolean; error?: string }
   /** Atomic re-read of config.json + validation. */
   reloadConfig(): Promise<void>

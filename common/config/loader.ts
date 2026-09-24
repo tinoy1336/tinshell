@@ -67,7 +67,11 @@ export interface ConfigStore {
   /** Dotted-path get. */
   get(path: string): any
   /** Dotted-path set on the live config (creates intermediates). Returns false
-   *  if an intermediate resolves to a non-object. Does NOT validate or persist. */
+   *  if an intermediate resolves to a non-object. Does NOT validate or persist.
+   *  Fires the change listeners when the value at the path actually differs:
+   *  this is the ONE live-mutation primitive, so every set path built on it
+   *  (the facade's `set`/`setLive`, app-store's `set`, and therefore every
+   *  `<app> config set`) announces the change the same way `applyToLive` does. */
   setLive(path: string, value: any): boolean
   /** Validate a single {path, value} pair. null on success, error string otherwise. */
   checkType(path: string, value: any): string | null
@@ -276,6 +280,21 @@ function deepClone(obj: any): any {
   }
 }
 
+/** Structural equality over the JSON values a config holds. A set to the value
+ *  already there is not a change, so it must not announce one. */
+function sameValue(a: any, b: any): boolean {
+  if (a === b) return true
+  if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false
+  if (Array.isArray(a) !== Array.isArray(b)) return false
+  const ka = Object.keys(a)
+  const kb = Object.keys(b)
+  if (ka.length !== kb.length) return false
+  for (const k of ka) {
+    if (!sameValue(a[k], b[k])) return false
+  }
+  return true
+}
+
 /**
  * Set a dotted path on ANY config object — the live tree or a detached copy a
  * write path is staging — creating the intermediate objects the path names.
@@ -375,7 +394,10 @@ export function createConfigStore(dir: string, livePath?: string): ConfigStore {
   }
 
   function setLive(path: string, value: any): boolean {
-    return setDottedPath(_config, path, value)
+    const before = get(path)
+    if (!setDottedPath(_config, path, value)) return false
+    if (!sameValue(before, value)) notify()
+    return true
   }
 
   function checkType(path: string, value: any): string | null {

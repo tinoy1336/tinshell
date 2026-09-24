@@ -37,7 +37,8 @@ export interface ConfigFacade {
   reload(): Promise<{ ok: boolean; error?: string; warnings: string[] }>
   /** Validate + mutate + persist. Returns {ok:false,error} on schema
    *  rejection (the config set handler replies "error: …"), {ok:true} on
-   *  success. */
+   *  success. A write that changes the value reaches this facade's
+   *  onConfigChanged listeners (the store announces it). */
   set(path: string, value: any): { ok: boolean; error?: string }
   /** Whole live config (read-only by convention). */
   all(): any
@@ -126,6 +127,9 @@ export function createConfigFacade(store: ConfigStore): ConfigFacade {
     set(path, value) {
       const err = store.checkType(path, value)
       if (err) return { ok: false, error: err }
+      // The store fires its listeners here when the value actually changed;
+      // the change filter above re-syncs this mirror and fires ours, so the
+      // set path and applyToLive announce a change the same way.
       store.setLive(path, value)
       syncStable()
       store.queueWrite(store.config)
