@@ -1,5 +1,5 @@
 /**
- * Centre — the control centre (swaync's control-centre window).
+ * Centre — the control centre.
  *
  * A layer surface (namespace "notifications-centre", layer TOP, anchored
  * top-centre, keymode EXCLUSIVE while open) whose HEIGHT follows its content
@@ -18,7 +18,7 @@
  * from the list, and Clear All (the clear glyph, Shift+C) wipes the stack and
  * the history.
  *
- * Grouping (swaync parity): notifications grouped by app; a group of ONE entry
+ * Grouping: notifications grouped by app; a group of ONE entry
  * renders its card directly — the header exists to stand for several entries,
  * and a collapsed header with a card inside its revealer lists nothing. Multi-
  * item groups get ONE header ROW (28px app icon + name + count + chevron + the
@@ -47,7 +47,7 @@
  * that left the screen names the path that took it; no click, dismissal or
  * history change moves this window.
  *
- * Keyboard (swaync's Control Centre Shortcuts): Up/Down navigate, Home/End,
+ * Keyboard: Up/Down navigate, Home/End,
  * Escape/Caps_Lock close, Return = default action, Delete/BackSpace remove the
  * selected entry from the list, Shift+C clear all, Shift+D toggle DND, 1-9
  * invoke alternative actions.
@@ -799,7 +799,7 @@ export default function Centre() {
     </window>
   )
 
-  // A row wrapper: selection highlight + click = default action (swaync parity).
+  // A row wrapper: selection highlight + click = default action.
   // An entry the daemon no longer holds stays at the same contrast as a live
   // one — it is told apart by its missing sender actions, never by opacity.
   function CentreRow({ entry }: { entry: HistoryEntry }) {

@@ -2,11 +2,12 @@
  * AstalNotifd wiring — daemon ownership + the app's reactive state.
  *
  * The FIRST AstalNotifd.Notifd instantiation claims org.freedesktop.Notifications
- * (one-owner rule — swaync must not be running). This module:
+ * (one-owner rule — that name has exactly one daemon). This module:
  *
  *   - claims the daemon and sets ignore-timeout=true: WE drive expiry from
  *     config popup.timeout/timeoutLow/timeoutCritical (urgency-tiered;
- *     critical 0 = sticky) — swaync's model, not the clients' timeouts;
+ *     critical 0 = sticky) — the urgency tier decides the clock, not the
+ *     clients' timeouts;
  *   - mirrors dont-disturb from config dnd.enabled (AstalNotifd's shared
  *     daemon DND value — the TINSHELL-idiomatic DND, persisted in config.json);
  *   - keeps the reactive state consumed by Popups/Centre: notifications
@@ -18,14 +19,9 @@
  *     the screen and leaves its history entry standing (the popup is transient,
  *     the centre is what the user reads back), while `forget` removes the entry
  *     from the history and `closeAll` wipes both;
- *   - arms per-notification expiry timers ONLY when a popup is shown (swaync
- *     semantics: DND'd/inhibited notifications stay in the centre until
- *     dismissed — the timeout timer lives in the popup window, not the daemon);
- *   - exports the swaync-compat inhibitors DBus interface
- *     (org.erikreider.swaync.cc at /org/erikreider/swaync/cc — AddInhibitor /
- *     RemoveInhibitor / ClearInhibitors / NumberOfInhibitors / IsInhibited) so
- *     xdg-desktop-portal-wlr's `swaync-client --inhibitor-add/remove` keeps
- *     working (screen-sharing still inhibits notifications).
+ *   - arms per-notification expiry timers ONLY when a popup is shown (a DND'd
+ *     or inhibited notification stays in the centre until dismissed — the
+ *     timeout timer lives in the popup window, not the daemon).
  */
 import AstalNotifd from "gi://AstalNotifd"
 import Gio from "gi://Gio"
@@ -167,7 +163,7 @@ export const [history, setHistory] = createState<HistoryEntry[]>([])
 
 /** Ids currently shown as popups (newest first, capped at popup.maxVisible). */
 export const [popupIds, setPopupIds] = createState<number[]>([])
-/** Inhibiting app ids (swaync-compat). Any entry suppresses popups. */
+/** Inhibiting app ids. Any entry suppresses popups. */
 export const [inhibitors, setInhibitors] = createState<string[]>([])
 /** Whether the control centre is visible (open centre suppresses popups). */
 const [centreVisible, setCentreVisible] = createState(false)
@@ -217,23 +213,17 @@ function clearExpiry(id: number): void {
   }
 }
 
-// ── Popup gate (swaync parity) ──
+// ── Popup gate ──
 
-function bypassDnd(n: AstalNotifd.Notification): boolean {
-  try {
-    const v = n.hints?.lookup_value("swaync:bypass-dnd", null)
-    return v !== null && v.unpack() === true
-  } catch (e) {
-    // No (or malformed) bypass-dnd hint → not a bypass notification.
-    ignore("bypass-dnd hint read", e)
-    return false
-  }
-}
-
+/**
+ * The gate that decides whether a notification reaches the screen: the centre
+ * being open, DND and any inhibitor suppress it, and `critical` urgency is the
+ * one class that overrides them.
+ */
 function shouldShowPopup(n: AstalNotifd.Notification): boolean {
   if (centreVisible()) return false
   const blocked = dndEnabled() || inhibitors().length > 0
-  if (blocked && n.urgency !== AstalNotifd.Urgency.CRITICAL && !bypassDnd(n)) return false
+  if (blocked && n.urgency !== AstalNotifd.Urgency.CRITICAL) return false
   return true
 }
 
@@ -337,7 +327,7 @@ export function setDndEnabled(v: boolean): void {
   setConfig("dnd.enabled", v)
 }
 
-// ── Inhibitors (swaync-compat) ──
+// ── Inhibitors ──
 
 export function addInhibitor(appId: string): boolean {
   if (inhibitors().includes(appId)) return false
@@ -441,101 +431,6 @@ export function initNotifd(): void {
 
   // Relative-timestamp refresh clock (60s).
   startClock()
-
-  exportSwayncCompat()
-}
-
-// ── swaync-compat inhibitors DBus (org.erikreider.swaync.cc) ──
-
-const SWAYNC_CC_NAME = "org.erikreider.swaync.cc"
-const SWAYNC_CC_PATH = "/org/erikreider/swaync/cc"
-
-const CC_XML = `<node>
-  <interface name="org.erikreider.swaync.cc">
-    <method name="AddInhibitor">
-      <arg type="s" name="application_id" direction="in"/>
-      <arg type="b" direction="out"/>
-    </method>
-    <method name="RemoveInhibitor">
-      <arg type="s" name="application_id" direction="in"/>
-      <arg type="b" direction="out"/>
-    </method>
-    <method name="ClearInhibitors">
-      <arg type="b" direction="out"/>
-    </method>
-    <method name="NumberOfInhibitors">
-      <arg type="u" direction="out"/>
-    </method>
-    <method name="IsInhibited">
-      <arg type="b" direction="out"/>
-    </method>
-  </interface>
-</node>`
-
-// The bus_own_name id MUST be kept in a module-level variable — gjs finalizes
-// the ownership wrapper on GC, releasing the name ("name owned" then
-// "name lost" ~3s later — one GC cycle).
-let swayncOwnerId = 0
-
-function exportSwayncCompat(): void {
-  try {
-    const node = Gio.DBusNodeInfo.new_for_xml(CC_XML)
-    Gio.DBus.session.register_object(
-      SWAYNC_CC_PATH,
-      node.interfaces[0],
-      (
-        _conn: unknown,
-        _sender: string,
-        _path: string,
-        _iface: string,
-        method: string,
-        _params: unknown,
-        invocation: any,
-      ) => {
-        switch (method) {
-          case "AddInhibitor": {
-            // @ts-expect-error runtime-correct; TS TS2571 is a @girs typing gap
-            const appId = (_params as GLib.Variant).deepUnpack()[0] as string
-            invocation.return_value(new GLib.Variant("(b)", [addInhibitor(appId)]))
-            break
-          }
-          case "RemoveInhibitor": {
-            // @ts-expect-error runtime-correct; TS TS2571 is a @girs typing gap
-            const appId = (_params as GLib.Variant).deepUnpack()[0] as string
-            invocation.return_value(new GLib.Variant("(b)", [removeInhibitor(appId)]))
-            break
-          }
-          case "ClearInhibitors":
-            invocation.return_value(new GLib.Variant("(b)", [clearInhibitors()]))
-            break
-          case "NumberOfInhibitors":
-            invocation.return_value(new GLib.Variant("(u)", [inhibitors().length]))
-            break
-          case "IsInhibited":
-            invocation.return_value(new GLib.Variant("(b)", [inhibitors().length > 0]))
-            break
-          default:
-            invocation.return_dbus_error(
-              "org.freedesktop.DBus.Error.UnknownMethod",
-              `unknown method ${method}`,
-            )
-        }
-      },
-      null,
-      null,
-    )
-    swayncOwnerId = Gio.bus_own_name(
-      Gio.BusType.SESSION,
-      SWAYNC_CC_NAME,
-      Gio.BusNameOwnerFlags.NONE,
-      () => log("swaync-compat name owned (org.erikreider.swaync.cc)"),
-      () => log("swaync-compat name lost"),
-      null,
-    )
-    void swayncOwnerId
-  } catch (e) {
-    log(`swaync-compat export failed (inhibitors still work over the request API): ${e}`)
-  }
 }
 
 /** Relative-timestamp refresh — cards register a callback; the 60s clock drives them. */

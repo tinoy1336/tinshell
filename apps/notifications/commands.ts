@@ -182,8 +182,8 @@ register(["notifications", "debug", "dump"], (tokens, res) => {
   )
 })
 
-// Inhibitors (swaync-client --inhibitor-add/remove compat over the request API;
-// the org.erikreider.swaync.cc DBus interface is exported by Notifd.ts).
+// Inhibitors: an app id added here suppresses popups until it is removed or
+// cleared (the centre's inhibitor widget lists the set and clears it).
 register(["notifications", "inhibitor", "add"], (tokens, res) => {
   const id = tokens.join(" ")
   if (!id) return res("usage: inhibitor add <app-id>")

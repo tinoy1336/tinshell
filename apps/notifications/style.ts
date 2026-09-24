@@ -1,6 +1,6 @@
 /**
- * Notifications theme — the frosted-glass material, built from the swaync
- * style.css tokens (the same material as the dock's menu).
+ * Notifications theme — the frosted-glass material (the same material as the
+ * dock's menu).
  *
  * Static structure lives in style.css; every visible TOKEN (colours, radius,
  * sizes) comes from config.appearance.* here, assembled at startup — the

@@ -1,7 +1,7 @@
 # AGENTS.md — notifications
 
-The notifications surface: daemon ownership + popups + control centre
-(replaces swaync). A REAL standalone app (bus `io.Astal.notifications`); this
+The notifications surface: daemon ownership + popups + control centre.
+A REAL standalone app (bus `io.Astal.notifications`); this
 directory IS the app.
 
 **READ the repository root `AGENTS.md` FIRST** (multi-app rules: bus
@@ -28,13 +28,13 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
     claims it eagerly at mount.
   - `ignore_timeout = true`: WE drive expiry from config
     `popup.timeout/timeoutLow/timeoutCritical` (urgency-tiered; critical 0 =
-    sticky) — swaync's model, not the clients' timeouts.
+    sticky) — the urgency tier decides the clock, not the clients' timeouts.
   - mirrors `dont-disturb` from config `dnd.enabled` (AstalNotifd's shared
     daemon DND value).
   - reactive state consumed by Popups/Centre: notifications (unresolved,
     newest first), popup ids, inhibitors, centre visibility.
-  - per-notification expiry timers ONLY while a popup is shown (swaync
-    semantics: DND'd/inhibited notifications stay in the centre).
+  - per-notification expiry timers ONLY while a popup is shown (a DND'd or
+    inhibited notification stays in the centre).
   - TWO reactive lists, and the difference is the whole surface contract:
     `notifications` (unresolved, newest first — what the popups render) and
     `history` (`HistoryEntry[]` = every notification seen this session, each
@@ -44,18 +44,17 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
     and leaves its history entry standing, `forget(id)` dismisses it AND drops
     the entry, `closeAll()` (Clear All / Shift+C) dismisses every live one and
     wipes the history.
-  - swaync-compat inhibitors DBus interface
-    (`org.erikreider.swaync.cc` at `/org/erikreider/swaync/cc` —
-    AddInhibitor/RemoveInhibitor/ClearInhibitors/NumberOfInhibitors/
-    IsInhibited) so `swaync-client --inhibitor-add/remove` keeps working
-    (screen-sharing still inhibits notifications).
+  - the inhibitor set: `addInhibitor` / `removeInhibitor` / `clearInhibitors`
+    hold app ids that suppress popups while listed. Two surfaces reach it — the
+    request API (`notifications inhibitor add/remove/clear/get`) and the
+    centre's inhibitor widget, which lists the set and clears it.
   - in-process action handlers (`registerActionHandler`) intercept
     `invokeAction` — AstalNotifd gir 0.1 has NO `notify()` on the daemon and
     `n.invoke()` round-trips to the dead sender for in-process notifications.
 - `Popups.tsx` — the floating surface: ONE full-screen overlay, cards stacked
   top-centre newest-first, each card in a `Gtk.Revealer` slot, input region =
   the card column's rect.
-- `Centre.tsx` — the control centre (swaync's control-centre window): 500×600
+- `Centre.tsx` — the control centre: 500×600
   layer surface, layer TOP, anchored top-centre, keymode EXCLUSIVE while open.
   Its list IS the history: a resolved entry keeps full contrast and loses only
   its sender actions, and only `forget` (the card's ✕, Delete) or Clear All
@@ -146,7 +145,7 @@ All registered PREFIXED (`["notifications", …]`):
 | `notifications history` | notification history — one line per entry, `live`/`gone` prefixed |
 | `notifications debug dump` | state introspection |
 | `notifications debug centre` | centre geometry + list state (surface size, panel min/max/applied height, scroller adjustment and its cap, list allocation against its own natural height plus the first rows' heights, the SELECTED entry id, the visible entry ids, entry/live/VISIBLE/group counts) |
-| `notifications inhibitor add/remove/clear/get` | swaync-compat inhibitors |
+| `notifications inhibitor add/remove/clear/get` | hold or drop app ids that suppress popups |
 | `notifications config get/set/reload` | live config via facade |
 
 ## Lifecycle
@@ -154,7 +153,7 @@ All registered PREFIXED (`["notifications", …]`):
 `notificationsMount()` (the shell's universal entry or island `app.ts`):
 
 1. `initNotifd()` — claim the daemon (one-owner), set ignore_timeout, mirror
-   DND, wire notified/resolved signals, export the inhibitors interface.
+   DND, wire the notified/resolved signals.
 2. `Popups()` — build the overlay.
 3. `Centre()` + `setControl()` — build the centre, expose its control
    surface to the dispatcher.
@@ -306,7 +305,7 @@ No quit hook (the daemon dies with the process; state is config-persisted).
   rounds the thumbnail, and no CSS rule may size `.body-image` (a min-width or
   min-height there would force every image back into one fixed box).
 - **Body text is escaped once, then only `<b>`/`<u>`/`<i>` are re-enabled**
-  (swaync's sanitizer, `sanitizeMarkup`). The escape is
+  (the `sanitizeMarkup` rule). The escape is
   `GLib.markup_escape_text(text, -1)` — **`GLib.Markup` does not exist in gjs**
   (undefined), so a call on it throws and `setBody`'s fallback renders the body as
   plain text with its tags shown literally. The re-enable regexp matches the
@@ -333,8 +332,9 @@ No quit hook (the daemon dies with the process; state is config-persisted).
   `setLive` announces the change it makes (`common/config/loader`) and the facade
   relays it, for every key the request surface sets live — `grouping.enabled`
   included.
-- **DND bypass**: `critical` urgency and the `swaync:bypass-dnd` hint bypass
-  DND (swaync semantics).
+- **DND bypass**: `critical` urgency is the ONE class that reaches the screen
+  through DND or an inhibitor; every other urgency waits in the centre until it
+  is dismissed, and an open centre suppresses every popup.
 - **`notify-send --action` IMPLIES `--wait`** — it blocks until the action is
   clicked (not a hang).
 - **In-process actions** (notifyWithAction) are intercepted in `invokeAction`

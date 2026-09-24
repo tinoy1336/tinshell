@@ -1,10 +1,11 @@
 /**
- * Popups — the floating notification surface (swaync's notification window).
+ * Popups — the floating notification surface.
  *
  * ONE full-screen overlay layer surface (namespace "notifications-popup"),
  * cards stacked top-centre, newest first. The surface's INPUT REGION is the
  * union of the visible card rects — everything outside the cards is
- * click-through (swaync's layer-shell-cover-screen + set_input_region model).
+ * click-through (a full-screen cover surface whose input region is narrowed to
+ * the cards).
  * The region only takes effect on a surface commit, so every region update is
  * followed by queue_draw() (the dock scrim's proven pattern on this machine).
  *

@@ -23,7 +23,7 @@
  * `notify-send -i <file>` — whose `app_icon` argument is that same file — cannot
  * draw the picture twice either.
  *
- * Behaviour parity (swaync):
+ * Behaviour:
  *   - primary click on the card body → "default" action if present, else dismiss;
  *     middle/right click → dismiss; a LEFT or RIGHT SWIPE on the body dismisses
  *     as well;
@@ -36,8 +36,8 @@
  *     auth-code keyword signal; see `copyCodeAllowed`);
  *   - invoking an action fires ActionInvoked via the daemon, closes the popup
  *     (behaviour.hideOnAction) and dismisses the notification unless resident;
- *   - body markup: escaped, then only <b>/<u>/<i> re-enabled (swaync's
- *     sanitizer) — set via Pango markup with a plain-text fallback;
+ *   - body markup: escaped, then only <b>/<u>/<i> re-enabled — set via Pango
+ *     markup with a plain-text fallback;
  *   - progress bar when the "value" hint (0–100) is present;
  *   - relative timestamps ("Now" / "N min(s) ago" / ...), refreshed by the 60s
  *     clock;
@@ -68,7 +68,7 @@ interface NotificationCardProps {
    *  actions are dead, so the card renders only the local copy action and no
    *  action row. Defaults to live. */
   live?: boolean
-  /** Centre-only: click body = invoke default (like swaync); selection is keyboard. */
+  /** Centre-only: click body = invoke default; selection is keyboard. */
   onActivate?: (n: any) => void
 }
 
@@ -76,10 +76,9 @@ interface NotificationCardProps {
  *  width (`swipeThreshold`). */
 const SWIPE_MIN_PX = 80
 
-// 2FA code detector: swaync's original (src/notification/notification.vala)
-// matched digit codes; extended with a 5-char alphanumeric branch (Steam
-// guard codes like ABC12) that requires at least one letter AND one digit so
-// plain words and pure numbers stay unmatched.
+// 2FA code detector: digit codes, extended with a 5-char alphanumeric branch
+// (Steam guard codes like ABC12) that requires at least one letter AND one
+// digit so plain words and pure numbers stay unmatched.
 const CODE_RE =
   /(?<= |^)(\d{3}(-| )\d{3}|\d{4,8}|(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{5})(?= |$|\.|,)/gm
 
@@ -94,7 +93,7 @@ function relativeTime(unixSec: number): string {
   return `${Math.floor(days)} day${Math.floor(days) > 1 ? "s" : ""} ago`
 }
 
-/** Escape, then re-enable only <b>/<u>/<i> (swaync's markup sanitizer).
+/** Escape, then re-enable only <b>/<u>/<i> — the senders' markup is untrusted.
  *  `GLib.markup_escape_text` is the C function @girs declares — `GLib.Markup`
  *  does not exist in gjs (the object is undefined, so a call on it throws and
  *  the body falls back to plain text, rendering the tags literally). */
@@ -424,8 +423,8 @@ export default function NotificationCard(props: NotificationCardProps): Gtk.Box 
   const artwork = variant === "centre" ? senderImagePicture(noti) : null
 
   // Root card box: head row + clickable main + actions — the close button
-  // lives in the HEAD, a SIBLING of the clickable main (swaync's structure:
-  // close_button is an overlay sibling of default_action). A close button
+  // lives in the HEAD, a SIBLING of the clickable main (the close button is
+  // an overlay sibling of the default action): a close button
   // INSIDE the gesture area never emits "clicked" (the exclusive press
   // sequence is claimed by the parent gesture).
   const card = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL })
@@ -553,7 +552,7 @@ export default function NotificationCard(props: NotificationCardProps): Gtk.Box 
   bodyRow.append(content)
   card.append(bodyRow)
 
-  // ── Click behaviour (swaync parity) ──
+  // ── Click behaviour ──
   const click = new Gtk.GestureClick()
   click.set_button(0)
   // A drag still ends with a GestureClick release on this GTK — grouping does
@@ -617,7 +616,7 @@ export default function NotificationCard(props: NotificationCardProps): Gtk.Box 
   click.group(swipe)
 
   // ── Actions row (2FA COPY first, then each action) — FlowBox, one line
-  // up to 7 (swaync's alt-actions layout). A history entry has no sender left
+  // up to 7. A history entry has no sender left
   // to answer an action, so only the local COPY button renders for it.
   const actions: any[] = live ? (noti?.actions ?? []) : []
   // Scan summary first, fall back to body (separate scans — concatenating
