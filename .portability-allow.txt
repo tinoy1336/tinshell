@@ -6,6 +6,8 @@
 # shows up in the diff that accepts it, with its justification beside it. An
 # entry that matches nothing is reported as stale.
 #
-# Nothing is accepted here: every path reference in this tree resolves for a
-# reader who cloned it anywhere. Detectors and the rule are documented in
+# An entry names one reference, on one line, of one file: it excuses that line
+# and nothing around it. Detectors and the rule are documented in
 # `README.md` §Path references and at the top of `scripts/check-paths.mjs`.
+
+apps/notes/history.probe.mjs:442|foreign-home|the fixture hashes a synthetic home path, so the reference is the foreign-home shape the test exists to pin and not a directory any checkout resolves
