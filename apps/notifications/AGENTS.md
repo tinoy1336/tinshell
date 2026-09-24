@@ -325,17 +325,14 @@ No quit hook (the daemon dies with the process; state is config-persisted).
   `org.freedesktop.Notifications` name — shell or the island, never both.
 - **DND has ONE owner: `Notifd.setDndEnabled`** — it sets the reactive state, the
   daemon's `dont_disturb` and the persisted config in one call, and both the
-  `notifications dnd set` handler and the centre's bell glyph call it. Nothing
-  else may write `dnd.enabled`: a config write on its own leaves the daemon and
-  the reactive state stale, so popups keep arriving (or stay suppressed) until a
-  restart re-seeds the state from the file. The generic
-  `notifications config set dnd.enabled …` is still such a write: the config
-  facade's `set()` mutates the live tree without firing change listeners (only
-  `applyToLive`, and a reload whose JSON actually changed, notify), so the
-  `store.onConfigChanged` mirrors in `Notifd` and `Centre` do not run for ANY key
-  the request surface sets live — `grouping.enabled` shows the same staleness.
-  Closing that hole belongs in `common/config/facade.ts` (its `set()` should fire
-  the listeners), not in an app-side bridge.
+  `notifications dnd set` handler and the centre's bell glyph call it. Nothing else
+  owns the daemon's state, so prefer `notifications dnd set`. The generic
+  `notifications config set dnd.enabled …` writes only the config, and `Notifd`'s
+  `store.onConfigChanged` mirror re-applies DND from it (the reactive state and the
+  daemon's `dont_disturb`), so that write lands without a restart: the loader's
+  `setLive` announces the change it makes (`common/config/loader`) and the facade
+  relays it, for every key the request surface sets live — `grouping.enabled`
+  included.
 - **DND bypass**: `critical` urgency and the `swaync:bypass-dnd` hint bypass
   DND (swaync semantics).
 - **`notify-send --action` IMPLIES `--wait`** — it blocks until the action is
