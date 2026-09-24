@@ -29,8 +29,10 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   - `ignore_timeout = true`: WE drive expiry from config
     `popup.timeout/timeoutLow/timeoutCritical` (urgency-tiered; critical 0 =
     sticky) — the urgency tier decides the clock, not the clients' timeouts.
-  - mirrors `dont-disturb` from config `dnd.enabled` (AstalNotifd's shared
-    daemon DND value).
+  - owns DND end to end: the reactive mirror, the daemon's shared
+    `dont-disturb` value, and the durable copy in the app's state store
+    (`~/.local/state/tinshell/apps/notifications/state.json`). DND is the
+    running mode of the popup gate, not configuration.
   - reactive state consumed by Popups/Centre: notifications (unresolved,
     newest first), popup ids, inhibitors, centre visibility.
   - per-notification expiry timers ONLY while a popup is shown (a DND'd or
@@ -120,7 +122,6 @@ The notifications app's OWN config (apps/notifications/config.{defaults,schema,j
 
 | Section | Purpose |
 | --- | --- |
-| `dnd` | enabled (↔ daemon `dont-disturb`) |
 | `popup` | timeout/timeoutLow/timeoutCritical (urgency-tiered), positioning |
 | `centre` | geometry: `width` (fixed), `minHeight` / `maxHeight` (the panel's height follows its content between the two; the maximum is also the scroller's cap), grouping |
 | `grouping` | collapse/grouping rules |
@@ -136,7 +137,7 @@ All registered PREFIXED (`["notifications", …]`):
 | Path | Purpose |
 | --- | --- |
 | `notifications ping` | alive check (pong) |
-| `notifications dnd get/set` | read/write DND through its ONE owner in `Notifd` (`setDndEnabled`: reactive state + the daemon's `dont_disturb` + the persisted config). `get` answers the owner's live state, not the config file |
+| `notifications dnd get/set` | read/write DND through its ONE owner in `Notifd` (`setDndEnabled`: the reactive state + the daemon's `dont_disturb` + the durable value in the app's state store). `get` answers the owner's live state, not a file. DND has no config key |
 | `notifications toggle-centre/show-centre/hide-centre` | control centre |
 | `notifications close-all` | dismiss every live notification AND wipe the history (the one path that empties the centre's list) |
 | `notifications dismiss` | dismiss one notification — it leaves the screen, its history entry stays |
@@ -158,7 +159,8 @@ All registered PREFIXED (`["notifications", …]`):
 3. `Centre()` + `setControl()` — build the centre, expose its control
    surface to the dispatcher.
 
-No quit hook (the daemon dies with the process; state is config-persisted).
+No quit hook (the daemon dies with the process; the session's history is not
+persisted — DND is the one durable mode, and it lives in the app's state store).
 
 ## Gotchas
 
@@ -323,15 +325,17 @@ No quit hook (the daemon dies with the process; state is config-persisted).
 - **ONE-OWNER RULE**: two processes instantiating the daemon race the
   `org.freedesktop.Notifications` name — shell or the island, never both.
 - **DND has ONE owner: `Notifd.setDndEnabled`** — it sets the reactive state, the
-  daemon's `dont_disturb` and the persisted config in one call, and both the
-  `notifications dnd set` handler and the centre's bell glyph call it. Nothing else
-  owns the daemon's state, so prefer `notifications dnd set`. The generic
-  `notifications config set dnd.enabled …` writes only the config, and `Notifd`'s
-  `store.onConfigChanged` mirror re-applies DND from it (the reactive state and the
-  daemon's `dont_disturb`), so that write lands without a restart: the loader's
-  `setLive` announces the change it makes (`common/config/loader`) and the facade
-  relays it, for every key the request surface sets live — `grouping.enabled`
-  included.
+  daemon's `dont_disturb` and the durable value in the app's state store
+  (`~/.local/state/tinshell/apps/notifications/state.json`) in one call, and both
+  the `notifications dnd set` handler and the centre's bell glyph call it.
+  Nothing else owns the daemon's state, so prefer `notifications dnd set`. DND
+  is a runtime mode rather than configuration, so it has NO config key:
+  `notifications config set dnd.enabled …` answers "unknown config path", and
+  `notifications dnd set` / `notifications dnd get` is the surface. A build that
+  predates the state store persisted the mode in the config file, and the first
+  mount carries that value across before pruning the key — required, not
+  cosmetic, because the root schema is closed and a leftover `dnd` group would
+  make `notifications config reload` refuse the file.
 - **DND bypass**: `critical` urgency is the ONE class that reaches the screen
   through DND or an inhibitor; every other urgency waits in the centre until it
   is dismissed, and an open centre suppresses every popup.

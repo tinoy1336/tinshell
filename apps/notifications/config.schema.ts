@@ -7,9 +7,6 @@
 import { arr, obj, type Static, Type } from "../../common/config/schema-build.ts"
 
 export const schema = obj({
-  dnd: obj({
-    enabled: Type.Boolean(),
-  }),
   popup: obj({
     width: Type.Integer({ minimum: 200, maximum: 800 }),
     timeout: Type.Number({ minimum: 0, maximum: 600 }),
@@ -67,7 +64,6 @@ export type Config = Static<typeof schema>
 
 /** x-tier placement (loader ancestor-fallback). "" = the root node. */
 export const tiers: Record<string, string> = {
-  dnd: "live",
   popup: "baked",
   centre: "baked",
   grouping: "live",

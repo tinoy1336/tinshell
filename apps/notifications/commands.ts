@@ -62,11 +62,11 @@ register(["notifications", "ping"], (_t, res) => {
   res("pong")
 })
 
-// DND — `Notifd` owns the live state (reactive state + the daemon's
-// dont_disturb + the persisted config, all three in `setDndEnabled`), so the
-// request surface drives that ONE owner: writing the config here instead left the
-// daemon and the reactive state untouched, and popups stayed suppressed until a
-// restart re-seeded the state from the file.
+// DND — `Notifd` owns the live state (the reactive state, the daemon's
+// dont_disturb and the app's state store, all three in `setDndEnabled`), so the
+// request surface drives that ONE owner. Config has no DND key: the mode is not
+// configuration, and `notifications config set dnd.enabled` answers "unknown
+// config path".
 register(["notifications", "dnd", "set"], (tokens, res) => {
   const arg = tokens[0]
   if (arg === "on") setDndEnabled(true)

@@ -1,7 +1,4 @@
 {
-  "dnd": {
-    "enabled": false
-  },
   "popup": {
     "width": 360,
     "timeout": 15,

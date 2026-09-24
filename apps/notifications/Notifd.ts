@@ -8,8 +8,11 @@
  *     config popup.timeout/timeoutLow/timeoutCritical (urgency-tiered;
  *     critical 0 = sticky) — the urgency tier decides the clock, not the
  *     clients' timeouts;
- *   - mirrors dont-disturb from config dnd.enabled (AstalNotifd's shared
- *     daemon DND value — the TINSHELL-idiomatic DND, persisted in config.json);
+ *   - owns DND end to end: the reactive mirror, the daemon's shared
+ *     dont-disturb value, and the durable copy in the app's state store
+ *     (`~/.local/state/tinshell/apps/notifications/state.json`). DND is the
+ *     running mode of the popup gate, not configuration — the surface flips it
+ *     — so a toggle never rewrites the config file;
  *   - keeps the reactive state consumed by Popups/Centre: notifications
  *     (unresolved, newest first — what the popups render), history (EVERY
  *     notification seen this session, newest first, each flagged live while the
@@ -26,8 +29,9 @@
 import AstalNotifd from "gi://AstalNotifd"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
+import { createStateStore } from "@common/state"
 import { createState } from "ags"
-import { get, set as setConfig, store } from "./config"
+import { get, store } from "./config"
 import { ignore, log } from "./log"
 
 // LAZY daemon: get_default() CLAIMS org.freedesktop.Notifications — module-
@@ -167,8 +171,69 @@ export const [popupIds, setPopupIds] = createState<number[]>([])
 export const [inhibitors, setInhibitors] = createState<string[]>([])
 /** Whether the control centre is visible (open centre suppresses popups). */
 const [centreVisible, setCentreVisible] = createState(false)
-/** DND state (mirrors config dnd.enabled + getNotifd().dont_disturb). */
-const [dndEnabled, setDndEnabledState] = createState<boolean>(get("dnd.enabled", false))
+
+/**
+ * DND is a runtime mode, not configuration: the surface flips it (the centre's
+ * bell glyph, Shift+D, `notifications dnd set`), and the value IS the state of
+ * the popup gate below. Its durable copy therefore lives in the app's state
+ * store — `~/.local/state/tinshell/apps/notifications/state.json` — beside the
+ * owner instead of in the config file.
+ */
+const dndState = createStateStore({
+  app: "notifications",
+  version: 1,
+  keys: { dndEnabled: (v) => typeof v === "boolean" },
+})
+
+/**
+ * The DND value a boot starts from: the state store's own value when it holds
+ * one, otherwise the `dnd.enabled` config key a pre-store build persisted it
+ * in — still readable after the schema drop, because the loader's initial load
+ * merges the live file without schema filtering — otherwise off. A real value
+ * therefore always beats the default.
+ */
+function storedDnd(): boolean {
+  const stored = dndState.get("dndEnabled")
+  if (typeof stored === "boolean") return stored
+  const legacy = get<boolean | undefined>("dnd.enabled")
+  return typeof legacy === "boolean" ? legacy : false
+}
+
+/** DND state (the store's value, mirrored into the daemon's `dont_disturb`). */
+const [dndEnabled, setDndEnabledState] = createState<boolean>(storedDnd())
+
+/**
+ * Carry DND across from the config file it used to be persisted in.
+ *
+ * The store's own value wins when it has one; otherwise the `dnd.enabled` key a
+ * pre-store build wrote is copied across, so the mode the desktop is in does
+ * not change at the switch. A store and a key that are both absent are simply
+ * off — which is what the dropped config default said — and nothing is written
+ * for them, so the default never overrides a real value.
+ *
+ * The key is then PRUNED from the live config, which is required rather than
+ * cosmetic: the root schema is closed, so a leftover `dnd` group makes the next
+ * `notifications config reload` refuse the file ("additional property not
+ * allowed"). Written through the facade's own two primitives — the in-place
+ * live swap and the serialized write chain — so the file and the running tree
+ * carry the same key set. Idempotent: a second mount finds nothing to drop.
+ *
+ * Called from `initNotifd`, the notifications app's own mount, so a process
+ * that merely imports a function from this module (the dock's screengrab and
+ * battery applets) never writes another app's config.
+ */
+function migrateDndFromConfig(): void {
+  if (typeof dndState.get("dndEnabled") !== "boolean") {
+    const legacy = get<boolean | undefined>("dnd.enabled")
+    if (typeof legacy === "boolean") dndState.set("dndEnabled", legacy)
+  }
+  const live = store.all()
+  if (!("dnd" in live)) return
+  const clone = JSON.parse(JSON.stringify(live))
+  delete clone.dnd
+  store.applyToLive(clone)
+  void store.queueWrite(clone)
+}
 
 export { dndEnabled, setCentreVisible }
 
@@ -324,7 +389,7 @@ export function setDndEnabled(v: boolean): void {
   } catch (e) {
     log(`dont_disturb=${v} failed: ${e}`)
   }
-  setConfig("dnd.enabled", v)
+  dndState.set("dndEnabled", v)
 }
 
 // ── Inhibitors ──
@@ -356,10 +421,12 @@ export function initNotifd(): void {
   } catch (e) {
     log(`ignore_timeout failed: ${e}`)
   }
-  // Apply persisted DND to the daemon's shared value.
-  setDndEnabledState(get("dnd.enabled", false))
+  // Carry DND across from the config key a pre-store build persisted it in,
+  // then apply the stored value to the daemon's shared one.
+  migrateDndFromConfig()
+  setDndEnabledState(storedDnd())
   try {
-    getNotifd().dont_disturb = get("dnd.enabled", false)
+    getNotifd().dont_disturb = storedDnd()
   } catch (e) {
     log(`initial dont_disturb failed: ${e}`)
   }
@@ -417,17 +484,6 @@ export function initNotifd(): void {
   } catch (e) {
     log(`seed restored notifications failed: ${e}`)
   }
-
-  // External config changes (config set/reload via request) re-apply DND.
-  store.onConfigChanged(() => {
-    const v = get("dnd.enabled", false)
-    if (v !== dndEnabled()) setDndEnabledState(v)
-    try {
-      getNotifd().dont_disturb = v
-    } catch (e) {
-      log(`dont_disturb sync failed: ${e}`)
-    }
-  })
 
   // Relative-timestamp refresh clock (60s).
   startClock()
