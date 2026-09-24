@@ -5,14 +5,22 @@
  * "notes"): `fresh` (the Mod+N action — a guaranteed fresh empty note), `new`
  * (the Mod+SHIFT+N action — reopen the most recently closed note, else a fresh
  * blank one), `open <name-or-path>`, `close <name-or-path>` (closes the WINDOW;
- * the file stays on disk), `list`, `ping`, and the standard
- * `config get|set|reload|all`. Quit is the builtin `ags -i notes quit`.
+ * the file stays on disk), `list`, `history` (the open notes' edit chains),
+ * `ping`, and the standard `config get|set|reload|all`. Quit is the builtin
+ * `ags -i notes quit`.
  */
 
 import { registerConfigCommands } from "@common/commands/config-commands"
 import { register } from "@common/commands/registry"
 import { all, get as getConfig, reloadConfig, set as setConfigRaw } from "./config"
-import { closeNote, noteNames, openFreshNote, openNoteByName, reopenOrBlankNote } from "./notes"
+import {
+  closeNote,
+  historyDump,
+  noteNames,
+  openFreshNote,
+  openNoteByName,
+  reopenOrBlankNote,
+} from "./notes"
 import { debugState as sessionDebugState } from "./session"
 
 register(["notes", "ping"], (_t, res) => {
@@ -21,6 +29,13 @@ register(["notes", "ping"], (_t, res) => {
 
 register(["notes", "session"], (_t, res) => {
   res(sessionDebugState())
+})
+
+// The edit chains of the open notes: steps recorded, the position in the chain
+// (how many are applied), how many were folded into the baseline, and whether
+// another live instance owns the chain (read-only for this process).
+register(["notes", "history"], (_t, res) => {
+  res(historyDump())
 })
 
 register(["notes", "new"], (_t, res) => {

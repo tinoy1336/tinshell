@@ -18,6 +18,11 @@
  *    closed-note stack in session.ts), at its recorded position + size.
  *    Mod+SHIFT+N pops the same stack (notes.ts reopenOrBlankNote); Mod+N opens
  *    a fresh empty note instead (notes.ts openFreshNote).
+ *  - Ctrl+Z / Ctrl+Y (and Ctrl+Shift+Z) = this app's own edit history
+ *    (history.ts over history-store.ts): GTK's per-buffer stack is disabled so
+ *    there is exactly ONE stack, and the chain is read back from the state dir
+ *    when the window is created, so undo and redo reach edits made before the
+ *    note was closed.
  */
 
 import Gdk from "gi://Gdk?version=4.0"
@@ -29,8 +34,17 @@ import { run } from "@common/subprocess/run"
 import { setAppId } from "@common/window/app-id"
 import app from "ags/gtk4/app"
 import { get as getConfig } from "./config"
+import { type History, record, redo as redoStep, undo as undoStep } from "./history"
+import { currentOwner, loadForNote, reconcile, saveForNote } from "./history-store"
 import { namedTargetFor, reopenLastClosed, setNamedTarget } from "./session"
-import { ensureDir, resolvePath, storageDir, writeNoteAsync, writeNoteSync } from "./store"
+import {
+  ensureDir,
+  readNote,
+  resolvePath,
+  storageDir,
+  writeNoteAsync,
+  writeNoteSync,
+} from "./store"
 
 export interface Note {
   /** The Gtk window (present/destroy via this). */
@@ -39,13 +53,39 @@ export interface Note {
   name: string
   /** Absolute path of the auto-save file. */
   path: string
-  /** Synchronous flush of pending edits (close / shutdown). */
+  /** Synchronous flush of pending edits + the edit history (close / shutdown).
+   *  Inert once the window has been torn down. */
   flush: () => void
+  /** Flush the last edits and mark the window torn — idempotent, and every
+   *  close path runs it BEFORE the window is destroyed. After it nothing in this
+   *  module writes the note's file again. */
+  teardown: () => void
+  /** True once teardown ran: this window must never be written to or
+   *  re-presented again. */
+  isTorn: () => boolean
+  /** Persist the edit history alone (unmount, after a content flush). */
+  persistHistory: () => void
+  /** Debug summary of this note's edit chain (`notes history`). */
+  historyInfo: () => HistoryInfo
   /** Focus the text view (new notes type immediately). */
   focusText: () => void
   /** Reveal a restoring window: remove the transparent gate (session restore
    *  maps windows content-invisible so the placement never flashes). */
   reveal: () => void
+}
+
+/** `notes history` row: what this window's chain currently holds. */
+export interface HistoryInfo {
+  path: string
+  steps: number
+  at: number
+  folded: number
+  readOnly: boolean
+}
+
+/** Monotonic milliseconds — the coalescing clock, immune to wall-clock jumps. */
+function nowMs(): number {
+  return Math.round(GLib.get_monotonic_time() / 1000)
 }
 
 export function createNote(
@@ -64,6 +104,12 @@ export function createNote(
 
   // ── Text buffer + view ──
   const buffer = new Gtk.TextBuffer()
+  // EXACTLY ONE undo stack: this app's, in history.ts. GTK's own is per-widget,
+  // cannot be serialised and dies with the window, so leaving it live would put
+  // two disagreeing stacks behind the same Ctrl+Z — and with this off, a chord
+  // that ever escaped the handler below is a no-op instead of a second, silent
+  // undo.
+  buffer.set_enable_undo(false)
   buffer.text = contents
 
   const textview = new Gtk.TextView({ hexpand: true, vexpand: true })
@@ -145,6 +191,18 @@ export function createNote(
       reopenLastClosed()
       return true
     }
+    // Undo / redo on GTK's own chords — Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z — driving
+    // this app's chain (history.ts) instead of GTK's disabled stack. Consumed
+    // here so the widget never sees them.
+    if (keyval === Gdk.KEY_z || keyval === Gdk.KEY_Z) {
+      if (shift) redoHistory()
+      else undoHistory()
+      return true
+    }
+    if (keyval === Gdk.KEY_y || keyval === Gdk.KEY_Y) {
+      redoHistory()
+      return true
+    }
     return false
   }
   const keys = Gtk.EventControllerKey.new()
@@ -158,6 +216,29 @@ export function createNote(
   // ── Auto-save (debounced) + title from the first line ──
   const debounceMs = getConfig("timing.saveDebounceMs")
   let saveTimer: number | null = null
+
+  // ── Edit history (Ctrl+Z / Ctrl+Y) ──
+  // Loaded HERE, where the note's text becomes known, and reconciled with what
+  // is on disk: a chain that disagrees with the file is re-anchored, never
+  // replayed over it. `readOnly` means another LIVE instance owns this note's
+  // chain — undo still works from it, but it is not written by this process.
+  const loaded = loadForNote(path, contents, nowMs())
+  let history: History = loaded.history
+  const historyWritable = !loaded.readOnly
+  let lastText = contents
+  let lastCaret = 0
+  // Set while this module applies its own undo/redo: a replay fires the same
+  // "changed" signal the recorder listens to and must not be recorded as an
+  // edit.
+  let applying = false
+  // Latched by teardown(): a torn window writes nothing and is never re-presented.
+  let torn = false
+
+  /** Insert-mark offset. Read through the mark: `get_property` needs a second
+   *  argument in the typings, and the mark is the authoritative caret position. */
+  function caretOffset(): number {
+    return buffer.get_iter_at_mark(buffer.get_insert()).get_offset()
+  }
 
   function firstLine(): string {
     const t = buffer.text
@@ -177,22 +258,125 @@ export function createNote(
   // fire re-arms the timer, guaranteeing a trailing write. Worst-case lag =
   // debounceMs (400ms). Focus-out below flushes pending edits earlier.
   buffer.connect("changed", () => {
+    if (torn) return
     updateTitle()
+    if (!applying) {
+      const next = buffer.text
+      const caret = caretOffset()
+      history = record(history, lastText, next, lastCaret, caret, nowMs())
+      lastText = next
+      lastCaret = caret
+    }
     if (saveTimer === null) {
       saveTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, debounceMs, () => {
         saveTimer = null
-        void writeNoteAsync(path, buffer.text)
+        // Content first, then the chain that describes it.
+        void writeNoteAsync(path, buffer.text).then(() => persistHistory())
         return GLib.SOURCE_REMOVE
       })
     }
   })
 
-  function flush(): void {
+  /**
+   * Write the chain, stamped with this process as its owner. Skipped when
+   * another live instance owns the note's history (read-only).
+   */
+  function persistHistoryNow(): void {
+    if (!historyWritable) return
+    history = {
+      ...history,
+      cursor: caretOffset(),
+      owner: currentOwner(),
+      updated: Math.floor(Date.now() / 1000),
+    }
+    saveForNote(history)
+  }
+
+  /** Persist the chain unless this window has already been torn down. */
+  function persistHistory(): void {
+    if (torn) return
+    persistHistoryNow()
+  }
+
+  /**
+   * Focus-out: persist the chain and confirm it still describes the file. The
+   * re-check is what stops this window from carrying on with a chain an outside
+   * edit invalidated — a mismatch re-anchors, so undo can never revert that
+   * edit.
+   */
+  function settleHistory(): void {
+    if (torn) return
+    persistHistory()
+    history = reconcile(history, path, readNote(path))
+  }
+
+  /**
+   * Apply a replay to the buffer. `applying` keeps the recorder out of it, while
+   * the auto-save still runs: an undo is an edit like any other and must reach
+   * the note file. The caret lands where the edit was made and is scrolled back
+   * into view.
+   */
+  function applyReplay(text: string, cursor: number): void {
+    applying = true
+    try {
+      buffer.text = text
+      const offset = Math.max(0, Math.min(cursor, text.length))
+      buffer.place_cursor(buffer.get_iter_at_offset(offset))
+      textview.scroll_to_mark(buffer.get_insert(), 0, false, 0, 0)
+      lastText = text
+      lastCaret = offset
+    } finally {
+      applying = false
+    }
+  }
+
+  function undoHistory(): void {
+    if (torn) return
+    const replay = undoStep(history, buffer.text)
+    if (!replay) return
+    history = replay.history
+    applyReplay(replay.text, replay.cursor)
+  }
+
+  function redoHistory(): void {
+    if (torn) return
+    const replay = redoStep(history, buffer.text)
+    if (!replay) return
+    history = replay.history
+    applyReplay(replay.text, replay.cursor)
+  }
+
+  /** The one flush: pending timer off, then content and chain to disk. */
+  function flushNow(): void {
     if (saveTimer !== null) {
       GLib.source_remove(saveTimer)
       saveTimer = null
     }
     writeNoteSync(path, buffer.text)
+    persistHistoryNow()
+  }
+
+  /** Flush unless this window has already been torn down. */
+  function flush(): void {
+    if (torn) return
+    flushNow()
+  }
+
+  /**
+   * Per-window teardown: flush the last edits, then latch `torn` so this window
+   * can never write its file again. Idempotent, and every close path runs it
+   * BEFORE the window is destroyed.
+   *
+   * WHY the close paths own this instead of the `destroy` signal: the JS ref
+   * keeps the Gtk.Window alive past gtk_window_destroy (dispose never runs), so
+   * the signal cannot be relied on — and a window destroyed by a path that left
+   * its handle in the registry is a ZOMBIE: the next present() re-shows it, GTK
+   * warns "shown after destroyed", and no close can remove it again.
+   */
+  function teardown(): void {
+    if (torn) return
+    torn = true
+    flushNow()
   }
 
   // ── Ctrl+S = save the NAMED file ──
@@ -204,17 +388,21 @@ export function createNote(
 
   /** Ctrl+S: silently rewrite the named file — no dialog, no notification. */
   function saveNamed(): void {
-    if (!namedPath) return
+    if (torn || !namedPath) return
     writeNoteSync(namedPath, buffer.text)
   }
 
   // Focus-out: flush pending (throttled) edits when the note loses active
-  // focus — never lose more than the throttle interval on a crash.
+  // focus — never lose more than the throttle interval on a crash — and settle
+  // the edit history against the file (settleHistory).
   win.connect("notify::is-active", () => {
-    if (!win.is_active && saveTimer !== null) {
+    if (torn || win.is_active) return
+    if (saveTimer !== null) {
       GLib.source_remove(saveTimer)
       saveTimer = null
-      void writeNoteAsync(path, buffer.text)
+      void writeNoteAsync(path, buffer.text).then(() => settleHistory())
+    } else {
+      settleHistory()
     }
   })
 
@@ -257,6 +445,9 @@ export function createNote(
       ])
       const out = res.stdout.trim()
       if (!out || out.startsWith("error:")) return // cancelled or failed → silent
+      // The prompt can outlive its window (an unload while the dialog is open):
+      // a torn window must not export anything.
+      if (torn) return
 
       const target = resolvePath(out)
       ensureDir(dirnameOf(target))
@@ -284,6 +475,16 @@ export function createNote(
     name,
     path,
     flush,
+    teardown,
+    isTorn: () => torn,
+    persistHistory,
+    historyInfo: () => ({
+      path,
+      steps: history.steps.length,
+      at: history.at,
+      folded: history.folded,
+      readOnly: !historyWritable,
+    }),
     focusText: () => textview.grab_focus(),
     reveal: () => win.remove_css_class("restoring"),
   }

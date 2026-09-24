@@ -24,7 +24,7 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
 | | |
 | --- | --- |
 | Instance / bus | `notes` (`io.Astal.notes`) |
-| Unit | **NONE — by design.** On-demand desktop app: SUPER+N (fresh note) / SUPER+SHIFT+N (reopen a closed note) launch it; the ISLAND quits when the last note closes. In SHELL the app is LAZY: not loaded until the first `notes …` request, unloaded ~60s after the last note closes (`scheduleUnload("notes")` in notes.ts; `unmountNotes()` closes + flushes + clears the registry). No long-running surface, no crash-restart needed. |
+| Unit | **NONE — by design.** On-demand desktop app: SUPER+N (fresh note) / SUPER+SHIFT+N (reopen a closed note) launch it; the ISLAND quits when the last note closes. In SHELL the app is LAZY: not loaded until the first `notes …` request, unloaded ~60s after the last note closes (`scheduleUnload("notes")` in notes.ts; `unmountNotes()` tears each window down through the one close path — flush → registry drop → destroy — and resets module state). No long-running surface, no crash-restart needed. |
 | Window class | `io.Astal.notes` — set per-window via `common/window/app-id` `setAppId` (the GTK4 app_id defaults to the shell's `io.Astal.shell` in the merged instance, which would miss the `notes-float` rule); matched by hyprland.lua |
 | Launch path | `run.sh` → shared bundler (per-app hashed outfile). Cold start (no argv) opens one fresh note after a short grace (§Launch path); warm presses go through the bus. |
 
@@ -79,6 +79,7 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
 | `close` | `<name-or-path>` | `ok` or `error: <msg>` — closes the WINDOW of an OPEN note (app-internal close path: close-request → flush → registry drop). The FILE stays on disk (auto-save). Not-open/missing notes error |
 | `list` | — | note file names (one per line) |
 | `session` | — | live session-tracking state (path/addr/applied/entry) |
+| `history` | — | the open notes' edit chains: JSON array of `{path, steps, at, folded, readOnly}` per window (see §Edit history) |
 | `config get\|set\|reload\|all` | per convention | JSON value / `ok` / `reloaded` |
 
 ## Behaviour
@@ -153,6 +154,9 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
   never touched. The mtime must be a REQUESTED `time::modified` attribute —
   see GOTCHA 17 (the cap's "oldest" sort depends on that attribute).
 - Window close and app shutdown flush SYNCHRONOUSLY (files are small).
+- The edit history (§Edit history) rides the SAME flushes: it is written after
+  the content write on the throttle, on focus-out, on close and on unmount, so
+  the chain is never staler than the file it describes.
 - Reopen: `ags -i shell request "notes open <name>"` / `notes list` (island:
   `ags -i notes request "notes open <name>"`), or the launcher's `!n` bang
   (`launcher/sources/bangs.ts`).
@@ -224,9 +228,11 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
   is an ADDITIONAL trigger — either one brings notes back.
 - A user CLOSE removes the entry — closing the last note leaves `notes: []`
   and nothing is resurrected. A crash leaves the file stale ON PURPOSE: that
-  is what restore reads. Graceful shell stops (unmount) also leave it stale
-  — unmountNotes only flushes; the per-note untrack runs solely on the
-  close-request path, so teardown never looks like a user close.
+  is what restore reads. A graceful shell stop (unmount) also leaves it stale,
+  and deliberately so: the unmount tears every window down and drops every
+  handle, but it never untracks a note — the per-note session untrack runs
+  solely on the user-close path, so an unload neither looks like a user close
+  nor destroys what the next start restores.
 - Address assignment matches `hyprctl` clients (class `io.Astal.notes`) to
   notes by exact window title, then a 16-char prefix fallback, then registry
   order. Titles come from the first line — duplicate first-line notes rely on
@@ -311,6 +317,82 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
   leaves the app windowless (no key receiver) until the next open (SUPER+N /
   SUPER+SHIFT+N, a launcher bang, or a boot restore).
 
+### Edit history (Ctrl+Z / Ctrl+Y — survives a reopen)
+
+- **Undo and redo are this app's own stack**, not GTK's: `history.ts` (pure
+  model) over `history-store.ts` (files). GTK's per-buffer stack is switched
+  OFF (`buffer.set_enable_undo(false)`, Note.tsx) so exactly one stack sits
+  behind the chords — GTK's is per-widget, cannot be serialised and dies with
+  the window, which is why a reopened note used to have no undo at all. The
+  user-facing chords are GTK's own: **Ctrl+Z undo, Ctrl+Y redo, Ctrl+Shift+Z
+  redo**, consumed in Note.tsx `onNoteKey` for the focused note window.
+- **The chain**: `base` (the text at the oldest reachable point) plus steps
+  `[0..at)` applied on top, where a step is a splice `{o, d, i}` — an offset,
+  the text removed there and the text inserted there — with the caret offsets
+  before/after (`cb`/`ca`). `at` is both the position of the current text and
+  the size of the undo stack; a new edit truncates the redo tail. Steps are
+  derived by diffing the previous buffer text against the current one, so the
+  recorder needs no TextIter plumbing.
+- **One file per note, in the app state dir**:
+  `~/.local/state/tinshell/apps/notes/history-<pathKey>.json`
+  (`appStateFilePath("notes", …)`; `pathKey` = 12 hex chars over the note's
+  ABSOLUTE path, and the path is stored in the file and checked on load). Never
+  `storage.dir`: `pruneStorageDir` deletes the oldest `*.md` by mtime beyond
+  `storage.maxFiles` and `listNotes` lists every `*.md`, so a history file in
+  there would be pruned and would show up in `notes list`. Never `state.json`:
+  the shared store rewrites its whole file on every `set` and the boot-restore
+  predicate reads it. The file is versioned (`v: 1`) and written through
+  `writeFileSync` (temp file + rename, never torn).
+- **Bounds**: 400 steps and 256 KiB of step payload per note — crossing either
+  folds the oldest steps into `base` (64 at a time), which `notes history`
+  reports as `folded`; undo therefore reaches back at most to the current
+  `base`. A single coalesced step stops at 3000 chars, and a note past 256 KiB
+  keeps no chain (it re-anchors to the current text). Retention: the newest 300
+  history files are kept (oldest by mtime pruned, on the first load of a
+  process and after every close).
+- **Coalescing**: consecutive edits become ONE undo step while they stay the
+  same kind (insert run or delete run), arrive within 800 ms, leave the caret
+  where the previous step ended, and stay under the step ceiling. A newline in
+  an inserted run, a caret jump, a focus-out or an undo request closes the step.
+- **External change re-anchors, never replays.** Every chain is reconciled with
+  the text on disk at window creation and again on focus-out: an exact match
+  keeps the chain, ANY disagreement replaces it with the on-disk text (steps
+  discarded, one log line `history: external change for <path> — history
+  re-anchored`). A chain can therefore never revert an edit made by another
+  editor, a sync tool or the user's own shell. Corollary: undo/redo also verify
+  the text they are about to revert and refuse when the buffer disagrees
+  (`undo`/`redo` return null), so a stale chain cannot corrupt a note either.
+- **The history path NEVER writes the note's `.md`.** Undo changes the buffer;
+  the existing auto-save writes the file, exactly as for any other edit.
+- **A replay is not an edit**: while `applyReplay` runs, the recorder is told
+  the change came from a replay (`origin: "replay"`) and records nothing, while
+  the auto-save still runs — the note file must follow an undo. Undoing also
+  puts the caret back where the edit was made and scrolls it into view.
+- **Lifecycle**: the chain is read at `createNote` (which every open path goes
+  through — `openNoteByName`, the session-restore opener and the Mod+SHIFT+N
+  reopen) and written on the auto-save throttle (after the content write), on
+  focus-out (plus the re-anchor re-check), in the close-request handler via
+  `note.flush()` before `win.destroy()`, and in `unmountNotes` before each
+  destroy. Module scope holds no chain: it belongs to the window.
+- **Two processes**: a chain records its `owner` (`{instance, pid}`). A window
+  that loads a chain owned by another LIVE instance marks it read-only (undo
+  works from it, nothing is written), so a hand-started dev island cannot
+  clobber the chain the shell is backing. The boot restore claim already makes
+  exactly one instance the adopter at boot.
+- Chords do nothing when there is nothing to do: a note with no chain (a fresh
+  `note-<timestamp>.md`, or a Mod+SHIFT+N press that fell back to a blank note)
+  has an empty stack, and undo past the base or redo past the top returns null.
+- Probes (both re-runnable, neither touches the real notes or state):
+  `node --experimental-strip-types apps/notes/history.probe.mjs` — fuzz
+  undo/redo identity, the self-recording guard, folding at the caps, coalescing
+  boundaries, re-anchoring in both directions, malformed files, the owner guard
+  and the write cost at the payload cap; and, for the file side, under a scratch
+  state dir —
+  `XDG_STATE_HOME=$(mktemp -d) bash -c 'ags bundle --gtk 4 apps/notes/history-store.probe.ts /tmp/notes-history-store-probe.sh && bash /tmp/notes-history-store-probe.sh'`
+  — the state-dir path, a save/load round trip, re-anchor through the real
+  loader, a corrupt file, the owner guard, the retention prune, and that the
+  note's own `.md` is never written by this layer.
+
 ### Mod+N (a fresh note)
 
 - `notes fresh` (SUPER+N → `notes/ensure-new.sh fresh`) opens a brand-new
@@ -364,18 +446,35 @@ restart.
 - `app.ts` — entry (createApp; dynamic CSS); the `fileSink` is set up in
   `mount.ts`.
 - `Note.tsx` — the note window factory (Ctrl+S save to the named file,
-  Ctrl+Shift+S save-as, Ctrl+Shift+T reopen, auto-save, title).
+  Ctrl+Shift+S save-as, Ctrl+Shift+T reopen, Ctrl+Z/Ctrl+Y undo/redo over the
+  loaded chain, auto-save, title). Its `teardown()` is the per-window release
+  every close path calls BEFORE the window is destroyed: one flush, then a
+  latch that makes every later write (`flush`, the autosave throttle, focus-out,
+  history persist, undo/redo, save-as) a no-op.
 - `notes.ts` — open-note registry + quit-on-last-window wiring (records the
   closed-note history with the close geometry, injects the reopen action, and
   holds the note-opening actions: `openFreshNote` = fresh empty note (Mod+N),
   `reopenOrBlankNote` = reopen-or-blank (Mod+SHIFT+N), `openNewNote` = the
-  deferred cold-start default window).
+  deferred cold-start default window). Its `closeWindow` is the ONE close path
+  (teardown → registry drop → destroy), and `unmountNotes` runs it for every
+  open note and then resets module state (registry, cold-start timer/flag,
+  session maps) so no handle outlives a lazy unload.
 - `commands.ts` — request handlers (ping/fresh/new/open/close/list/session/config).
 - `store.ts` — file storage (serialized async chain + sync flush, list/read).
 - `session.ts` — session persistence + restore (state file, clients poll,
   geometry re-apply via Lua dispatchers) + the persisted closed-note history
   (the Ctrl+Shift+T / Mod+SHIFT+N stack, with each note's close geometry) and the
   per-note Ctrl+S save target (`named`).
+- `history.ts` — the edit-history model behind Ctrl+Z / Ctrl+Y: the splice
+  log, undo/redo replay, coalescing, folding at the caps, the re-anchor rule
+  and the file format. Pure (no gi, no IO).
+- `history-store.ts` — the file side: the state-dir path per note, load with
+  reconciliation, save, the owner guard and the retention prune.
+- `history.probe.mjs` — the model probe (plain Node): fuzz replay identity,
+  the self-recording guard, folding, coalescing, re-anchoring, malformed files,
+  the owner guard, write cost.
+- `history-store.probe.ts` — the file-side probe (gjs via `ags bundle`; run it
+  with `XDG_STATE_HOME` pointed at a scratch dir).
 - `config.ts` + `config.defaults.json` + `config.schema.json`.
 - `style.css` — static theme (transparent surfaces).
 - `run.sh` — 1-line shim to the shared bundler.
@@ -450,11 +549,20 @@ restart.
     (b) **the `destroy` signal is NOT a reliable cleanup hook in the merged
     shell** — gjs's JS reference to the window (in the `open` array) keeps the
     GObject alive through `gtk_window_destroy()`, so dispose/destroy may
-    never run; the default close only HIDES the window. Registry drop +
-    session untrack therefore happen SYNCHRONOUSLY in the close-request
-    handler (`drop()` in notes.ts register()); the destroy handler remains
-    only as an idempotent backstop. Without this, closed notes resurrected
-    on every restart.
+    never run; the default close only HIDES the window. Every close path
+    therefore runs its own teardown SYNCHRONOUSLY and BEFORE the destroy:
+    `notes.ts` `closeWindow(note, "user" | "unmount")` = `note.teardown()`
+    (flush + latch) → registry drop → `win.destroy()`, called from the
+    close-request handler, the `close` request and the shell unmount; the
+    `destroy` handler is only an idempotent backstop. Without this, closed
+    notes resurrected on every restart. **With a handle left behind in `open`,
+    the window becomes a ZOMBIE**: the next `present()` re-shows a window whose
+    `gtk_window_destroy()` already ran (GTK logs "shown after destroyed"), it
+    writes its stale buffer to the `.md` on the next close, and neither the
+    app's close nor SUPER+Q can remove it — only a shell restart clears the
+    surface. That is why `unmountNotes` also empties `open` and re-arms the
+    cold-start state, and why every `open`/`close` lookup skips a torn note
+    (`isTorn()`).
 15. **Title matching fallback:** restored windows are
     matched to their Hyprland clients by title (the map-time title — see 16 —
     i.e. the basename until the first edit). Notes sharing a title fall back
@@ -496,5 +604,7 @@ restart.
 - Auto-save dir `~/.local/share/notes/` (storage.dir); Ctrl+S = save to the
   file named by Ctrl+Shift+S (inert until one is named), Ctrl+Shift+S = save
   as via promptd (§Save and save as file), Ctrl+Shift+T = reopen the most recently closed note
-  at its recorded position + size (§Reopen a closed note); `SUPER+SHIFT+N` pops the
+  at its recorded position + size (§Reopen a closed note); Ctrl+Z = undo and
+  Ctrl+Y = redo that note's edit history, including the edits made before it
+  was closed (§Edit history); `SUPER+SHIFT+N` pops the
   same stack; `!n <name-or-path>` in the launcher opens/creates.
