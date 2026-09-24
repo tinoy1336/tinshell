@@ -49,6 +49,14 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   `window.maxHeight` caps the list, which scrolls past that cap — a card
   sized to the full natural height of every entry is an impossible layer
   surface (shm reports "too big", the GL renderer segfaults in Mesa).
+  KEYMAP: Enter copies the selected entry and dismisses, Delete removes it,
+  Ctrl+P toggles its pin (right-click does the same), Up/Down and Tab/
+  Shift+Tab move the selection, Escape dismisses. Every one of these is
+  handled by the search entry's CAPTURE-phase key controller, which returns
+  `true` to consume the press — so the entry never sees a consumed key at
+  all: a binding WITHOUT a modifier on a printable character makes that
+  character untypable in the filter, which is why pin is Ctrl+P and not a
+  bare `p`.
 - `store.ts` — the app's state hub (history, pins, visibility) and the OWNER of
   the payload-size measurement the request surface reports (`payloadSize`),
   the storage layout under `~/.local/share/clipboard`: `history.jsonl`,

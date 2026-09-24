@@ -10,7 +10,7 @@
  *   - search entry (auto-focused) filters text entries; image rows match the
  *     "image" keyword and always show on an empty query.
  *   - Enter → copy the selected entry + dismiss; Delete → remove entry;
- *     right-click → toggle pin (MVP).
+ *     Ctrl+P → toggle pin (right-click does the same).
  */
 
 import GLib from "gi://GLib"
@@ -287,8 +287,11 @@ export default function Picker() {
 
   // Entry-level key handling (CAPTURE phase — same as the launcher: the
   // focused entry must see Return/Escape/arrows before GtkEntry's own
-  // editing handling swallows them).
-  function onEntryKey(_e: Gtk.EventControllerKey, keyval: number): boolean {
+  // editing handling swallows them). A binding that consumes here never
+  // reaches GtkEntry, so no printable character may be bound without a
+  // modifier: a bare letter binding would make that letter untypable in the
+  // filter. Hence pin is Ctrl+P, and a bare p falls through to the entry.
+  function onEntryKey(keyval: number, ctrl: boolean): boolean {
     switch (keyval) {
       case Gdk.KEY_Escape:
         hide()
@@ -309,7 +312,8 @@ export default function Picker() {
         deleteSelected()
         return true
       case Gdk.KEY_p:
-      case Gdk.KEY_P: // plain P toggles pin too (right-click also works)
+      case Gdk.KEY_P: // Ctrl+P toggles pin (right-click also works)
+        if (!ctrl) return false
         toggleSelectedPin()
         return true
       default:
@@ -371,8 +375,10 @@ export default function Picker() {
               ref.has_frame = false
               const keyCtrl = new Gtk.EventControllerKey()
               keyCtrl.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
-              keyCtrl.connect("key-pressed", (_c: any, keyval: number) =>
-                onEntryKey(_c as Gtk.EventControllerKey, keyval),
+              keyCtrl.connect(
+                "key-pressed",
+                (_c: any, keyval: number, _code: number, state: number) =>
+                  onEntryKey(keyval, (state & Gdk.ModifierType.CONTROL_MASK) !== 0),
               )
               ref.add_controller(keyCtrl)
               // connect("changed") instead of the onChanged JSX prop — the
