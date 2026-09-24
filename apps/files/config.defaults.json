@@ -17,7 +17,6 @@
     "dir": "~"
   },
   "view": {
-    "showHidden": false,
     "sortDirsFirst": true,
     "iconStyle": "glyphs",
     "showSize": true,

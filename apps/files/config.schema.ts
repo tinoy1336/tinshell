@@ -25,7 +25,6 @@ export const schema = obj({
     dir: Type.String(),
   }),
   view: obj({
-    showHidden: Type.Boolean(),
     sortDirsFirst: Type.Boolean(),
     iconStyle: enumOf(["glyphs", "theme"]),
     showSize: Type.Boolean(),

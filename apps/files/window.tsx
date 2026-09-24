@@ -42,7 +42,7 @@ import { isStillImage } from "@common/media/classify"
 import { attachPaneDivider } from "@common/media/divider"
 import { createPreviewSession } from "@common/media/preview"
 import { run } from "@common/subprocess/run"
-import { get as getConfig, set as setConfigRaw, store } from "./config"
+import { get as getConfig, store } from "./config"
 import {
   absolutePath,
   checkDir,
@@ -63,6 +63,7 @@ import {
   trashSync,
 } from "./fs"
 import { createPreview } from "./preview"
+import { setShowHidden, showHidden } from "./state"
 
 /** List row object — plain GObject for Gio.ListStore (the DirEntry rides on
  *  a plain JS field; no ParamSpecs needed since binds read it directly). */
@@ -180,9 +181,10 @@ function startupDir(): string {
 }
 
 function createBrowserWindow(startPath: string): BrowserHandle {
+  // The hidden filter is NOT here: it is state (./state), like the preview
+  // switch — the view block holds the preferences only.
   const viewCfg = () =>
     getConfig("view") as {
-      showHidden: boolean
       sortDirsFirst: boolean
       showSize: boolean
       showModified: boolean
@@ -378,7 +380,7 @@ function createBrowserWindow(startPath: string): BrowserHandle {
   function updateHeader(): void {
     btnBack.set_sensitive(list.canGoBack())
     btnFwd.set_sensitive(list.canGoForward())
-    list.setHiddenVisual(viewCfg().showHidden)
+    list.setHiddenVisual(showHidden())
     // The preview switch is THIS window's own (common/media/preview's session)
     // — the stored value only decides what a new window starts with.
     const preview = previewSession.enabled()
@@ -401,13 +403,12 @@ function createBrowserWindow(startPath: string): BrowserHandle {
     // The pane's slot/mode/width follow the shared preview preference, so every
     // render re-applies them before the listing is rebuilt.
     preview.sync()
-    const v = viewCfg()
     // Hidden filter is LIVE — filter at render from the cached listing, do NOT
     // re-enumerate on toggle. The listing orders what it is handed (this
     // window's own compare policy) and points the header's arrow at that order,
     // so a sort whose column the config just hid cannot disagree with the
     // listing.
-    const visible = state.items.filter((e) => v.showHidden || !e.hidden)
+    const visible = state.items.filter((e) => showHidden() || !e.hidden)
 
     // Remember the selection by path so a monitor-triggered reload keeps it.
     const prevPath = list.selected()?.path ?? null
@@ -555,9 +556,13 @@ function createBrowserWindow(startPath: string): BrowserHandle {
   }
 
   function toggleHidden(): string {
-    const next = !getConfig("view.showHidden")
-    setConfigRaw("view.showHidden", next)
-    render() // live re-filter from the cached listing — no re-enumeration
+    const next = !showHidden()
+    setShowHidden(next)
+    // Repaint EVERY window: the filter and the toggle glyph are one value, and
+    // the state store has no change event — this call is what the config
+    // store's listener used to reach. Live re-filter from the cached listing,
+    // no re-enumeration.
+    refreshBrowsers()
     return next ? "on" : "off"
   }
 
@@ -696,7 +701,8 @@ function createBrowserWindow(startPath: string): BrowserHandle {
   // Live-tier config: re-render from cache when config.json is reloaded
   // (direct `config set` goes through refresh() via the command handler). The
   // snapshot covers every live key the window reacts to: the view block
-  // re-renders the listing.
+  // re-renders the listing. The hidden filter is state (./state), not config,
+  // so the toggle repaints the windows itself.
   const liveSnapshot = () => JSON.stringify(viewCfg())
   let lastLive = liveSnapshot()
   const offStore = store.onConfigChanged(() => {

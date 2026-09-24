@@ -137,8 +137,10 @@ registerConfigCommands(
   {
     onSet: (path) => {
       // Live-tier keys take effect immediately (every window re-renders from
-      // its cached listing — no re-enumeration for showHidden/showSize/...),
-      // so a set lands in ALL open windows, not just the active one.
+      // its cached listing — no re-enumeration for showSize/showModified/...),
+      // so a set lands in ALL open windows, not just the active one. The hidden
+      // filter is state, not config, and its toggle repaints the windows
+      // itself (window.tsx toggleHidden).
       if (store.tierOf(path) === "live") {
         refreshBrowsers()
       }

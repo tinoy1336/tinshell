@@ -84,7 +84,7 @@ pattern.
 | `navigate` | `<path>` | `ok` — same as `open <path>` but errors if no window |
 | `up` / `back` / `forward` / `reload` | — | `ok` |
 | `close` | — | `ok` — close the window a request acts on (ACTIVE = compositor-activated else newest), the other windows stay open / `error: no window` when none is open. Internally `closeActiveBrowser()` → the frame's `close()`, which emits that window's `close-request`; never hyprctl window-close. The `close-request` handler runs `teardown()` — drops that window's handle + arms the lazy `scheduleUnload("files")` once it was the LAST one — and only then destroys the window, so the close always takes the same path the WM's own close takes. In a pure-lazy island the close of the last window also quits the app, which can cut the reply off. |
-| `toggle-hidden` | — | `hidden: on\|off` — LIVE re-filter from the cached listing (no re-enumeration) |
+| `toggle-hidden` | — | `hidden: on\|off` — LIVE re-filter from the cached listing (no re-enumeration) in EVERY open window; the filter is runtime state (see Config), not a config key |
 | `mkdir` | `<name>` | `ok` / `error: <msg>` — creates in the CURRENT directory |
 | `rename` | `<new-name>` | `ok` / `error: <msg>` — renames the SELECTED item |
 | `trash` | — | `ok` — trashes the SELECTED item (async: confirm dialog may show; result lands in the status bar). Permanent delete if `trash.useTrash=false` |
@@ -97,7 +97,10 @@ limitation). Every per-window command (`navigate`, `up`, `back`, `forward`,
 `reload`, `toggle-hidden`, `mkdir`, `rename`, `trash`, `reveal`, `close`)
 addresses the ACTIVE window. Config `set` coerces the CLI string to the existing field's type
 (notes `coerceValue` pattern). `config set` on `view.*`/`trash.*` (live tier)
-triggers an immediate re-render via the window's `refresh()`.
+triggers an immediate re-render via the window's `refresh()`. The hidden-entries
+filter is NOT config — `view.showHidden` was moved to the state store, so
+`files config set view.showHidden …` answers `unknown config path` and
+`files toggle-hidden` is its one write path.
 
 ## Behaviour
 
@@ -381,7 +384,7 @@ Ctrl+Shift+S/Z rule. A single-spelling binding is silently dead.
   `common/media/classify`'s image set is the verified-decodable one, which is
   what keeps the routing and the viewer agreeing.
 - Backspace / `Alt+Up`: parent dir · `Alt+Left`/`Alt+Right`: back/forward
-  history · `Ctrl+H`: toggle hidden (live) · `Ctrl+R`: reload · `Ctrl+N`:
+  history · `Ctrl+H`: toggle hidden (live, state-backed) · `Ctrl+R`: reload · `Ctrl+N`:
   new folder (promptd input) · `Ctrl+Shift+N`: new window on this window's
   directory · `Ctrl+L`: type a path (the path bar's edit
   mode) · `Delete`: trash selected (confirm per config).
@@ -454,11 +457,28 @@ Ctrl+Shift+S/Z rule. A single-spelling binding is silently dead.
 `config.defaults.json` + `config.schema.json` + thin `config.ts` over the
 shared loader via `createAppStore` (launcher pattern). Tiers: `appearance.*`/`window.*`/
 `timing.*` restart, `startup.dir` baked, `view.*`/`trash.*` **live** (see the
-live keys: `view.showHidden`, `sortDirsFirst`, `showSize`,
-`showModified`, `trash.useTrash`, `trash.confirm` all take effect without a
-restart — hidden filtering happens at render from the cached listing,
-columns sync at render, trash behaviour is read at action time). The preview
-pane is NOT configured here: its switch and geometry live in the shared
+live keys: `view.sortDirsFirst`, `view.showSize`,
+`view.showModified`, `trash.useTrash`, `trash.confirm` all take effect without a
+restart — columns sync at render, trash behaviour is read at action time).
+
+**The hidden-entries filter is NOT config.** `view.showHidden` moved to a
+`common/state` store (app `files`, state file
+`~/.local/state/tinshell/apps/files/state.json`) — `state.ts` owns it, and the
+window reads it through `showHidden()` / writes it through `setShowHidden()`.
+The surface flips it several times a session (the header button, Ctrl+H,
+`files toggle-hidden`), so persisting it in the config file made every toggle
+dirty a file the dotfiles repo tracks; `~/.config` stays backup-worthy config,
+while a wipe of `~/.local/state` loses only re-derivable UI intent. The other
+`view.*` keys (`sortDirsFirst`, `iconStyle`, `showSize`, `showModified`) and
+`trash.*` STAY in config: a user sets those deliberately, and no surface writes
+them while it runs. `state.ts` also carries the migration: at mount,
+`mountFiles` adopts the legacy `view.showHidden` value into the store when the
+store holds none (so the filter does not change at the switch) and PRUNES the
+key from the live tree — required, not cosmetic, because the closed root schema
+would make the next `config reload` refuse a leftover key.
+
+The preview
+pane is likewise NOT configured here: its switch and geometry live in the shared
 `common/media/preview` state store (see the pane section).
 
 ## Files
@@ -491,6 +511,9 @@ pane is NOT configured here: its switch and geometry live in the shared
   then `bash /tmp/navigate-path-probe.sh` (exit 1 on any violated invariant).
 - `commands.ts` — request handlers (ping/open/navigate/up/back/forward/
   reload/toggle-hidden/mkdir/rename/trash/reveal/config).
+- `state.ts` — the `common/state` store (app `files`): the hidden-entries
+  filter, its read/write API, and the one-time adoption + prune of the legacy
+  `view.showHidden` config key (called by `mount.ts`).
 - `config.ts` + `config.defaults.json` + `config.schema.json`.
 - `style.css` — static theme (transparent surfaces).
 - `run.sh` — 1-line shim to the shared bundler (forwards argv).

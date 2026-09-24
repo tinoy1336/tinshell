@@ -12,6 +12,7 @@ import { cardAppCss } from "@common/card/app-css"
 import { applyChromeOverride } from "@common/card/chrome-override"
 import { fileSink, setSink } from "@common/log/logger"
 import { get as getConfig } from "./config"
+import { migrateShowHiddenFromConfig } from "./state"
 import style from "./style.css"
 
 // Launched on demand (no systemd, no journald) — log to a file like the
@@ -76,6 +77,9 @@ window.files .media-pane .card-primary {
 /** Register commands + sinks. Windows are created on demand by the request
  *  handlers (files/open, files/navigate, ...) — nothing is built at startup. */
 export function mountFiles(): void {
+  // Carry the hidden-entries filter across from the config key a pre-store
+  // build persisted it in, then drop that key (see ./state).
+  migrateShowHiddenFromConfig()
   applyChromeOverride("files", CHROME_OVERRIDES)
   // Everything else is done by the command modules' import side-effects + the
   // on-demand window factory in window.ts.

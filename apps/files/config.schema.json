@@ -60,9 +60,6 @@
     "view": {
       "type": "object",
       "properties": {
-        "showHidden": {
-          "type": "boolean"
-        },
         "sortDirsFirst": {
           "type": "boolean"
         },
