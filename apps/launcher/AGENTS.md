@@ -486,13 +486,16 @@ pattern is a completion query rather than a create request.
 launcher wires it in `Launcher.tsx` and renders its ghost as a selection. The
 entry text is `committed + ghost`: Tab fills the next candidate into the ghost
 half, Shift+Tab cycles back, Right Arrow locks the ghost in as committed text.
-`!p <path>`, `!code <path>` and `!a <path>` run the same cycle behind the bang
-prefix — an abbreviated token included, so `!co ~/x` completes exactly like
-`!code ~/x` (a token's spelling never gates its argument). That prefix stays
-committed text. The completion is active only when the text is
-path-shaped, and that gate is the shared `isPathShaped`
-(`common/path/complete.ts`) — the launcher keeps no private path-shape copy,
-so it cannot drift from promptd's input dialog, which gates on the same rule.
+EVERY path-taking bang runs the same cycle behind its token — `!p`, `!code`,
+`!a` and `!n` — an abbreviated token included, so `!co ~/x` completes exactly
+like `!code ~/x` (a token's spelling never gates its argument). WHICH bangs those
+are is the catalogue's own `pathArg` flag, read through `pathBangArgument`
+(`sources/bang-token.ts`): one declaration, so a bang that takes a path and is
+not declared there is a bang whose argument cannot be completed. The token stays
+committed text. A path-shaped QUERY completes its own text, and that gate is the
+shared `isPathShaped` (`common/path/complete.ts`) — the launcher keeps no private
+path-shape copy, so it cannot drift from promptd's input dialog, which gates on
+the same rule.
 
 A typed path whose BASENAME carries `*` or `?` is a PATTERN query
 (`isGlobQuery` in `common/path/complete.ts`) and narrows the completion
@@ -592,8 +595,9 @@ Text and data: `!b64`/`!b64d`, `!enc`/`!dec`, `!json`, `!rgb`, `!cron`, `!jwt`,
 in-process and copies on Enter.
 
 App-owned and interpreter: `!n` (note), `!p` (media), `!code` (VS Code), `!a`
-(annotate), `!q` (qalc) and `!py` (python) — detailed below, and the three
-path-taking bangs keep `pathArg: true` as the ONE declaration of that fact.
+(annotate), `!q` (qalc) and `!py` (python) — detailed below, and the four
+path-taking bangs (`!p`, `!code`, `!a`, `!n`) keep `pathArg: true` as the ONE
+declaration of that fact.
 
 **Token ambiguity is visible, not silent.** Adding `!wiki` made `!w` a prefix
 of two entries, so `!w` now names NOTHING and the card shows both `!wiki` and
@@ -994,12 +998,13 @@ either surface is readable without a device.
   failure is stated where the path was typed instead of appearing as an empty
   player window.
 
-`!p`, `!code` and `!a` take the SAME path argument, and all three are completed
-by the shared `pathAutofill` in `Launcher.tsx` (see Tab autofill). What each
-does with that argument once Enter is pressed differs: `!p` and `!a` resolve it
-through the ONE shared rule (`pathTargets`; `!a` then keeps only still images),
-`!code` expands the typed text with `expandPath`, and every spawn is handed the
-resolved path, never the typed text.
+`!p`, `!code`, `!a` and `!n` take the SAME kind of path argument, and all four
+are completed by the shared `pathAutofill` in `Launcher.tsx` (see Tab autofill).
+What each does with that argument once Enter is pressed differs: `!p` and `!a`
+resolve it through the ONE shared rule (`pathTargets`; `!a` then keeps only
+still images), `!code` expands the typed text with `expandPath`, `!n` hands it to
+the notes app's own `open` (which reads a name or a path), and every spawn is
+handed the resolved path, never the typed text.
 
 ### Token grammar (`sources/bang-token.ts`)
 

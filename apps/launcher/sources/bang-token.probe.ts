@@ -180,6 +180,17 @@ check(
   BANG_CATALOGUE.some((b) => b.prefix === "!a " && b.pathArg === true),
   true,
 )
+// The path-taking bangs are declared ONCE, on the catalogue entry: the autofill
+// extract reads PATH_BANGS off them, so a bang that takes a path and is not
+// listed here is a bang whose argument cannot be completed.
+check(
+  "the path bangs are exactly the ones that take a path",
+  BANG_CATALOGUE.filter((b) => b.pathArg)
+    .map((b) => b.prefix.trim())
+    .sort()
+    .join(" "),
+  ["!a", "!code", "!n", "!p"].join(" "),
+)
 
 // ── every bang either owns a row builder or is dispatched by bangs.ts ──
 const BUILDER_KINDS = (b: { url?: unknown; compute?: unknown; spawn?: unknown }): string[] =>
@@ -242,11 +253,12 @@ check("autofill !code", pathBangArgument("!code ~/shot.png"), "~/shot.png")
 check("autofill abbreviated !co", pathBangArgument("!co ~/shot.png"), "~/shot.png")
 check("autofill !p", pathBangArgument("!p ~/shot.png"), "~/shot.png")
 check("autofill !p (url)", pathBangArgument("!p https://x/y"), "https://x/y")
+check("autofill !n", pathBangArgument("!n ~/notes/x.md"), "~/notes/x.md")
 check("no autofill for a bare token", pathBangArgument("!p"), null)
 check("no autofill for a bare !code", pathBangArgument("!code"), null)
+check("no autofill for a bare !n", pathBangArgument("!n"), null)
 check("empty argument is recognized", pathBangArgument("!p "), "")
 check("no autofill under !f", pathBangArgument("!f hello"), null)
-check("no autofill under !n", pathBangArgument("!n my note"), null)
 check("no autofill under !wc", pathBangArgument("!wc a b"), null)
 check("no autofill under !man", pathBangArgument("!man ls"), null)
 check("no autofill for a plain path", pathBangArgument("~/shot.png"), null)

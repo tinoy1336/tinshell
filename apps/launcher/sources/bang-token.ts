@@ -592,6 +592,10 @@ export const BANG_CATALOGUE: BangEntry[] = [
     title: "!n <name>",
     description: "open or create a note (TINSHELL notes app)",
     icon: "text-x-generic",
+    // The notes app's `open` takes a note NAME or a PATH (ensure-new.sh →
+    // `notes open <name-or-path>`), so the argument is completed like every
+    // other path-taking bang's.
+    pathArg: true,
   },
   {
     prefix: "!p ",
@@ -692,9 +696,9 @@ export function resolveBang(token: string): string | null {
 }
 
 /**
- * The path argument of a path-taking bang (`!p`, `!code`, `!a`), or null when
- * the text is not one. The token may be an abbreviation: `!co ~/x` completes
- * as `~/x`, the same argument `!code ~/x` has.
+ * The path argument of a path-taking bang (`!p`, `!code`, `!a`, `!n`), or null
+ * when the text is not one. The token may be an abbreviation: `!co ~/x`
+ * completes as `~/x`, the same argument `!code ~/x` has.
  *
  * A bare token with nothing after it (`!p`, no argument separator) answers
  * null — there is no argument to complete. An EMPTY argument (`!p `) answers
