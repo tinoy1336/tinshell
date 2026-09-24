@@ -41,8 +41,8 @@
 # regression-trap rationale of each variable.
 #
 # ONE-OWNER RULE: the shell surface claims org.freedesktop.Notifications
-# (the first AstalNotifd Notifd instantiation becomes the daemon). swaync
-# must NOT be running. The portal impl name
+# (the first AstalNotifd Notifd instantiation becomes the daemon), so no
+# second notifications daemon may be running. The portal impl name
 # (org.freedesktop.impl.portal.desktop.tinshell-portal) is claimed at
 # portal/mount import time — BEFORE Gtk init (the boot-time portal deadlock
 # fix; the universal entry resolves eager imports at top level for this).
