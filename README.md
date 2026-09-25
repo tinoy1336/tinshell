@@ -116,6 +116,7 @@ tinshell-route launcher toggle     # routes, or starts the map's first instance
 | `systemd/` | unit templates (`__TREE__` = the checkout location, `__HOME__` = the home directory, both substituted at install time) |
 | `setup.sh` | the machine bootstrap |
 | `scripts/check-paths.mjs` | the portability gate: no tracked file may name where this checkout lives |
+| `scripts/check-palette.mjs` | the palette gate: the carriers generated from the house palette (`common/shell/theme.css`, `common/css/tokens.ts`) match the pinned revision, with `scripts/palette/` holding their templates, records and pin |
 | `AGENTS.md` | the root spec sheet: layout, conventions, launch path, addressing, build gates, gjs gotchas |
 | `.github/workflows/ci.yml` | what CI can and cannot check here, and why |
 
@@ -129,9 +130,10 @@ root one first, then the one for the subtree being touched.
 ```bash
 npm ci                     # toolchain + workspace links
 ./setup.sh                 # once: @girs typings and shim-types (needs ags)
-npm run check              # biome + shim types + tsc + config schema freshness
+npm run check              # biome + shim types + tsc + config schema and palette freshness
 npx biome check .          # lint + format alone
 npm run check:schemas      # the generated config.schema.json files match their sources
+npm run check:palette      # the generated palette carriers match the pinned palette revision
 npm run build:all          # every shipped artifact, through the one bundler
 npm run check:builds       # every artifact against the sources it was built from
 ```
@@ -144,6 +146,13 @@ it booted from, and `<instance> debug build` reports the same stamp.
 
 A change under `apps/` or `common/` is live only after the hosting instance
 restarts — a running process serves the bundle it booted.
+
+The colours are not authored here: they come from the house palette and reach the
+tree as two generated carriers, `common/shell/theme.css` and
+`common/css/tokens.ts`, rendered from the templates and records under
+`scripts/palette/` at the revision `scripts/palette/pin.json` pins.
+`npm run check:palette` re-renders both and fails when a carrier, or a record, is
+not what that palette produces; `--write` re-renders instead of comparing.
 
 ## Path references
 

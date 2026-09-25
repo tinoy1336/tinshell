@@ -29,14 +29,22 @@ Run the same checks CI runs, from the repo root:
 npm ci
 npx biome check .        # lint + format
 npm run check:schemas    # the generated config.schema.json files match their sources
+npm run check:palette    # the generated palette carriers match the palette revision this repo pins
 ```
+
+The palette gate reads the palette from a checkout of its own repository: it
+resolves `HOUSE_PALETTE` when that variable is set, and otherwise expects the
+checkout beside this tree at `../house-palette`. CI clones it at the revision
+`scripts/palette/pin.json` pins; a carrier that is not what that palette renders
+fails the check with the file named, and the fix is `node scripts/check-palette.mjs
+--write` plus a commit of the re-rendered carriers and their records.
 
 Then the checks CI cannot run, because they resolve the Arch-only `ags` toolchain
 and the generated typings (see the header of `.github/workflows/ci.yml`):
 
 ```bash
 ./setup.sh                                     # once, to generate @girs and shim-types
-npm run check                                  # biome + shim types + tsc + schema freshness
+npm run check                                  # biome + shim types + tsc + schema and palette freshness
 npm run build:all                              # every shipped artifact, through the one bundler
 npm run check:builds                           # every artifact against the sources it was built from
 ```
