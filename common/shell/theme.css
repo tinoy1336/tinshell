@@ -1,4 +1,9 @@
-/* Shared TINSHELL theme primitives (multi-app home).
+/* Generated from the house palette — edit the template, not this file.
+ *
+ * Template: scripts/palette/theme.template.ts
+ * Palette revision: 04031d0df197d0e8d2ed80d01a8ee8c09d9abb1a
+ *
+ * Shared TINSHELL theme primitives (multi-app home).
  *
  * Apps import this FIRST (css: theme + appCss) and override with
  * app-specific rules. Frost comes from Hyprland blur layerrules on each
@@ -11,10 +16,17 @@
  * inherited property, so a narrower selector would only reach that widget's
  * subtree — `*` is what the family already used and it covers every window of
  * every app, including a lazy app mounted long after this provider was added.
+ *
+ * Every colour token is the PALETTE's value; the shell declares no colour of
+ * its own. `--tinshell-panel` is the palette's `surface.base` painted at its
+ * `opacity.panel`, and the scrollbar pill reads the three
+ * `interaction.scrollbar-thumb*` tokens. The font stack and the geometry
+ * tokens are the shell's own values, which the palette does not carry.
+ *
  * A token a consumer CSS cannot reach (a Cairo painter, a `Pango.FontDescription`,
  * a config fallback string) has a second carrier in common/css/tokens.ts; those
  * two files are the only ones allowed to spell the value (the audit's
- * literal-duplicated class allowlists them).
+ * `literal-duplicated` class allowlists them).
  *
  * Each token is named for the ROLE the value plays in this design, never for
  * the hex: two apps can read one role, and two sites can carry an equal value
@@ -32,12 +44,15 @@
   --tinshell-ink-faint: rgba(166, 166, 166, 0.55);
   --tinshell-accent: #8ab5f7;
 
-  /* Surfaces: the frosted panel base, the washes painted inside it, and the
-   * hairline that separates blocks on it. */
+  /* Surfaces: the frosted panel base, the washes painted inside it, the
+   * hairline that separates blocks on it, and the scrollbar pill's states. */
   --tinshell-panel: rgba(10, 12, 17, 0.5);
   --tinshell-wash: rgba(255, 255, 255, 0.1);
   --tinshell-row-selected: rgba(10, 12, 17, 0.72);
   --tinshell-hairline: rgba(255, 255, 255, 0.06);
+  --tinshell-scrollbar-thumb: rgba(255, 255, 255, 0.22);
+  --tinshell-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --tinshell-scrollbar-thumb-active: rgba(255, 255, 255, 0.45);
 
   /* Geometry: the panel's outer radius, the radius of the rows inside it
    * (panel radius less 2), and a row band's inset. */
@@ -119,7 +134,7 @@ scrollbar:hover trough {
 scrollbar slider {
   margin: 0;
   padding: 0;
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--tinshell-scrollbar-thumb);
   border: none;
   box-shadow: none;
   border-radius: 1px;
@@ -134,9 +149,9 @@ scrollbar:hover slider {
   min-width: 7px;
   min-height: 7px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--tinshell-scrollbar-thumb-hover);
 }
 scrollbar slider:hover,
 scrollbar slider:active {
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--tinshell-scrollbar-thumb-active);
 }

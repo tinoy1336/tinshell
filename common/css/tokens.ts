@@ -1,6 +1,10 @@
 /**
  * tokens.ts — the suite's design-token values, as JS.
  *
+ * Generated from the house palette — edit the template, not this file.
+ * Template: scripts/palette/tokens.template.ts
+ * Palette revision: 04031d0df197d0e8d2ed80d01a8ee8c09d9abb1a
+ *
  * A token has two carriers, and this module holds the SECOND one — the runtime
  * string — for consumers CSS cannot reach: a Cairo painter or a
  * `Pango.FontDescription` reads no stylesheet, and a config fallback is a JS
@@ -11,6 +15,10 @@
  *     a CSS consumer reads it there — no constant here;
  *   - a token whose value JS must hold adds a constant here, and that constant
  *     IS the JS carrier of the same token (never a second value).
+ *
+ * The colour constants are the palette's values, rendered from the same source
+ * as the stylesheet's, so the two carriers cannot disagree. The font stack is
+ * this repository's own value.
  *
  * The two carriers are the only files allowed to spell the value: the audit's
  * `literal-duplicated` class allowlists them, so a re-spelling anywhere else is

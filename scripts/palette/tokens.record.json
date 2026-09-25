@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "template": {
+    "sha256": "76311db2b7b3e4cbd67b53157e0cca94918b1c4436d5bd4d218360217183c3e7"
+  },
+  "palette": {
+    "sha256": "15322952c371949710ae4648cc4e1feb64c5ff750451bc8f85113e1aa3b2127a",
+    "revision": "04031d0df197d0e8d2ed80d01a8ee8c09d9abb1a"
+  },
+  "output": {
+    "sha256": "dd1d5e51281ad19f94047747f3718abefd85bf722306a3eaa6f34dff4c9e6ae2"
+  }
+}
