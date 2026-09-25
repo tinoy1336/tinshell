@@ -34,8 +34,10 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   — and deleting the selected row leaves the selection on the row that takes its
   place (the previous one when the removed row was the last). An IMAGE row carries
   a SECOND control BESIDE that one: a preview button (`PREVIEW_GLYPH`,
-  `md-eye_outline`) that opens that entry's PNG in the media app against the
-  most-recent media window (request `media open <absolute img/<id>.png>`). It is
+  `md-eye_outline`) that opens that entry's PNG in a media app window of its own
+  (request `media new <absolute img/<id>.png>` — media's SPAWN route, so a second
+  preview adds a window instead of replacing the image an earlier one is still
+  showing; `media open` would retarget the most-recent window). It is
   IMAGE-ONLY: a text row renders no preview control at all, so its row box is the
   one it always had. Built and styled exactly like the delete control (the shared
   `glyphButton`), and it dismisses the picker like an ordinary entry click does.
@@ -115,6 +117,17 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   `XDG_DATA_HOME` (or when the store dir resolves to `~/.local/share/clipboard`),
   so it can never read or write the real history:
   `ags bundle --gtk 4 apps/clipboard/commands.probe.ts /tmp/c.sh && XDG_DATA_HOME=$(mktemp -d) bash /tmp/c.sh`.
+- `preview.ts` — the row preview's request (`previewTokens` / `previewEntry`):
+  media's SPAWN verb, one window per preview. It takes the picker's effects
+  (dispatch / log / hide) as a host instead of reaching into the widget tree, so
+  the request it sends is assertable without a window.
+- `preview.probe.ts` — headless probe for that route: it drives `previewEntry`
+  with a stub host and asserts the argv that reaches the registry is
+  `media new <absolute png>` and never `media open`, that two previews are two
+  distinct requests, and that a refused spawn is logged with the file it named.
+  The host is a stub, so nothing is dispatched into the real registry and no
+  media window is built:
+  `ags bundle --gtk 4 apps/clipboard/preview.probe.ts /tmp/p.sh && bash /tmp/p.sh`.
 - `config.ts` — owns the app's config store + facade (`createConfigStore`
   via `common/config/facade.ts`; no shared surface registry).
 - `style.ts` — dynamic CSS builder; `log.ts` — the `[clipboard]`-tagged logger.
@@ -149,10 +162,12 @@ contract below — METADATA only, payload behind one explicit opt-in.
 | `clipboard config get/set/reload` | live config via facade |
 
 There is NO command for the row preview: the preview button calls the MEDIA
-app's own request surface in process (`media open <path>` through
+app's own request surface in process (`media new <path>` through
 `common/commands/registry`, with the lazy pre-step `common/app/lazy`'s
 `ensureLoaded` runs for a routed request of a lazy app), so no second call path
-into media exists and no clipboard command is involved.
+into media exists and no clipboard command is involved. It is media's `new` and
+not its `open`: `new` always builds another window, so each preview keeps a
+window and a file of its own.
 
 ### Request contract — metadata only, payload behind one opt-in
 

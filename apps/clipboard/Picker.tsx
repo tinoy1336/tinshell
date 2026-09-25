@@ -15,7 +15,6 @@
 
 import GLib from "gi://GLib"
 import Pango from "gi://Pango"
-import { ensureLoaded, isLazyApp, isLoaded } from "@common/app/lazy"
 import { glyphButton } from "@common/card/header"
 import { copy as copyText } from "@common/clipboard"
 import { dispatch } from "@common/commands/registry"
@@ -25,6 +24,7 @@ import { type Accessor, createState, For } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
 import { get as getConfig } from "./config"
 import { log } from "./log"
+import { previewEntry } from "./preview"
 import type { ClipboardEntry } from "./store"
 import {
   imagePath,
@@ -152,36 +152,13 @@ export default function Picker() {
     if (r) activateEntry(r)
   }
 
-  /** Show one IMAGE entry in the media app.
-   *
-   *  In-process request path (no subprocess): this instance hosts the media
-   *  app — eagerly when it is a set member, otherwise through the lazy loader
-   *  — so the request goes through the same command registry every other
-   *  handler in this app uses, with the lazy pre-step the dispatcher itself
-   *  runs for a routed request (ensureLoaded before dispatch). The verb is
-   *  `media open`: it loads THIS one file into the most-recent media window,
-   *  creating one when none is open — the "show me this image" verb the
-   *  files browser's image activation and the launcher's `!p` bang use. `new`
-   *  is the xdg-open shape (always another window) and would pile up a window
-   *  per preview click. */
-  function previewEntry(e: ClipboardEntry): void {
+  /** Show one IMAGE entry in a media window of its own (./preview owns the
+   *  request: media's spawn verb, so a second preview adds a window instead of
+   *  replacing what the first one is showing). The row's own file is what the
+   *  spawned window loads. */
+  function previewRow(e: ClipboardEntry): void {
     if (!e.imagePath) return
-    const tokens = ["media", "open", imagePath(e.id)]
-    const onReply = (reply: string) => {
-      if (reply !== "ok") log(`picker preview failed for ${tokens[2]}: ${reply}`)
-    }
-    if (isLazyApp("media") && !isLoaded("media")) {
-      ensureLoaded("media").then(
-        () => dispatch(tokens, onReply),
-        () => log("picker preview: media failed to load"),
-      )
-    } else {
-      dispatch(tokens, onReply)
-    }
-    // Same dismissal an ordinary entry click performs (activateEntry hides
-    // too): the preview opens onto the media window, which takes focus anyway
-    // — the shared focus-loss dismiss would close the picker regardless.
-    hide()
+    previewEntry(imagePath(e.id), { dispatch, log, hide })
   }
 
   /** Remove the row at `index` (its leading delete button, or the Delete key on
@@ -471,7 +448,7 @@ export default function Picker() {
                           "Preview in media player",
                         )
                         preview.valign = Gtk.Align.CENTER
-                        preview.connect("clicked", () => previewEntry(r))
+                        preview.connect("clicked", () => previewRow(r))
                         slot.append(preview)
                       }}
                     />

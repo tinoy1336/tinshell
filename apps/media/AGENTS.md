@@ -284,7 +284,7 @@ while it is in viewer mode.
 | `debug-unload` | — | `ok: unloaded` — forces a lazy unloadNow cycle on demand (testing the unload/reload path without waiting on the grace timer) |
 | `config` | `get <dotted.path>` / `set <dotted.path> <value>` / `reload` / `all` | value / `ok` / `reloaded` / full object |
 | `open` | `[path-or-url]` | `ok` — focus the most-recent window else create one; a path loads into it, switching mode by the file's kind, and it is the ONLY file loaded (no sibling ring). No path → focus only (never clobbers the current media) |
-| `new` | `[path-or-url]` | `ok` — always create another window (optionally loading the path); the xdg-open shape |
+| `new` | `[path-or-url]` | `ok` — always create another window (optionally loading the path); the xdg-open shape, and the verb the clipboard picker's row preview asks for, so one preview never retargets a window another preview opened |
 | `open` / `new` / `append` refusal | any `[path-or-url]` | `error: no such file or directory: <path>` / `error: is a directory: <path> (…)` / `error: not a regular file: <path>` / `error: cannot read <path>: <msg>` — the argument is resolved (`~` expanded, made absolute) and only a REGULAR FILE is accepted, so a window is never built to show nothing and no queue entry the pipeline can never load is stored; nothing is created/queued and the reason is logged too |
 | `ring` | `<path-or-dir>` | `ok` / `error: no still images at <arg>` — the EXPLICIT multi-file load: the folder ring (`isStillImage` siblings, name-sorted; a directory names its own stills) starting at the entry the path names |
 | `close` | — | `ok` — close the active window / `error: no window` |
@@ -414,7 +414,11 @@ on this machine — because the router exits 0 even for an `error:` reply
 (`common/shell/tinshell-route.sh`), so a format the viewer rejects would open
 nothing at all rather than fall back. The launcher's `!p` bang and the
 `tinshell-media.desktop` entry (`ensure-open.sh --new %f`) reach the same app for
-any media kind — the desktop entry always in a window of its own.
+any media kind — the desktop entry always in a window of its own. The clipboard
+picker's row preview is the third `new` consumer: it asks for
+`media new <absolute png>` through the in-process registry, so a preview always
+lands in a window of its own and a later preview cannot replace the image an
+earlier one is showing.
 
 ## Close contract
 
