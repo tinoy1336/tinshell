@@ -212,6 +212,17 @@ not a config key), so `additionalProperties: false` rejects every config write.
 
 ## Clients
 
+The dialog wrappers are promptd's own machinery and live in this tree:
+`clients/*.sh`, one script per installed name, plus `clients/promptd-client.sh`
+— the shared library they source (never executed directly). `setup.sh` links
+only the wrappers into `~/.local/bin`, under their BARE names: every caller
+reaches them by name — the session environment, `sudo -A`, `ssh` via
+`SSH_ASKPASS`, gpg-agent's `pinentry-program`, and any application calling
+`yad`/`zenity`. A wrapper resolves its own path through `readlink -f` before
+sourcing the library beside it, so one file serves both a call from the tree
+and a call through the installed symlink, and the library's default
+`PROMPTD_ROUTE` is this tree's own `common/shell/tinshell-route.sh`.
+
 - `~/.local/bin/prompt` — yad-compatible dialog CLI (--entry/--hide-text/
   --question/--list/--form/--title/--text) routed through promptd; execs real
   yad with the original args when promptd is unreachable (drop-in fallback).
@@ -231,9 +242,13 @@ not a config key), so `additionalProperties: false` rejects every config write.
   to encoders (trailing \n becomes %0A in the passphrase).
 - `~/.local/bin/ssh-askpass-promptd` — SSH_ASKPASS bridge (same contract as
   sudo askpass; SSH_ASKPASS + SSH_ASKPASS_REQUIRE=force in environment.d and
-  ~/.zshenv).
+  `~/.zshenv`).
 - `~/.local/bin/sudo-approve-askpass` — SUDO_ASKPASS bridge (promptd first,
   yad fallback; `error: cancelled` never re-prompts).
+- `~/.local/bin/sudo-approve-password-cat` — the approve flow's askpass
+  program: the file named by `SUDO_APPROVE_PASSWORD_FILE` (0600, written by
+  promptd) is `cat`-ed to stdout, so the password reaches sudo without
+  entering the requesting process.
 - The two text clients post `mode: "text"`, so a path typed through
   `prompt --entry` or `zenity --entry` gets the input dialog's path type-ahead
   with no client change. `--file-selection` never reaches promptd (that flag

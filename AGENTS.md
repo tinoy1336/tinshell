@@ -118,7 +118,8 @@ AGENTS.md before touching anything.
     ├── notifications/  notifications surface (io.Astal.notifications) — REAL app
     ├── keyboard/    on-screen keyboard (io.Astal.keyboard) — REAL app, config-gated
     ├── clipboard/   clipboard picker (io.Astal.clipboard) — REAL app
-    ├── promptd/     the prompt/input dialog service
+    ├── promptd/     the prompt/input dialog service (+ clients/ — the dialog
+                     wrappers it installs into ~/.local/bin)
     ├── media/       media player + inline image viewer (io.Astal.media)
     ├── portal/      xdg-desktop-portal FileChooser backend (io.Astal.portal)
     ├── polkit/      polkit AuthenticationAgent (io.Astal.polkit)
@@ -682,6 +683,14 @@ drift apart; the entries are `__TREE__`/`__HOME__` templates like the systemd un
 templates, with `__TREE__` substituted for the tree's install location and
 `__HOME__` for the real home at install time by
 setup.sh, which REFUSES to install an entry whose token survived substitution),
+links the promptd dialog wrappers `apps/promptd/clients/*.sh` into
+`~/.local/bin` under their bare names (`prompt`, `zenity`,
+`pinentry-promptd`, `ssh-askpass-promptd`, `sudo-approve-askpass`,
+`sudo-approve-password-cat`) because every caller reaches them by name — the
+session environment, `sudo -A`, `ssh` through `SSH_ASKPASS`, gpg-agent's
+`pinentry-program`, any application calling `yad`/`zenity`; each wrapper
+resolves its own path through `readlink -f` and sources the shared library
+beside it in the tree, so only the wrappers are linked,
 regenerates the VSCode entry because it ships claiming only its
 own workspace type and so cannot receive source files at all, installs the
 applets-socket root bits

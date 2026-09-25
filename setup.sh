@@ -251,7 +251,13 @@ chmod +x "$TINSHELL_HOME/common/shell/tinshell-bus-wait.sh" \
   "$TINSHELL_HOME/apps/greeter/build.sh" \
   "$TINSHELL_HOME/apps/greeter/build-lock.sh" \
   "$TINSHELL_HOME/apps/greeter/install.sh" \
-  "$TINSHELL_HOME/apps/greeter/dm-switch.sh" 2>/dev/null || true
+  "$TINSHELL_HOME/apps/greeter/dm-switch.sh" \
+  "$TINSHELL_HOME/apps/promptd/clients/prompt.sh" \
+  "$TINSHELL_HOME/apps/promptd/clients/zenity.sh" \
+  "$TINSHELL_HOME/apps/promptd/clients/pinentry-promptd.sh" \
+  "$TINSHELL_HOME/apps/promptd/clients/ssh-askpass-promptd.sh" \
+  "$TINSHELL_HOME/apps/promptd/clients/sudo-approve-askpass.sh" \
+  "$TINSHELL_HOME/apps/promptd/clients/sudo-approve-password-cat.sh" 2>/dev/null || true
 [ -f "$TINSHELL_HOME/apps/dock/amdgpu-watch.sh" ] && chmod +x "$TINSHELL_HOME/apps/dock/amdgpu-watch.sh"
 
 # tinshell-mode + tinshell-host → ~/.local/bin (mode switcher + the ONE distributor)
@@ -265,6 +271,18 @@ if [ -d "$HOME/.local/bin" ]; then
   # ~/.local/bin on PATH.
   ln -sfn "$TINSHELL_HOME/common/shell/tinshell-route.sh" "$HOME/.local/bin/tinshell-route"
   done_ "tinshell-route linked into ~/.local/bin"
+  # The promptd CLIENT WRAPPERS → ~/.local/bin under their bare names. The
+  # session environment, gpg-agent, ssh, sudo and the desktop dialogs name them
+  # by those names (the two text wrappers additionally shadow the packaged
+  # yad/zenity), so an install that stopped at the tree would leave every
+  # dialog on the untinted system binary. A wrapper resolves its own path
+  # through `readlink -f` and sources the shared library beside it in the tree,
+  # so only the wrappers are linked — the library is sourced, never invoked.
+  for client in prompt zenity pinentry-promptd ssh-askpass-promptd \
+    sudo-approve-askpass sudo-approve-password-cat; do
+    ln -sfn "$TINSHELL_HOME/apps/promptd/clients/$client.sh" "$HOME/.local/bin/$client"
+  done
+  done_ "promptd clients linked into ~/.local/bin"
 else
   skip "~/.local/bin missing — tinshell-mode not linked"
 fi
