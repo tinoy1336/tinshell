@@ -13,8 +13,8 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 | --- | --- |
 | Instance / bus | in shell: inside `shell` (`io.Astal.shell`); dev island: `launcher` (`io.Astal.launcher`) |
 | Unit | none (dev island; production = `tinshell-shell.service`) |
-| Window namespace | `launcher` (layer-shell, keymode EXCLUSIVE while open) |
-| Hyprland rule | blur `launcher` (`hl.layer_rule`, ignore_alpha 0.2 — same frost params as the dock/notifications) |
+| Window namespace | `launcher` (layer-shell, keymode EXCLUSIVE while open; owned by `identity.ts`) |
+| Compositor rule | blur `launcher` (ignore_alpha 0.2 — same frost params as the dock/notifications); DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/020-launcher.lua` by `npm run gen:hypr-rules` |
 | Router | `route-map.conf`: `launcher=shell,launcher` |
 | Keybind | mod+Space → `common/shell/ensure-launcher-toggle.sh` → `tinshell-route launcher toggle`; mod+. → `common/shell/ensure-launcher-emoji.sh` → `tinshell-route launcher emoji` |
 

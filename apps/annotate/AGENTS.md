@@ -28,8 +28,8 @@ systemd unit, no layerrule — the notes/files pattern.
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dir            | `annotate/`                                                                                                                                                             |
 | Instance / bus | in shell: inside the shell instance (`io.Astal.shell`); dev island: `annotate` (`io.Astal.annotate`) — addressed `ags -i annotate request "annotate …"` / `ags -i annotate quit` |
-| Window class   | `io.Astal.annotate` (GTK4 app_id; matched by the `annotate-float` window rule)                                                                                          |
-| Window rule    | `annotate-float` in hyprland.lua — float, rounding 14, `decorate = true`, `border_size = 1`, `size = { annotateW, annotateH }` read from config `window.defaultWidth/defaultHeight` (630×450, mirroring notes-float) — the startup-race fix that pins the map size (and the window really maps at it: the header row's minimum is 477px, §Layout); it pins NO position. Position is annotate's own CASCADE, applied by a per-open runtime rule registered from `window.tsx` (see §Behaviour → Window) |
+| Window class   | `io.Astal.annotate` (GTK4 app_id from the `identity.ts` constant `ANNOTATE_APP_ID`; matched by the `annotate-float` window rule)                                                                                          |
+| Window rule    | `annotate-float` in `hypr-rules.ts` → `~/.config/hypr/rules/120-annotate.lua` — float, rounding 14, `decorate = true`, `border_size = 1`, `size` read from config `window.defaultWidth/defaultHeight` (630×450, mirroring notes-float) — the startup-race fix that pins the map size (and the window really maps at it: the header row's minimum is 477px, §Layout); it pins NO position. Position is annotate's own CASCADE, applied by a per-open runtime rule registered from `window.tsx` (see §Behaviour → Window) |
 | Keybind        | **NONE** — opened from the screenshot notification action (the dock's "Annotate" button) via `annotate/ensure-open.sh`, or from the launcher's `!a <path>` bang (same script)       |
 | Layerrule      | **NONE** — XDG window, not a layer surface. Frost = GLOBAL blur + translucent card (files/notes pattern).                                                               |
 | Unit           | **NONE — by design.** Interactive desktop app; the ISLAND quits when the LAST window closes (its `window-removed → app.quit()` is gated on `!isShell` — in the shell the editor must never kill the shared instance). In SHELL the app is LAZY: loaded on the first `annotate …` request, unloaded ~60s after the last editor window closes (`scheduleUnload("annotate")`; `unmountAnnotate` as unmount, which tears down every window). Do NOT add `tinshell-annotate.service` to setup.sh's unit loop (same exception as notes/files). |
@@ -448,8 +448,8 @@ there. `config.screengrab.notify` still gates the notification.
 
 ## GOTCHAS
 
-1. **`annotate` is NOT a layer-shell app.** No `Astal.Window`, no layerrule
-   in hyprland.lua — plain `Gtk.Window` (the notes/files pattern).
+1. **`annotate` is NOT a layer-shell app.** No `Astal.Window`, no layer rule
+   — plain `Gtk.Window` (the notes/files pattern).
 2. **No systemd unit.** Do not add `tinshell-annotate.service` to setup.sh's
    unit loop — the app quits with its window by design. setup.sh only needs
    `run.sh` + `ensure-open.sh` in its chmod list + the `annotate-float`
@@ -471,7 +471,8 @@ there. `config.screengrab.notify` still gates the notification.
    `destroy` signal — it stays wired as a backstop only. Never `present()` a
    window you cannot prove is in `editors`.
 4. **The window rule matches `class = "^(io\\.Astal\\.annotate)$"`** — the
-   GTK4 app_id (from applicationId). A bare `annotate` class matches
+   GTK4 app_id (from applicationId; the pattern is built from
+   `ANNOTATE_APP_ID`). A bare `annotate` class matches
    nothing.
 5. **gjs cairo bindings differ from the C API**:
    methods are camelCase (`moveTo`, `setSourceRGB`, `writeToPNG`), the

@@ -8,8 +8,9 @@
  * The row box carries a single "match" class (no nested-class stacking, so
  * no transparent-inner dance needed).
  *
- * Frost comes from the Hyprland blur layerrule on the "launcher" namespace
- * (set in hyprland.lua), NOT from the CSS alpha alone. The window itself is
+ * Frost comes from the compositor's blur layer rule on the "launcher" namespace
+ * (`apps/launcher/hypr-rules.ts`, generated into ~/.config/hypr/rules/), NOT
+ * from the CSS alpha alone. The window itself is
  * transparent; the .main card's translucent bg + compositor blur = frosted glass.
  */
 

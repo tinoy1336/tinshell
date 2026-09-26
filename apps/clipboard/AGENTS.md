@@ -12,8 +12,8 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 | --- | --- |
 | Instance / bus | in shell: inside `shell` (`io.Astal.shell`); dev island: `clipboard` (`io.Astal.clipboard`) |
 | Unit | none (dev island; production = `tinshell-shell.service`) |
-| Window namespace | `clipboard-picker` |
-| Hyprland rule | blur `clipboard-picker` (`hl.layer_rule`, ignore_alpha 0.2 — own rule; the surface is a picker popup) |
+| Window namespace | `clipboard-picker` (owned by `identity.ts`) |
+| Compositor rule | blur `clipboard-picker` (ignore_alpha 0.2 — own rule; the surface is a picker popup); DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/050-clipboard.lua` by `npm run gen:hypr-rules` |
 | Router | `route-map.conf`: `clipboard=shell,clipboard` |
 | Keybind | mod+SHIFT+V → `tinshell-route clipboard toggle` |
 

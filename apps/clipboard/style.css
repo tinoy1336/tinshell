@@ -8,8 +8,9 @@
  * (style.ts) — the dock's "nothing visual hardcoded in
  * code" culture.
  *
- * Frost comes from the Hyprland blur layerrule on the "clipboard-picker"
- * namespace (set in hyprland.lua), NOT from the CSS alpha alone. The window
+ * Frost comes from the compositor's blur layer rule on the "clipboard-picker"
+ * namespace (`apps/clipboard/hypr-rules.ts`, generated into
+ * ~/.config/hypr/rules/), NOT from the CSS alpha alone. The window
  * is transparent; the .main card's translucent bg + compositor blur =
  * frosted glass.
  *

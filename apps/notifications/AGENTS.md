@@ -14,8 +14,8 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 | Instance / bus | in shell: inside `shell` (`io.Astal.shell`); dev island: `notifications` (`io.Astal.notifications`) |
 | Unit | none (dev island; production = `tinshell-shell.service`) |
 | ONE-OWNER | `org.freedesktop.Notifications` (AstalNotifd daemon) — never run shell AND this island at once |
-| Window namespaces | `notifications-popup` (full-screen overlay, input region = card rects), `notifications-centre` (500×600, top-centre) |
-| Hyprland rule | blur `notifications-.*` (`hl.layer_rule`, ignore_alpha 0.2) |
+| Window namespaces | `notifications-popup` (full-screen overlay, input region = card rects), `notifications-centre` (500×600, top-centre) — owned by `identity.ts` |
+| Compositor rule | blur `notifications-.*` (ignore_alpha 0.2); DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/030-notifications.lua` by `npm run gen:hypr-rules` |
 | Router | `route-map.conf`: `notifications=shell,notifications` |
 | Keybind | mod+TAB → `tinshell-route notifications toggle-centre` |
 

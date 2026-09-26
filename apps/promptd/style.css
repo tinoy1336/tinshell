@@ -2,7 +2,8 @@
  * promptd theme.
  *
  * Card look mirrors the launcher/dock: translucent card + compositor blur on
- * the "promptd" window namespace (layerrule in hyprland.lua), NOT CSS alpha
+ * the "promptd" window namespace (`apps/promptd/hypr-rules.ts`, generated into
+ * ~/.config/hypr/rules/), NOT CSS alpha
  * alone. Shared primitives (font, entry base) come from common/shell/theme.css.
  */
 window.promptd {

@@ -13,8 +13,8 @@ This file is the app-specific spec; the root file is the cross-app contract.
 | --- | --- |
 | Instance / bus | in shell: inside `shell` (`io.Astal.shell`); dev island: `dock` (`io.Astal.dock`) |
 | Unit | none (dev island; production = `tinshell-shell.service`) |
-| Window namespaces | `dock-pill` (ONE shared dock surface per monitor), `dock-menu`, `dock-menu-scrim`, `dock-corner` |
-| Hyprland rules | blur `dock-.*` + `dock-pill` (`hl.layer_rule`, ignore_alpha 0.05) — the frosted-glass dock; rules in hyprland.lua |
+| Window namespaces | `dock-pill` (ONE shared dock surface per monitor), `dock-menu`, `dock-menu-scrim`, `dock-corner` — owned by `identity.ts` |
+| Compositor rules | blur `dock-.*` + `dock-pill` (ignore_alpha 0.05) + no-animation on `dock-.*` — the frosted-glass dock; DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/010-dock.lua` by `npm run gen:hypr-rules` |
 | Router | `route-map.conf`: `dock=shell,dock` |
 | Keybinds | none direct — the dock is always visible; applets summoned by click (no summon bind). The **Print** screen-capture bind routes IN via `tinshell-route` (`common/shell/ensure-screengrab.sh` → `dock screengrab capture still select`)
 

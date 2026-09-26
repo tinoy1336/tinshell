@@ -13,9 +13,9 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 | --- | --- |
 | Instance / bus | in shell: inside `shell` (`io.Astal.shell`); dev island: `keyboard` (`io.Astal.keyboard`) |
 | Unit | none (dev island; production = `tinshell-shell.service`) |
-| Window namespace | `keyboard-main` |
-| Hyprland rule | blur `keyboard-.*` (`hl.layer_rule`, ignore_alpha 0.2) |
-| Keybinds | **NONE — touch-first by design**: auto-show on tablet mode, summon via the dock applet (see hyprland.lua comment at the rule)
+| Window namespace | `keyboard-main` (owned by `identity.ts`) |
+| Compositor rule | blur `keyboard-.*` (ignore_alpha 0.2); DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/040-keyboard.lua` by `npm run gen:hypr-rules` |
+| Keybinds | **NONE — touch-first by design**: auto-show on tablet mode, summon via the dock applet |
 | Router | `route-map.conf`: `keyboard=shell,keyboard` |
 | Gate | `keyboard.enabled` (own trio, `apps/keyboard/config.json`) — startup-read only, restart to apply |
 | Runtime state | `~/.local/state/tinshell/apps/keyboard/state.json` (the active layout — not config) |

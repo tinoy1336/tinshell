@@ -19,7 +19,7 @@ corrode trust faster than missing ones.
 | --- | --- |
 | dir | `apps/media/` (in this tree) |
 | instance / bus | `media` / `io.Astal.media` |
-| window class (GTK4 app_id) | `io.Astal.media` (set by the shared card frame; matched by the `media-float` window rule) |
+| window class (GTK4 app_id) | `io.Astal.media` (from the `identity.ts` constant `MEDIA_APP_ID`, set by the shared card frame; matched by the `media-float` window rule) |
 | keybind | **NONE** — hyprland.lua binds no key to media. Every trigger goes through `apps/media/ensure-open.sh` + the shared router: the launcher `!p` bang, `tinshell-media.desktop` (xdg-open), and `tinshell-route.sh media …` |
 | xdg-open / desktop entry | `tinshell-media.desktop` → `Exec=…/ensure-open.sh --new %f` — a file handed over by a file manager or another app opens a NEW window (`new`, never the retargeting `open`) |
 | launcher bang | `!p <path-or-url>` — launcher-owned bang → `apps/media/ensure-open.sh` (`open <path-or-url>`, warm-vs-cold); launcher code in `launcher/sources/bangs.ts` |
@@ -331,7 +331,8 @@ the box also has to be clamped and centred against the viewport's own box).
 **Multi-instance cascade:** Hyprland overrides app sizes
 for floats (GTK windows map ~720x900 regardless of config) and centres them,
 so consecutive media windows would stack invisibly. GTK4 has no position API,
-so the nth window gets title `media-N` (window.tsx) and hyprland.lua offsets
+so the nth window gets title `media-N` (window.tsx, built from
+`MEDIA_WINDOW_TITLE`) and `apps/media/hypr-rules.ts` offsets
 instances 2-6 via title-matched `move` rules (40px down-right each,
 `media-2` … `media-6`). The title is invisible (no titlebar) and NEVER
 carries the filename — a viewer window must keep matching its cascade rule.
@@ -442,8 +443,8 @@ loaded by the shared schema-driven loader. Schema uses draft-07 + custom
   chrome's pressed/selection tint), textColour, accentColour, hoverColour,
   fontSize, iconSize.
 - `window.*` (restart) — width, height (min 400×240; defaults 670×380) — the
-  one window size BOTH modes use; hyprland.lua's `configWindowSize("media",
-  …)` reads it for the `media-float` map size.
+  one window size BOTH modes use; the generated `media-float` rule's
+  `configMapSize("media", …)` (apps/media/hypr-rules.ts) reads it for the map size.
 - `timing.*` (restart) — autoHideMs (0 = off; the transport scrubber's fade
   timeout), pollIntervalMs (>= 250; the position poll period).
 - `startup.*` (baked) — dir (reserved; bare `open` focuses instead of
@@ -499,14 +500,15 @@ loaded by the shared schema-driven loader. Schema uses draft-07 + custom
 
 ## GOTCHAS
 
-1. **`media` is NOT a layer-shell app.** No `Astal.Window`, no layerrule in
-   hyprland.lua — plain `Gtk.Window` (the notes pattern). The blur layerrules
+1. **`media` is NOT a layer-shell app.** No `Astal.Window`, no layer rule —
+   plain `Gtk.Window` (the notes pattern). The blur layer rules
    are for dock/launcher/promptd/notifications surfaces only.
 2. **No systemd unit.** Do not add `tinshell-media.service` to setup.sh's unit
    loop — the app quits with its window by design. setup.sh only needs
    `run.sh` + `ensure-open.sh` in its chmod list and the smoke-test echo line.
 3. **The window rule matches `class = "^(io\\.Astal\\.media)$"`** — the
-   GTK4 app_id set by the shared card frame. A bare `media` class matches
+   GTK4 app_id set by the shared card frame (pattern built from `MEDIA_APP_ID`,
+   not spelled). A bare `media` class matches
    nothing.
 4. **GstPlay.Play is unusable from GJS for in-window video.** Its video
    sink is only settable through the `PlayVideoRenderer` interface, which

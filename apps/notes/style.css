@@ -7,7 +7,8 @@
  * comes from the shared thin-pill family in common/shell/theme.css).
  *
  * Frost comes from Hyprland's global blur (this window is translucent) +
- * the `notes-float` window rule (float, rounding 14) in hyprland.lua.
+ * the `notes-float` window rule (float, rounding 14), defined in
+ * `apps/notes/hypr-rules.ts`.
  */
 window.note {
   background: transparent; /* dynamic block sets the card colour */

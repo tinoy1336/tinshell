@@ -448,21 +448,30 @@ fi
 
 HYPR="$HOME_DIR/.config/hypr/hyprland.lua"
 if [ -f "$HYPR" ]; then
+  # The compositor rules that belong to a tinshell surface are DATA beside the
+  # surface and are generated into this directory (npm run gen:hypr-rules); the
+  # config mounts it with a wildcard require. A rule counts as present when
+  # EITHER the config or a generated fragment carries it, so this verification
+  # answers for both layouts.
+  RULES_DIR="$HOME_DIR/.config/hypr/rules"
+  hypr_rule_present() { # <grep pattern>
+    grep -q "$1" "$HYPR" 2>/dev/null || grep -rq "$1" "$RULES_DIR" 2>/dev/null
+  }
   say "verifying Hyprland integration ($HYPR)"
   MISSING_RULES=()
-  grep -q 'dock-\.\*' "$HYPR" 2>/dev/null || MISSING_RULES+=("layerrule blur, dock-.*")
-  grep -q 'namespace = "launcher"' "$HYPR" 2>/dev/null || grep -q 'blur, launcher' "$HYPR" 2>/dev/null || MISSING_RULES+=('layerrule blur, launcher')
-  grep -q 'namespace = "promptd"' "$HYPR" 2>/dev/null || grep -q 'blur, promptd' "$HYPR" 2>/dev/null || MISSING_RULES+=('layerrule blur, promptd')
+  hypr_rule_present 'dock-\.\*' || MISSING_RULES+=("layerrule blur, dock-.*")
+  hypr_rule_present 'namespace = "launcher"' || hypr_rule_present 'blur, launcher' || MISSING_RULES+=('layerrule blur, launcher')
+  hypr_rule_present 'namespace = "promptd"' || hypr_rule_present 'blur, promptd' || MISSING_RULES+=('layerrule blur, promptd')
   grep -q 'start tinshell-shell' "$HYPR" 2>/dev/null || MISSING_RULES+=('systemctl --user start tinshell-shell')
-  grep -q 'namespace = "notifications' "$HYPR" 2>/dev/null || grep -q 'blur, notifications' "$HYPR" 2>/dev/null || MISSING_RULES+=('layerrule blur, notifications-.*')
-  grep -q 'keyboard-\.\*' "$HYPR" 2>/dev/null || MISSING_RULES+=('layerrule blur, keyboard-.*')
-  grep -q 'clipboard-picker' "$HYPR" 2>/dev/null || MISSING_RULES+=('layerrule blur, clipboard-picker')
-  grep -q 'namespace = "session-overlay"' "$HYPR" 2>/dev/null || grep -q 'blur, session-overlay' "$HYPR" 2>/dev/null || MISSING_RULES+=('layerrule blur, session-overlay')
-  grep -q 'files-float' "$HYPR" 2>/dev/null || MISSING_RULES+=('windowrule float, files-float (io.Astal.files)')
-  grep -q 'notes-float' "$HYPR" 2>/dev/null || MISSING_RULES+=('windowrule float, notes-float (io.Astal.notes)')
-  grep -q 'annotate-float' "$HYPR" 2>/dev/null || MISSING_RULES+=('windowrule float, annotate-float (io.Astal.annotate)')
-  grep -q 'portal-float' "$HYPR" 2>/dev/null || MISSING_RULES+=('windowrule float, portal-float (io.Astal.portal)')
-  grep -q 'media-float' "$HYPR" 2>/dev/null || MISSING_RULES+=('windowrule float, media-float (io.Astal.media)')
+  hypr_rule_present 'namespace = "notifications' || hypr_rule_present 'blur, notifications' || MISSING_RULES+=('layerrule blur, notifications-.*')
+  hypr_rule_present 'keyboard-\.\*' || MISSING_RULES+=('layerrule blur, keyboard-.*')
+  hypr_rule_present 'clipboard-picker' || MISSING_RULES+=('layerrule blur, clipboard-picker')
+  hypr_rule_present 'namespace = "session-overlay"' || hypr_rule_present 'blur, session-overlay' || MISSING_RULES+=('layerrule blur, session-overlay')
+  hypr_rule_present 'files-float' || MISSING_RULES+=('windowrule float, files-float (io.Astal.files)')
+  hypr_rule_present 'notes-float' || MISSING_RULES+=('windowrule float, notes-float (io.Astal.notes)')
+  hypr_rule_present 'annotate-float' || MISSING_RULES+=('windowrule float, annotate-float (io.Astal.annotate)')
+  hypr_rule_present 'portal-float' || MISSING_RULES+=('windowrule float, portal-float (io.Astal.portal)')
+  hypr_rule_present 'media-float' || MISSING_RULES+=('windowrule float, media-float (io.Astal.media)')
   grep -q 'shell/ensure-launcher-toggle.sh' "$HYPR" 2>/dev/null || MISSING_RULES+=('SUPER+Space → shell/ensure-launcher-toggle.sh (launcher keybind)')
   grep -q 'shell/ensure-screengrab.sh' "$HYPR" 2>/dev/null || MISSING_RULES+=('Print → shell/ensure-screengrab.sh (region capture keybind)')
   grep -q 'tinshell-route.sh' "$HYPR" 2>/dev/null || MISSING_RULES+=('tinshell-route.sh (notifications/clipboard keybinds)')
@@ -470,7 +479,7 @@ if [ -f "$HYPR" ]; then
   if [ ${#MISSING_RULES[@]} -eq 0 ]; then
     done_ "Hyprland integration verified (blur rules + start hook present)"
   else
-    err "Hyprland config missing some integration lines. Add these to $HYPR:"
+    err "Hyprland config missing some integration lines. Add these to $HYPR (or generate them with npm run gen:hypr-rules):"
     for rule in "${MISSING_RULES[@]}"; do echo "    $rule"; done
   fi
 else

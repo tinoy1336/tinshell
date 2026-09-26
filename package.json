@@ -10,12 +10,14 @@
     "check:shim-types": "node --experimental-strip-types scripts/gen-shim-types.ts --check",
     "gen:schemas": "node --experimental-strip-types scripts/gen-config-schemas.ts && biome format --write apps/*/config.schema.json",
     "check:schemas": "node --experimental-strip-types scripts/gen-config-schemas.ts --check",
+    "gen:hypr-rules": "node --experimental-strip-types scripts/gen-hypr-rules.ts",
+    "check:hypr-rules": "node --experimental-strip-types scripts/gen-hypr-rules.ts --check",
     "check:palette": "node scripts/check-palette.mjs",
     "build:all": "bash scripts/build-all.sh",
     "check:builds": "bash scripts/check-builds.sh",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "check": "biome check . && npm run check:shim-types && npm run typecheck && npm run check:schemas && npm run check:palette"
+    "check": "biome check . && npm run check:shim-types && npm run typecheck && npm run check:schemas && npm run check:hypr-rules && npm run check:palette"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.11",

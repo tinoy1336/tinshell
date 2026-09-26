@@ -25,7 +25,7 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
 | --- | --- |
 | Instance / bus | `notes` (`io.Astal.notes`) |
 | Unit | **NONE — by design.** On-demand desktop app: SUPER+N (fresh note) / SUPER+SHIFT+N (reopen a closed note) launch it; the ISLAND quits when the last note closes. In SHELL the app is LAZY: not loaded until the first `notes …` request, unloaded ~60s after the last note closes (`scheduleUnload("notes")` in notes.ts; `unmountNotes()` tears each window down through the one close path — flush → registry drop → destroy — and resets module state). No long-running surface, no crash-restart needed. |
-| Window class | `io.Astal.notes` — set per-window via `common/window/app-id` `setAppId` (the GTK4 app_id defaults to the shell's `io.Astal.shell` in the merged instance, which would miss the `notes-float` rule); matched by hyprland.lua |
+| Window class | `io.Astal.notes` — set per-window via `common/window/app-id` `setAppId` from the `identity.ts` constant `NOTES_APP_ID` (the GTK4 app_id defaults to the shell's `io.Astal.shell` in the merged instance, which would miss the `notes-float` rule); matched by the generated rule in `hypr-rules.ts` |
 | Launch path | `run.sh` → shared bundler (per-app hashed outfile). Cold start (no argv) opens one fresh note after a short grace (§Launch path); warm presses go through the bus. |
 
 ## Launch path & lifecycle
@@ -90,8 +90,9 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
 - **Frameless** (`set_titlebar(null)`) — no titlebar, no buttons, no UI
   elements of any kind. SUPER+Q (existing hyprland.lua bind) closes the
   focused note.
-- Initial size: pinned by the `notes-float` Hyprland windowrule `size`,
-  which hyprland.lua READS from config `window.width`/`window.height`
+- Initial size: pinned by the `notes-float` window rule `size`
+  (`apps/notes/hypr-rules.ts` → `~/.config/hypr/rules/080-notes.lua`), which
+  READS config `window.width`/`window.height`
   (default 250×250 square) at config load — the config files stay the
   source of truth; a size change applies on `hyprctl reload` and affects
   only NEW notes (open notes keep their size). Min 220×160
@@ -105,7 +106,8 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
   first, so a new note could map at Hyprland's half-monitor default (half the
   1440×900@2x monitor in PHYSICAL px applied as logical). GTK4 has NO
   post-map resize API for XDG windows, so the app cannot correct it — the
-  windowrule is the deterministic fix (hyprland.lua `notesConfigSize()`).
+  window rule's config-read `size` is the deterministic fix (the generated
+  fragment's `configMapSize`).
 - Title = the first non-empty line of the note (truncated 48 chars), else the
   file name. Used by Hyprland window matching/overview; updates live.
 - **No in-window drag grip.** The padding is pure
@@ -491,14 +493,15 @@ restart.
 ## GOTCHAS
 
 1. **`notes` is NOT a layer-shell app.** No `Astal.Window`, no `<window>`
-   JSX intrinsic, no layerrule in hyprland.lua. Plain `Gtk.Window` (gnim
-   class-component JSX handles it). The blur layerrules in hyprland.lua are
-   for dock/launcher/promptd surfaces only.
+   JSX intrinsic, no layer rule. Plain `Gtk.Window` (gnim
+   class-component JSX handles it). The blur layer rules are for
+   dock/launcher/promptd surfaces only.
 2. **No systemd unit.** Do not add `tinshell-notes.service` to setup.sh's unit
    loop — the app quits with its last window by design. `setup.sh` only
    needs the two scripts in its chmod list and the workspace registration.
 3. **The window rule matches `class = "^(io\\.Astal\\.notes)$"`** — the
    GTK4 app_id (from `applicationId`). A bare `notes` class matches nothing.
+   The pattern is built from `NOTES_APP_ID` (`appIdPattern`), not spelled.
 4. **No in-window drag grip.** A capture-phase `GestureDrag` →
    `Gdk.Toplevel.begin_move` is not used; moving notes uses the generic
    Hyprland move (SUPER+LMB). See §Padding.

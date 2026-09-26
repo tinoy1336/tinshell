@@ -28,10 +28,10 @@ pattern.
 | --- | --- |
 | Dir | `files/` |
 | Instance / bus | in shell: inside the shell instance (`io.Astal.shell`); dev island: `files` (`io.Astal.files`) — addressed `ags -i files request "files …"` / `ags -i files quit` |
-| Window class | `io.Astal.files` (GTK4 app_id; matched by the `files-float` window rule) |
-| Window rule | `files-float` in hyprland.lua — float, rounding 14, `decorate = true`, `border_size = 1`, `size = { filesW, filesH }` read from config `window.width`/`window.height` (620×390) — the startup-race fix, mirroring notes-float |
+| Window class | `io.Astal.files` (GTK4 app_id from the `identity.ts` constant `FILES_APP_ID`; matched by the `files-float` window rule) |
+| Window rule | `files-float` in `hypr-rules.ts` → `~/.config/hypr/rules/090-files.lua` — float, rounding 14, `decorate = true`, `border_size = 1`, `size` read from config `window.width`/`window.height` (620×390) — the startup-race fix, mirroring notes-float |
 | Keybind | **NONE** — the browser is opened through the desktop entry (`tinshell-files.desktop`, `Exec = files/ensure-open.sh %f`), so anything that calls `xdg-open` on a folder lands here |
-| Layerrule | **NONE** — XDG window, not a layer surface. Frost = GLOBAL blur + translucent card, exactly like notes. |
+| Layer rule | **NONE** — XDG window, not a layer surface. Frost = GLOBAL blur + translucent card, exactly like notes. |
 | Unit | **NONE — by design.** Interactive desktop app; the ISLAND quits when its LAST window closes. In SHELL the app is LAZY: loaded on the first `files …` request, unloaded ~60s after the last browser window closes (`scheduleUnload("files")` in window.tsx, armed only when the window registry is empty; `destroyBrowser` as unmount closes every window). Do NOT add `tinshell-files.service` to setup.sh's unit loop (same exception as notes). |
 | Log | fileSink → `/tmp/tinshell-files-debug.log` (launched from a desktop entry — stdout/stderr are lost) |
 
@@ -525,8 +525,8 @@ pane is likewise NOT configured here: its switch and geometry live in the shared
 
 ## GOTCHAS
 
-1. **`files` is NOT a layer-shell app.** No `Astal.Window`, no layerrule in
-   hyprland.lua — plain `Gtk.Window` (the notes pattern). The blur layerrules
+1. **`files` is NOT a layer-shell app.** No `Astal.Window`, no layer rule —
+   plain `Gtk.Window` (the notes pattern). The blur layer rules
    are for dock/launcher/promptd/notifications surfaces only.
 2. **No systemd unit.** Do not add `tinshell-files.service` to setup.sh's unit
    loop — the app quits with its window by design. setup.sh needs `run.sh` +
@@ -622,7 +622,7 @@ pane is likewise NOT configured here: its switch and geometry live in the shared
     at the same spot as the first — GTK4 has no position API, and files'
     window TITLE is the current path (the overview/matching contract above),
     so the media-style title-matched cascade (`media-2` … `media-6` `move`
-    rules in hyprland.lua) cannot be reused here: it would need the title to
+    rules in `apps/media/hypr-rules.ts`) cannot be reused here: it would need the title to
     change, which is a separate decision. Users move the extra windows
     themselves. Each window is otherwise independent (its own listing, monitor,
     selection, preview pane, closed through its own teardown).

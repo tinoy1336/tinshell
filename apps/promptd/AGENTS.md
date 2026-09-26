@@ -28,7 +28,7 @@ request "promptd ping"`, falling back to the dev island `ags -i promptd request
 | --- | --- |
 | Instance / bus | in shell: inside the shell instance (`io.Astal.shell`); dev island: `promptd` (`io.Astal.promptd`) |
 | Unit | `tinshell-shell.service` (production); `tinshell-promptd.service` (DEV only) |
-| Window namespace | `promptd` (Hyprland blur layerrule in hyprland.lua) |
+| Window namespace | `promptd` (blur layer rule; owned by `identity.ts`) |
 | Launch path | `tinshell-host.sh start promptd --foreground` (systemd/tinshell-promptd.service ExecStart; shell member in production; this app has no `run.sh`) |
 
 ## Request API

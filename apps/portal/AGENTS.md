@@ -239,11 +239,13 @@ written through the media app's request surface
 - `setup.sh`: chmods `portal/run.sh`, installs the `.portal` file
   - systemd unit (user-local, no root), merges
   `org.freedesktop.impl.portal.FileChooser=tinshell-portal` into
-  `~/.config/xdg-desktop-portal/portals.conf`, checks for the `portal-float`
-  windowrule in hyprland.lua, and installs the dev unit (left DISABLED).
-- `~/.config/hypr/hyprland.lua`: `portal-float` window rule (class
-  `io.Astal.portal`, float, rounding 14) — regular window, NO layerrule, NO
-  keybind.
+  `~/.config/xdg-desktop-portal/portals.conf`, verifies the `portal-float`
+  window rule in hyprland.lua OR in the generated `~/.config/hypr/rules/`, and
+  installs the dev unit (left DISABLED).
+- `apps/portal/hypr-rules.ts` → `~/.config/hypr/rules/110-portal.lua`: `portal-float`
+  window rule (class `io.Astal.portal`, float, rounding 14) — regular window,
+  NO layer rule, NO keybind; the class comes from `PORTAL_APP_ID`
+  (`apps/portal/identity.ts`).
 
 ## Testing
 
