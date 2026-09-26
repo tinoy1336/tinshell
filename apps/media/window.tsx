@@ -92,6 +92,7 @@ import { createPathAutofill } from "@common/path/autofill"
 import { expandPath, isPathShaped } from "@common/path/complete"
 import { setActiveInstance } from "./active"
 import { get as getConfig } from "./config"
+import { MEDIA_APP_ID, MEDIA_WINDOW_TITLE } from "./identity"
 import { pickMediaFile } from "./picker"
 import { applyFrameZoom, applyPictureZoom, boxedZoom, deviceScale } from "./picture-zoom"
 import { fitScale, steppedZoom, type Zoom, zoomLabel } from "./zoom"
@@ -462,13 +463,14 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
     pollIntervalMs: getConfig<number>("timing.pollIntervalMs"),
   })
 
-  // Title cascade: Hyprland centres every float at the same spot and overrides
-  // app sizes (GTK floats map ~720x900 regardless of config), so consecutive
-  // media windows stack invisibly. GTK4 has no position API — hyprland.lua
-  // offsets instances 2+ via title-matched `move` rules (media-2/media-3/...).
+  // Title cascade: every float maps centred at the same spot and overrides app
+  // sizes (GTK floats map ~720x900 regardless of config), so consecutive media
+  // windows stack invisibly. GTK4 has no position API — the generated
+  // title-matched `move` rules (media-2/media-3/...) offset instances 2+, and
+  // they select on MEDIA_WINDOW_TITLE, so the title and the rules cannot drift.
   // The title is invisible (no titlebar) and NEVER carries the filename, or a
   // viewer window would stop matching its cascade rule.
-  const title = firstWindow ? "media" : `media-${surfaces.length + 1}`
+  const title = firstWindow ? MEDIA_WINDOW_TITLE : `${MEDIA_WINDOW_TITLE}-${surfaces.length + 1}`
 
   // ── per-window live state ──
   let mode: SurfaceMode = "transport"
@@ -864,7 +866,7 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
 
   const frame = createCardFrame({
     app: "media",
-    appId: "io.Astal.media", // app id matched by the media-float Hyprland windowrule
+    appId: MEDIA_APP_ID, // app id matched by the media-float generated compositor rule
     title,
     defaultWidth: getConfig("window.width"),
     defaultHeight: getConfig("window.height"),

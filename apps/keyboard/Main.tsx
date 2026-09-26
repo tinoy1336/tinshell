@@ -39,6 +39,7 @@ import {
   getShowMode as getShowModeCfg,
   setShowMode as setShowModeCfg,
 } from "./config"
+import { KEYBOARD_MAIN_NAMESPACE } from "./identity"
 import { sendKey, sendText } from "./keys/backend"
 import { startRepeat, stopRepeat } from "./keys/repeat"
 import { getLayout, type KeyDef, type LayoutDef, layoutNames, type RowDef } from "./layouts"
@@ -824,8 +825,8 @@ function wireTablet(): void {
 export default function Main(): Astal.Window {
   const w = (
     <window
-      namespace="keyboard-main"
-      name="keyboard-main"
+      namespace={KEYBOARD_MAIN_NAMESPACE}
+      name={KEYBOARD_MAIN_NAMESPACE}
       class="keyboard-main"
       layer={Astal.Layer.TOP}
       keymode={Astal.Keymode.NONE}

@@ -29,6 +29,7 @@ import type {
   PromptControl,
   PromptRequest,
 } from "./commands"
+import { PROMPTD_NAMESPACE } from "./identity"
 
 const { NONE } = Astal.WindowAnchor
 
@@ -735,9 +736,9 @@ export default function Prompt() {
 
   return (
     <window
-      namespace="promptd"
+      namespace={PROMPTD_NAMESPACE}
       class="promptd"
-      name="promptd"
+      name={PROMPTD_NAMESPACE}
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.EXCLUSIVE}
       anchor={NONE}

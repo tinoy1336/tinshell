@@ -16,6 +16,7 @@
 
 import GLib from "gi://GLib"
 import Pango from "gi://Pango"
+import { DOCK_MENU_NAMESPACE } from "@apps/dock/identity"
 import { easeQuadInOut } from "@common/anim/easings"
 import { runFrames } from "@common/anim/run-frames"
 import type { AppletBackend, CaptureMode } from "@common/applets/backend"
@@ -180,7 +181,7 @@ export function openScreenGrabCaptureMenu(opts: {
 
     const win = (
       <window
-        namespace="dock-menu"
+        namespace={DOCK_MENU_NAMESPACE}
         class="dock-menu"
         gdkmonitor={opts.monitor}
         exclusivity={Astal.Exclusivity.IGNORE}

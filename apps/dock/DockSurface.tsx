@@ -28,6 +28,7 @@ import { ignore } from "@common/log/logger"
 import { Astal, type Gdk, Gtk } from "ags/gtk4"
 import { config } from "./config"
 import { fadeIn } from "./fade"
+import { DOCK_PILL_NAMESPACE } from "./identity"
 
 /** Apply the band start: the row-axis margin of the anchored edge (the window
  *  is anchored at the row-start edge, so the margin is what moves the band). */
@@ -61,7 +62,7 @@ function connectSurfacePointer(window: any, sink: AppletSurfacePointer): void {
 export function createDockSurface(gdkmonitor: Gdk.Monitor, g: DockGeometry): AppletSurface {
   const window = (
     <window
-      namespace="dock-pill"
+      namespace={DOCK_PILL_NAMESPACE}
       class="dock-pill"
       gdkmonitor={gdkmonitor}
       exclusivity={Astal.Exclusivity.IGNORE}

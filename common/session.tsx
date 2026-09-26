@@ -29,13 +29,10 @@
 import GLib from "gi://GLib"
 import { hyprctlJson } from "@common/hyprland/dispatch"
 import { ignore, log } from "@common/log/logger"
+import { SESSION_OVERLAY_NAMESPACE } from "@common/session-identity"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
 
 type SessionTransition = "lock" | "logout"
-
-/** The layer-shell namespace the Hyprland blur rule matches; also the window's
- *  own CSS class. */
-const NAMESPACE = "session-overlay"
 
 /** Astal.WindowAnchor has no `ALL` member — the explicit OR is the full-screen
  *  form (the dock scrim's, apps/notifications/Popups.tsx's). */
@@ -58,8 +55,8 @@ const LINGER_MS = 20_000
 const LOCK_POLL_MS = 400
 
 const OVERLAY_CSS = `
-window.${NAMESPACE} { background-color: rgba(0, 0, 0, 0.35); }
-.${NAMESPACE}-label { font-size: 30px; font-weight: 300; color: rgba(255, 255, 255, 0.92); }
+window.${SESSION_OVERLAY_NAMESPACE} { background-color: rgba(0, 0, 0, 0.35); }
+.${SESSION_OVERLAY_NAMESPACE}-label { font-size: 30px; font-weight: 300; color: rgba(255, 255, 255, 0.92); }
 `
 
 /** The sheet is on the display once per PROCESS — a process fact, not per-app
@@ -106,8 +103,8 @@ function monitorList(): Gdk.Monitor[] {
 function overlayWindow(mon: Gdk.Monitor, label: string): Astal.Window {
   return (
     <window
-      namespace={NAMESPACE}
-      class={NAMESPACE}
+      namespace={SESSION_OVERLAY_NAMESPACE}
+      class={SESSION_OVERLAY_NAMESPACE}
       gdkmonitor={mon}
       layer={Astal.Layer.OVERLAY}
       exclusivity={Astal.Exclusivity.IGNORE}
@@ -116,7 +113,7 @@ function overlayWindow(mon: Gdk.Monitor, label: string): Astal.Window {
       visible={false}
     >
       <label
-        class={`${NAMESPACE}-label`}
+        class={`${SESSION_OVERLAY_NAMESPACE}-label`}
         label={label}
         halign={Gtk.Align.CENTER}
         valign={Gtk.Align.CENTER}

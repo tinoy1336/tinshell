@@ -59,6 +59,7 @@ import { hoverGlyph } from "@common/glyph/hover-glyph"
 import { createEffect, createState, For } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
 import { get, store } from "./config"
+import { NOTIFICATIONS_CENTRE_NAMESPACE } from "./identity"
 import { ignore, log } from "./log"
 import {
   clearInhibitors,
@@ -571,9 +572,9 @@ export default function Centre() {
 
   const winJsx = (
     <window
-      namespace="notifications-centre"
+      namespace={NOTIFICATIONS_CENTRE_NAMESPACE}
       class="notifications-centre"
-      name="notifications-centre"
+      name={NOTIFICATIONS_CENTRE_NAMESPACE}
       layer={Astal.Layer.TOP}
       keymode={Astal.Keymode.EXCLUSIVE}
       exclusivity={Astal.Exclusivity.IGNORE}

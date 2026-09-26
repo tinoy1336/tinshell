@@ -53,6 +53,7 @@ import { run } from "@common/subprocess/run"
 import app from "ags/gtk4/app"
 import Cairo from "cairo"
 import { applyLive, get as getConfig, set as setConfig } from "./config"
+import { ANNOTATE_APP_ID } from "./identity"
 import { recentColours, rememberColour } from "./state"
 import { hexToRgb, renderStroke, type Stroke, type ToolMode } from "./tools"
 
@@ -643,7 +644,7 @@ function createEditorWindow(): EditorHandle {
 
   const frame = createCardFrame({
     app: "annotate",
-    appId: "io.Astal.annotate", // app id matched by the annotate Hyprland windowrule
+    appId: ANNOTATE_APP_ID, // app id matched by the annotate-float generated compositor rule
     title: "annotate",
     defaultWidth: getConfig("window.defaultWidth"),
     defaultHeight: getConfig("window.defaultHeight"),

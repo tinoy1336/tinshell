@@ -23,6 +23,7 @@ import { bindEscape, bindFocusLoss } from "@common/window/popup-dismiss"
 import { type Accessor, createState, For } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
 import { get as getConfig } from "./config"
+import { CLIPBOARD_PICKER_NAMESPACE } from "./identity"
 import { log } from "./log"
 import { previewEntry } from "./preview"
 import type { ClipboardEntry } from "./store"
@@ -306,9 +307,9 @@ export default function Picker() {
 
   return (
     <window
-      namespace="clipboard-picker"
+      namespace={CLIPBOARD_PICKER_NAMESPACE}
       class="clipboard-picker"
-      name="clipboard-picker"
+      name={CLIPBOARD_PICKER_NAMESPACE}
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.EXCLUSIVE}
       exclusivity={Astal.Exclusivity.IGNORE}

@@ -84,6 +84,7 @@ import {
   emojiScrollTop,
   emojiVisibleRows,
 } from "./emoji"
+import { LAUNCHER_NAMESPACE } from "./identity"
 import { log } from "./log"
 import {
   CAP_PX_DESC,
@@ -1178,9 +1179,9 @@ export default function Launcher() {
 
   return (
     <window
-      namespace="launcher"
+      namespace={LAUNCHER_NAMESPACE}
       class="launcher"
-      name="launcher"
+      name={LAUNCHER_NAMESPACE}
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.EXCLUSIVE}
       exclusivity={Astal.Exclusivity.NORMAL}

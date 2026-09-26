@@ -65,6 +65,7 @@ import { attachPaneDivider } from "@common/media/divider"
 import { createMediaPane, type MediaPane } from "@common/media/pane"
 import { createPreviewSession, type PreviewSession } from "@common/media/preview"
 import { get as getConfig } from "./config"
+import { PORTAL_APP_ID } from "./identity"
 
 export type ChooserKind = "open" | "save" | "save-many"
 
@@ -286,7 +287,7 @@ export function createChooserWindow(kind: ChooserKind, opts: ChooserOptions): Ch
 
   const frame = createCardFrame({
     app: "portal",
-    appId: "io.Astal.portal", // app id matched by the portal-float Hyprland windowrule
+    appId: PORTAL_APP_ID, // app id matched by the portal-float generated compositor rule
     title: opts.title || "Open File",
     defaultWidth: winCfg.defaultWidth,
     defaultHeight: winCfg.defaultHeight,

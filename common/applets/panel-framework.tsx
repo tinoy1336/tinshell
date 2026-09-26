@@ -23,6 +23,7 @@ import cairo from "gi://cairo"
 import Gdk from "gi://Gdk"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
+import { DOCK_CORNER_NAMESPACE } from "@apps/dock/identity"
 import { easeQuadInOut } from "@common/anim/easings"
 import { type FrameRunner, runFrames } from "@common/anim/run-frames"
 import type { AppletConfig } from "@common/applets/config"
@@ -165,7 +166,7 @@ export function cornerCancelInit(monitor: any): void {
   if (cornerWin || !monitor) return
   cornerWin = (
     <window
-      namespace="dock-corner"
+      namespace={DOCK_CORNER_NAMESPACE}
       class="dock-corner"
       gdkmonitor={monitor}
       exclusivity={Astal.Exclusivity.IGNORE}

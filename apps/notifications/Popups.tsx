@@ -29,6 +29,7 @@ import GLib from "gi://GLib"
 import { createEffect } from "ags"
 import { Astal, Gtk } from "ags/gtk4"
 import { get } from "./config"
+import { NOTIFICATIONS_POPUP_NAMESPACE } from "./identity"
 import { ignore, log } from "./log"
 import { notifications, popupIds } from "./Notifd"
 import NotificationCard from "./NotificationCard"
@@ -253,9 +254,9 @@ export default function Popups(): Astal.Window {
   // @ts-expect-error runtime object is typed as Type 'Object' is missing the following p by @girs; safe cast
   return (
     <window
-      namespace="notifications-popup"
+      namespace={NOTIFICATIONS_POPUP_NAMESPACE}
       class="notifications-popup"
-      name="notifications-popup"
+      name={NOTIFICATIONS_POPUP_NAMESPACE}
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.NONE}
       exclusivity={Astal.Exclusivity.IGNORE}

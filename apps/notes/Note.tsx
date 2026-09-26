@@ -36,6 +36,7 @@ import app from "ags/gtk4/app"
 import { get as getConfig } from "./config"
 import { type History, record, redo as redoStep, undo as undoStep } from "./history"
 import { currentOwner, loadForNote, reconcile, saveForNote } from "./history-store"
+import { NOTES_APP_ID } from "./identity"
 import { namedTargetFor, reopenLastClosed, setNamedTarget } from "./session"
 import {
   ensureDir,
@@ -142,7 +143,7 @@ export function createNote(
   win.set_titlebar(null) // frameless — no UI elements by design
   win.set_default_size(getConfig("window.width"), getConfig("window.height"))
   win.set_size_request(220, 160) // sane minimum against aggressive resizes
-  setAppId(win, "io.Astal.notes") // app id matched by the notes-float Hyprland windowrule
+  setAppId(win, NOTES_APP_ID) // app id matched by the notes-float generated compositor rule
   app.add_window(win)
 
   // Focus the text view once the window maps — grab_focus before map is a
@@ -153,7 +154,8 @@ export function createNote(
   // (`size`) — Hyprland 0.52+ sends its own half-monitor configure to fresh
   // floats whose first commit loses the race, and GTK4 obeys the nonzero
   // configure while having NO post-map resize API for XDG windows, so the
-  // app cannot correct the size itself. See hyprland.lua notesConfigSize().
+  // app cannot correct the size itself. See the generated notes-float rule's
+  // `configMapSize` (apps/notes/hypr-rules.ts).
   // Session-restore passes grabFocus: false — N restored windows must not
   // fight over the keyboard focus.
   // Session-restore gate: map content-invisible so the window can be placed

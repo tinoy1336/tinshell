@@ -62,6 +62,7 @@ import {
   type SortKey,
   trashSync,
 } from "./fs"
+import { FILES_APP_ID } from "./identity"
 import { createPreview } from "./preview"
 import { setShowHidden, showHidden } from "./state"
 
@@ -233,7 +234,7 @@ function createBrowserWindow(startPath: string): BrowserHandle {
 
   const frame = createCardFrame({
     app: "files",
-    appId: "io.Astal.files", // app id matched by the files-float Hyprland windowrule
+    appId: FILES_APP_ID, // app id matched by the files-float generated compositor rule
     title: "files",
     defaultWidth: getConfig("window.width"),
     defaultHeight: getConfig("window.height"),

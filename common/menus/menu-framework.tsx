@@ -36,6 +36,7 @@
 import cairo from "gi://cairo"
 import GLib from "gi://GLib"
 import Pango from "gi://Pango"
+import { DOCK_MENU_NAMESPACE, DOCK_MENU_SCRIM_NAMESPACE } from "@apps/dock/identity"
 import { easeCubicInOut } from "@common/anim/easings"
 import { type FrameRunner, runFrames } from "@common/anim/run-frames"
 import type { AppletConfig } from "@common/applets/config"
@@ -1153,7 +1154,7 @@ function ensureScrim(monitor: Gdk.Monitor): void {
   if (scrimWin) return
   const win = (
     <window
-      namespace="dock-menu-scrim"
+      namespace={DOCK_MENU_SCRIM_NAMESPACE}
       class="dock-menu"
       gdkmonitor={monitor}
       exclusivity={Astal.Exclusivity.IGNORE}
@@ -1324,7 +1325,7 @@ function ensureMenuShell(monitor: Gdk.Monitor, config: AppletConfig): MenuShell 
 
   const win = (
     <window
-      namespace="dock-menu"
+      namespace={DOCK_MENU_NAMESPACE}
       class="dock-menu"
       gdkmonitor={monitor}
       exclusivity={Astal.Exclusivity.IGNORE}
