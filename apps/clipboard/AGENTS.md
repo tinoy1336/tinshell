@@ -37,7 +37,9 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   `md-eye_outline`) that opens that entry's PNG in a media app window of its own
   (request `media new <absolute img/<id>.png>` — media's SPAWN route, so a second
   preview adds a window instead of replacing the image an earlier one is still
-  showing; `media open` would retarget the most-recent window). It is
+  showing; `media open` would retarget the most-recent window). The screenshot
+  notification's Preview action sends the SAME `media new <path>` request for its
+  capture, so both surfaces open one kind of window rather than two. It is
   IMAGE-ONLY: a text row renders no preview control at all, so its row box is the
   one it always had. Built and styled exactly like the delete control (the shared
   `glyphButton`), and it dismisses the picker like an ordinary entry click does.

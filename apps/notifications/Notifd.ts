@@ -64,36 +64,45 @@ export function registerActionHandler(
   actionHandlers.set(actionId, cb)
 }
 
+/** One button of an in-process notification: the label the card renders and
+ *  the handler its press runs. */
+export interface NotificationAction {
+  id: string
+  label: string
+  onInvoke: (body: string) => void
+}
+
 /**
- * Send an in-process notification with one action. The action press runs
- * `onInvoke(body)` in-process (via registerActionHandler + invokeAction),
- * then the normal hide/dismiss behaviour applies. The daemon assigns the id
- * and emits "notified" — popup + centre render like any other notification.
+ * Send an in-process notification with one or more actions. The buttons render
+ * in the order given, and each action's press runs its own `onInvoke(body)`
+ * in-process (via registerActionHandler + invokeAction), then the normal
+ * hide/dismiss behaviour applies. The daemon assigns the id and emits
+ * "notified" — popup + centre render like any other notification.
  */
 export function notifyWithAction(opts: {
   summary: string
   body?: string
   appName?: string
-  actionId: string
-  actionLabel: string
-  onInvoke: (body: string) => void
+  actions: NotificationAction[]
 }): void {
   try {
     const n = new AstalNotifd.Notification()
     n.app_name = opts.appName ?? "ScreenGrab"
     n.summary = opts.summary
     if (opts.body) n.body = opts.body
-    // gjs GObject constructors take a PROPERTIES OBJECT — positional args
-    // throw "Argument to the constructor of Action should be a plain JS
-    // object with properties to set" and kill the whole notification.
-    n.add_action(new AstalNotifd.Action({ id: opts.actionId, label: opts.actionLabel }))
-    registerActionHandler(opts.actionId, (noti) => {
-      try {
-        opts.onInvoke(noti.body ?? "")
-      } catch (e) {
-        log(`in-process action '${opts.actionId}' handler failed: ${e}`)
-      }
-    })
+    for (const action of opts.actions) {
+      // gjs GObject constructors take a PROPERTIES OBJECT — positional args
+      // throw "Argument to the constructor of Action should be a plain JS
+      // object with properties to set" and kill the whole notification.
+      n.add_action(new AstalNotifd.Action({ id: action.id, label: action.label }))
+      registerActionHandler(action.id, (noti) => {
+        try {
+          action.onInvoke(noti.body ?? "")
+        } catch (e) {
+          log(`in-process action '${action.id}' handler failed: ${e}`)
+        }
+      })
+    }
     // Gio-style async — callback form (the @girs Promise overload lies).
     AstalNotifd.send_notification(n, (_src: unknown, res: Gio.AsyncResult) => {
       try {

@@ -53,6 +53,9 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   - in-process action handlers (`registerActionHandler`) intercept
     `invokeAction` — AstalNotifd gir 0.1 has NO `notify()` on the daemon and
     `n.invoke()` round-trips to the dead sender for in-process notifications.
+    `notifyWithAction` registers one handler per action of the list it is given
+    (`NotificationAction`), so a single notification can carry several buttons;
+    the card renders one button per action, in the order declared.
 - `Popups.tsx` — the floating surface: ONE full-screen overlay, cards stacked
   top-centre newest-first, each card in a `Gtk.Revealer` slot, input region =
   the card column's rect.
@@ -343,7 +346,9 @@ persisted — DND is the one durable mode, and it lives in the app's state store
   clicked (not a hang).
 - **In-process actions** (notifyWithAction) are intercepted in `invokeAction`
   via `registerActionHandler` — the gir `n.invoke()` would round-trip to the
-  dead sender for notifications created in-process.
+  dead sender for notifications created in-process. Each action of the list the
+  sender declares gets its own handler, so several buttons on one notification
+  are several entries, not several notifications.
 - The daemon PERSISTS unresolved notifications in gsettings
   (`io.astal.notifd`) — do not fight it; expiry is popup-side by design.
 

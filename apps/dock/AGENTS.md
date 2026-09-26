@@ -499,7 +499,7 @@ request "dock …"`) and the island (`ags -i dock request "dock …"`):
 | `dock config get/set/reload/update` | live config read/write/reload + update (schema-validated) |
 | `dock debug geo/gc/windows/state/redraw/menu/wifi/overflow/screengrab/region/focus` | geometry introspection, GC, applet list, state-store dump (path/version/keys), redraw, menu debug (incl. `scrimVisible`), wifi scan, overflow snap-info + guard repro, screengrab capture, single-surface band/slot/region dump, layer-window keyboard state (`focus` — per-window namespace + keyboard-interactivity mode + focus flags). The `wifi` and `screengrab` probes are APPLET-declared: their handlers live in `common/applets/<Name>/commands.ts` and are registered by `apps/dock/applets.ts` under these same paths |
 | `dock menu wifi/bluetooth/close/screengrab-capture/screengrab-settings` | open the wifi/bt/screengrab menus, close menus |
-| `dock screengrab capture still-or-video fullscreen-or-window-or-select` | run the applet's OWN capture pipeline from a request — the Print keybind's path. Same implementation as the overlay menu (`common/applets/screengrab/capture-run`), plus the clipboard copy. The notification's Annotate action is dispatched through an IN-PROCESS handler, so a capture started anywhere but the hosting instance would raise a button that goes nowhere |
+| `dock screengrab capture still-or-video fullscreen-or-window-or-select` | run the applet's OWN capture pipeline from a request — the Print keybind's path. Same implementation as the overlay menu (`common/applets/screengrab/capture-run`), plus the clipboard copy. The notification's Annotate and Preview actions are dispatched through IN-PROCESS handlers, so a capture started anywhere but the hosting instance would raise buttons that go nowhere |
 | `dock quit` | SIGINT an in-flight wf-recorder (finalizes the file), fade the dock surfaces out (~200ms, SYNC — the helper pumps the main context), then quit the instance only when the process is the dock's own (its island, the universal or per-app bundle); in a host that mounts the dock among other apps (the production shell, a combo) the fade is the whole teardown and the request never ends the host. The builtin `ags -i dock quit` exits without a fade |
 | `dock tablet set/get` | manual tablet-mode override (`on/off/auto`), session-scoped |
 
@@ -568,9 +568,15 @@ receives there (wf-recorder treats SIGTERM/SIGINT/SIGHUP as graceful stop).
   never claims `org.freedesktop.Notifications`. In dev, the notification
   displays via whichever process owns the daemon (shell always). The capture
   pipeline itself lives in `common/applets/screengrab/capture-run.ts`, shared by
-  the applet overlay and `dock screengrab capture` (the Print keybind) — the
+  the applet overlay and `dock screengrab capture` (the Print keybind) — each
   action is dispatched through an in-process handler, so only a capture running
-  in the instance that hosts the dock can offer a working Annotate button.
+  in the instance that hosts the dock can offer working action buttons. The row
+  carries TWO: **Annotate** (`spawnDetached` of `apps/annotate/ensure-open.sh
+  <file>`) and **Preview** (the capture shown in a media window of its own — the
+  route the clipboard picker's row preview drives: media's SPAWN verb
+  `media new <path>`, never the retargeting `open`, dispatched in process
+  through the command registry ahead of the lazy pre-step, since a resident
+  instance hosts media lazily).
   `AstalNotifd.Action` takes a PROPERTIES OBJECT (`{ id, label }`); the
   positional form throws and aborts the whole notification.
 - **State store** — every persisted value's OWNER holds it, through the SHARED

@@ -435,9 +435,11 @@ fallback (state.ts `defaultColours()`); `export.suffix` at save time.
 The dock's ScreenGrab still path (common/applets/screengrab/menu.tsx
 `runCapture`) sends the success notification as an **in-process**
 notification through the shell's own notifd
-(`apps/notifications/Notifd.ts`) with an `annotate` action; the action is
+(`apps/notifications/Notifd.ts`) with an `annotate` action; that action is
 handled in-process by a registered action handler (`registerActionHandler`)
-that `spawnDetached`s `ensure-open.sh <file>`. Rationale: AstalNotifd gir
+that `spawnDetached`s `ensure-open.sh <file>`. The row also carries a `preview`
+action, which belongs to the media app (the capture shown in a media window)
+and does not touch this one. Rationale: AstalNotifd gir
 0.1 exposes **no** `notify()` on the daemon, and a shelled-out notification
 dies with the sending process, so a notification action could never invoke.
 Popup lifetime note: the popup auto-hides after `popup.timeout` (10s) while
