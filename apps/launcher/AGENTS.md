@@ -16,7 +16,7 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 | Window namespace | `launcher` (layer-shell, keymode EXCLUSIVE while open; owned by `identity.ts`) |
 | Compositor rule | blur `launcher` (ignore_alpha 0.2 — same frost params as the dock/notifications); DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/020-launcher.lua` by `npm run gen:hypr-rules` |
 | Router | `route-map.conf`: `launcher=shell,launcher` |
-| Keybind | mod+Space → `common/shell/ensure-launcher-toggle.sh` → `tinshell-route launcher toggle`; mod+. → `common/shell/ensure-launcher-emoji.sh` → `tinshell-route launcher emoji` |
+| Keybind | mod+Space → `common/shell/ensure-launcher-toggle.sh` → `tinshell-route launcher toggle`; mod+. → `common/shell/ensure-launcher-emoji.sh` → `tinshell-route launcher emoji`. Both keys are DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/020-launcher.lua` by `npm run gen:hypr-rules` |
 
 ## Sources (what lives here)
 
@@ -581,7 +581,8 @@ close, which the house forbids because an unresolvable address closes the
 FOCUSED window), `!mixer` (`pavucontrol`).
 
 The clipboard picker has NO bang: it stays reachable through its own keybind
-(mod+SHIFT+V in `hyprland.lua`) and the router path
+(mod+SHIFT+V, declared in `apps/clipboard/hypr-rules.ts` and rendered into the
+`050-clipboard.lua` fragment) and the router path
 (`common/shell/tinshell-route.sh clipboard toggle`, map row `clipboard=shell,clipboard`),
 which is what the retired `!clip` bang spawned. Removing the bang therefore
 changed three tokens and nothing else: `!c` is still the Chromium search (exact
@@ -1148,6 +1149,9 @@ The same key must not mean two things:
 A leading `:` in the query is the same entry-level trigger (it sets emoji
 mode and the query is matched with its colons stripped).
 `common/shell/ensure-launcher-emoji.sh` wraps `tinshell-route launcher emoji`.
+The key itself is declared in `apps/launcher/hypr-rules.ts` and reaches the
+compositor through the generated fragment `020-launcher.lua`, so the table above
+and the key live in the same tree.
 
 ### Insertion semantics
 

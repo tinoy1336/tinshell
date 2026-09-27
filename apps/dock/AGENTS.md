@@ -16,7 +16,7 @@ This file is the app-specific spec; the root file is the cross-app contract.
 | Window namespaces | `dock-pill` (ONE shared dock surface per monitor), `dock-menu`, `dock-menu-scrim`, `dock-corner` — owned by `identity.ts` |
 | Compositor rules | blur `dock-.*` + `dock-pill` (ignore_alpha 0.05) + no-animation on `dock-.*` — the frosted-glass dock; DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/010-dock.lua` by `npm run gen:hypr-rules` |
 | Router | `route-map.conf`: `dock=shell,dock` |
-| Keybinds | none direct — the dock is always visible; applets summoned by click (no summon bind). The **Print** screen-capture bind routes IN via `tinshell-route` (`common/shell/ensure-screengrab.sh` → `dock screengrab capture still select`)
+| Keybinds | none direct — the dock is always visible; applets summoned by click (no summon bind). The **Print** screen-capture bind routes IN via `tinshell-route` (`common/shell/ensure-screengrab.sh` → `dock screengrab capture still select`); it is DATA in `hypr-rules.ts` (this app hosts the screengrab applet), rendered into `~/.config/hypr/rules/010-dock.lua`. The workspace keys SUPER+0/SUPER+MINUS (and their SHIFT move variants) land in the same fragment — the workspaces slider applet's step count is what dictates workspaces 10 and 11
 
 ## Architecture — SINGLE SURFACE per monitor
 

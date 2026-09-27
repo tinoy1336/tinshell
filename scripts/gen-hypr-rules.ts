@@ -3,12 +3,21 @@
  * compositor config's rule directory (`~/.config/hypr/rules/`).
  *
  * WHAT IS GENERATED: one Lua fragment per owner. The definitions live beside the
- * surfaces that own them (`apps/<app>/hypr-rules.ts`, `common/session-rules.ts`)
- * and name their surface through that surface's own identity constant
- * (`apps/<app>/identity.ts`), so the compositor cannot be left matching a
- * namespace or an app_id that no longer exists. The emitted calls are the same
- * `hl.layer_rule` / `hl.window_rule` shapes the config spelled inline, so the
- * semantics are unchanged; see common/hyprland/rule.ts for the model.
+ * surfaces that own them (`apps/<app>/hypr-rules.ts`, `common/shell-rules.ts`,
+ * `common/session-rules.ts`) and name their surface through that surface's own
+ * identity constant (`apps/<app>/identity.ts`), so the compositor cannot be left
+ * matching a namespace or an app_id that no longer exists. The emitted calls are
+ * the same `hl.layer_rule` / `hl.window_rule` shapes the config spelled inline,
+ * so the semantics are unchanged; see common/hyprland/rule.ts for the model.
+ *
+ * A FRAGMENT CARRIES MORE THAN RULES. An owner may also declare commands the
+ * compositor runs at session start (`HyprRuleSet.start`); they are emitted as one
+ * `hl.on("hyprland.start", …)` registration, NEVER as a bare call at the
+ * fragment's top level — the directory is mounted with a PARSE-TIME require, so a
+ * top-level call would run while the config is being read instead of at login.
+ * An owner may also declare the keybinds that summon its surface
+ * (`HyprRuleSet.bind`); a bind IS a top-level `hl.bind`, which is parse-time
+ * registration — the call the config made inline — so it needs no hook.
  *
  * ORDERING: the config requires this directory with a wildcard, and Hyprland
  * requires every match in ascending FILENAME order (byte order — Hyprland sorts
@@ -43,8 +52,12 @@ import {
 import { tmpdir } from "node:os"
 import { basename, dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
-import type { HyprRuleSet, LayerRuleSpec, WindowRuleSpec } from "../common/hyprland/rule"
-import { DECORATION_REASSERTION_REASON } from "../common/hyprland/rule.ts"
+import type { BindEntry, HyprRuleSet, LayerRuleSpec, WindowRuleSpec } from "../common/hyprland/rule"
+import {
+  BIND_POSITION_REASON,
+  DECORATION_REASSERTION_REASON,
+  START_HOOK_REASON,
+} from "../common/hyprland/rule.ts"
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const APPS = join(ROOT, "apps")
@@ -52,8 +65,12 @@ const APPS = join(ROOT, "apps")
 /** File name of a rule set inside an app directory. */
 const RULE_FILE = "hypr-rules.ts"
 
-/** Rule sets that are not an app's own: the shell surfaces owned by common/. */
-const COMMON_RULE_FILES = [{ owner: "session", file: join(ROOT, "common", "session-rules.ts") }]
+/** Rule sets that are not an app's own: the shell and the session, owned by
+ *  common/. */
+const COMMON_RULE_FILES = [
+  { owner: "shell", file: join(ROOT, "common", "shell-rules.ts") },
+  { owner: "session", file: join(ROOT, "common", "session-rules.ts") },
+]
 
 /**
  * Registration order, one number per owner — the number IS the file name's
@@ -61,9 +78,11 @@ const COMMON_RULE_FILES = [{ owner: "session", file: join(ROOT, "common", "sessi
  * applied over every earlier match and the LAST match wins: a rule that has to
  * out-rank another has to sort after it. Layer rules select disjoint namespaces,
  * so only the window rules are order-sensitive, and their order is theirs to
- * state here.
+ * state here. An owner that contributes no rule (the shell's start hook) has no
+ * precedence to state and takes the lowest free number.
  */
 const ORDER: Record<string, number> = {
+  shell: 5,
   dock: 10,
   launcher: 20,
   notifications: 30,
@@ -185,30 +204,86 @@ function mapSizeReader(): string[] {
   ]
 }
 
+/** The ordering paragraph a fragment that carries a match rule needs: the
+ *  directory must sort after the config's inline rules, and the LAST match wins
+ *  per key. */
+const RULE_ORDER_NOTE = [
+  `-- ORDER: the config requires this directory with a wildcard and Hyprland`,
+  `-- requires every match in ascending FILENAME order (byte order — the numeric`,
+  `-- prefix is fixed-width, so numeric order is byte order). A window rule's keys`,
+  `-- are applied over every earlier match and the LAST match wins, so this`,
+  `-- directory must be required AFTER the inline rules in the config: the generic`,
+  `-- float-decorations rule sets rounding 12 on every float and the app rules`,
+  `-- below override it. The namespaces and app ids below come from the surface's`,
+  `-- own identity module, never from a repeated literal.`,
+]
+
+/** The ordering paragraph for a fragment whose only registration is a keybind:
+ *  no match in the directory depends on its position, and the one case where
+ *  order would matter is rejected rather than reordered. */
+const BIND_ONLY_ORDER_NOTE = [
+  `-- ORDER: the config requires this directory with a wildcard and Hyprland`,
+  `-- requires every match in ascending FILENAME order (byte order — the numeric`,
+  `-- prefix is fixed-width, so numeric order is byte order). This fragment carries`,
+  `-- no match rule, so its prefix only decides where it is required.`,
+]
+
+/** The ordering paragraph for a fragment that carries no rule: its file name
+ *  still has to sort where the fixed-width prefix puts it, but no match in the
+ *  directory depends on its position. */
+const START_ONLY_ORDER_NOTE = [
+  `-- ORDER: the config requires this directory with a wildcard and Hyprland`,
+  `-- requires every match in ascending FILENAME order (byte order — the numeric`,
+  `-- prefix is fixed-width, so numeric order is byte order). This fragment carries`,
+  `-- no rule, so no match in the directory depends on its position.`,
+]
+
+/** The local a bind-carrying fragment builds its commands from: the tree root,
+ *  derived at config load — a bind's exec has no `~/.local/bin` in PATH, and a
+ *  baked absolute path would freeze the tree's location into the generated
+ *  file. */
+const SHELL_DIR_LOCAL = [
+  `-- Keybind exec runs with no ~/.local/bin in PATH, so each command below is a`,
+  `-- path under the tree root, derived from $HOME when the compositor reads this`,
+  `-- fragment.`,
+  `local shellDir = os.getenv("HOME") .. "/dev/tinshell"`,
+]
+
+/** What a reader of a start hook needs to know about WHEN it fires: hooks run in
+ *  registration order and the config registers its own hook before it mounts
+ *  this directory, so a hook registered here fires after the config's. */
+const START_HOOK_NOTE = [
+  `-- The start hook below fires after the config's own hook: hooks run in`,
+  `-- registration order, and the config registers its own before this require.`,
+]
+
 /** The header every fragment carries: what generated it, which surface it
  *  describes, and the ordering rule a reader needs to reorder it safely. */ function header(
   set: HyprRuleSet,
   file: string,
 ): string[] {
-  return [
-    `-- GENERATED — do not edit.`,
-    `--   source:        ${set.identityModule}`,
+  const carriesMatches = (set.layer?.length ?? 0) + (set.window?.length ?? 0) > 0
+  const carriesBinds = (set.bind?.length ?? 0) > 0
+  const lines = [`-- GENERATED — do not edit.`]
+  if (set.identityModule) lines.push(`--   source:        ${set.identityModule}`)
+  lines.push(
     `--   render:        scripts/gen-hypr-rules.ts (\`npm run gen:hypr-rules\`)`,
     `--   stale check:   \`npm run check:hypr-rules\``,
     `--`,
-    `-- Compositor rules for the ${set.owner} surface.`,
+    carriesMatches || carriesBinds
+      ? `-- Compositor rules for the ${set.owner} surface.`
+      : `-- Compositor integration for the ${set.owner} surface.`,
     `--`,
-    `-- ORDER: the config requires this directory with a wildcard and Hyprland`,
-    `-- requires every match in ascending FILENAME order (byte order — the numeric`,
-    `-- prefix is fixed-width, so numeric order is byte order). A window rule's keys`,
-    `-- are applied over every earlier match and the LAST match wins, so this`,
-    `-- directory must be required AFTER the inline rules in the config: the generic`,
-    `-- float-decorations rule sets rounding 12 on every float and the app rules`,
-    `-- below override it. The namespaces and app ids below come from the surface's`,
-    `-- own identity module, never from a repeated literal.`,
-    `--`,
-    `-- ${basename(file)}`,
-  ]
+    ...(carriesMatches
+      ? RULE_ORDER_NOTE
+      : carriesBinds
+        ? BIND_ONLY_ORDER_NOTE
+        : START_ONLY_ORDER_NOTE),
+  )
+  if (carriesBinds) lines.push(...commentBlock(BIND_POSITION_REASON))
+  if (set.start?.length) lines.push(...START_HOOK_NOTE)
+  lines.push(`--`, `-- ${basename(file)}`)
+  return lines
 }
 
 function renderFragment(set: HyprRuleSet, order: number): { name: string; content: string } {
@@ -240,8 +315,65 @@ function renderFragment(set: HyprRuleSet, order: number): { name: string; conten
     }
     lines.push(renderWindowRule(rule), "")
   }
+  if (set.bind?.length) lines.push(...renderBinds(set.bind))
+  if (set.start?.length) lines.push(...renderStart(set.start))
 
   return { name, content: `${lines.join("\n")}` }
+}
+
+/** A fragment's start section: ONE `hl.on("hyprland.start", …)` registration
+ *  carrying every command the owner declares, each under the reason the owner
+ *  gave for it. Never a bare call — see `START_HOOK_REASON`. */
+function renderStart(entries: NonNullable<HyprRuleSet["start"]>): string[] {
+  const lines = [...commentBlock(START_HOOK_REASON), "", `hl.on("hyprland.start", function()`]
+  for (const entry of entries) {
+    if (entry.note) lines.push(...commentBlock(entry.note).map((line) => `    ${line}`))
+    lines.push(`    hl.exec_cmd(${luaString(entry.cmd)})`)
+  }
+  lines.push("end)", "")
+  return lines
+}
+
+/** A fragment's bind section: the tree root a command bind needs, emitted ONCE,
+ *  then one `hl.bind` per declared key, each under the reason the owner gave for
+ *  it. A `dispatch` entry names its dispatcher directly; a `cmd` entry is a
+ *  command line whose command word is a path under the root, so the emitted call
+ *  concatenates the whole line to `shellDir` and no absolute path enters the
+ *  data. */
+function renderBinds(entries: NonNullable<HyprRuleSet["bind"]>): string[] {
+  const lines: string[] = []
+  if (entries.some((entry) => entry.cmd !== undefined)) lines.push(...SHELL_DIR_LOCAL, "")
+  for (const entry of entries) {
+    if (entry.note) lines.push(...commentBlock(entry.note))
+    const args = `${renderBindDispatcher(entry)}${renderBindOpts(entry.opts)}`
+    lines.push(`hl.bind(${luaString(entry.keys)}, ${args})`, "")
+  }
+  return lines
+}
+
+/** The second argument of `hl.bind` for one entry: the compositor dispatcher the
+ *  entry declares, or the command line it runs with the fragment's tree root in
+ *  front of it. */
+function renderBindDispatcher(entry: BindEntry): string {
+  if (entry.dispatch) {
+    const workspace = entry.dispatch.workspace
+    return entry.dispatch.kind === "focus"
+      ? `hl.dsp.focus({ workspace = ${workspace} })`
+      : `hl.dsp.window.move({ workspace = ${workspace} })`
+  }
+  if (entry.cmd === undefined) throw new Error(`bind on ${entry.keys}: neither cmd nor dispatch`)
+  return `hl.dsp.exec_cmd(shellDir .. ${luaString(`/${entry.cmd}`)})`
+}
+
+/** The third argument of `hl.bind`, emitted ONLY when the entry sets one of the
+ *  options the model carries; the option names are `HL.BindOptions`' own. */
+function renderBindOpts(opts: BindEntry["opts"]): string {
+  if (!opts) return ""
+  const parts: string[] = []
+  if (opts.locked !== undefined) parts.push(`locked = ${luaValue(opts.locked)}`)
+  if (opts.repeating !== undefined) parts.push(`repeating = ${luaValue(opts.repeating)}`)
+  if (opts.mouse !== undefined) parts.push(`mouse = ${luaValue(opts.mouse)}`)
+  return parts.length === 0 ? "" : `, { ${parts.join(", ")} }`
 }
 
 /** A comment block for a reason a fragment carries: `--` per line, wrapped at the
@@ -273,8 +405,11 @@ function placeholderFragment(): { name: string; content: string } {
       `-- (\`require("./rules/*.lua")\` — the config loader expands the pattern and`,
       `-- requires every match in sorted order). Nothing here is written by hand: a`,
       `-- rule is defined beside the surface that owns it (\`apps/<app>/hypr-rules.ts\`,`,
-      `-- \`common/session-rules.ts\`) and rendered here, because a rule that names a`,
-      `-- namespace or an app_id has to name the same constant the surface does.`,
+      `-- \`common/shell-rules.ts\`, \`common/session-rules.ts\`) and rendered here: a`,
+      `-- rule that names a namespace or an app_id has to name the same constant the`,
+      `-- surface does. A fragment may also register a start hook (the shell's own`,
+      `-- autostart) instead of — or beside — its rules; either way it is generated`,
+      `-- from the same tree.`,
       `--`,
       `-- THIS FILE CARRIES NO RULE. A wildcard require fails when the pattern matches`,
       `-- nothing, so an empty rule directory would be a config error; this file is`,
@@ -296,6 +431,32 @@ async function loadSet(owner: string, file: string): Promise<HyprRuleSet> {
   for (const rule of set.window ?? []) {
     if (!rule.name)
       throw new Error(`${file}: a window rule has no name (name = Hyprland's merge key)`)
+  }
+  for (const entry of set.start ?? []) {
+    if (!entry.cmd)
+      throw new Error(`${file}: a start entry has no command (cmd = the command line run at start)`)
+  }
+  for (const entry of set.bind ?? []) {
+    if (!entry.keys?.trim())
+      throw new Error(`${file}: a bind entry has no keys (keys = the key string hl.bind takes)`)
+    const hasCmd = entry.cmd !== undefined
+    const hasDispatch = entry.dispatch !== undefined
+    if (hasCmd === hasDispatch)
+      throw new Error(
+        `${file}: the bind on "${entry.keys}" needs exactly ONE of cmd / dispatch (cmd = a shell command line, dispatch = a compositor dispatcher)`,
+      )
+    if (hasCmd) {
+      if (!entry.cmd?.trim())
+        throw new Error(`${file}: the bind on "${entry.keys}" has an empty cmd`)
+      if (/hl\.dsp\./.test(entry.cmd ?? ""))
+        throw new Error(
+          `${file}: the bind on "${entry.keys}" spells an hl.dsp.* expression in cmd — cmd is a shell command line; declare the dispatcher as \`dispatch\``,
+        )
+    }
+    if (entry.dispatch && !Number.isInteger(entry.dispatch.workspace))
+      throw new Error(
+        `${file}: the bind on "${entry.keys}" declares a dispatch with no workspace number`,
+      )
   }
   return set
 }
@@ -414,6 +575,10 @@ async function main(): Promise<number> {
       ? []
       : ["the render is not deterministic — two renders of the same rule sets differ"]),
     ...selfConsistencyProblems(rendered),
+    // Both renders are scanned: a duplicate key is a property of the rule sets, so
+    // it must be reported whichever render it is read from, and the set keeps one
+    // line per distinct problem.
+    ...new Set([...duplicateKeyProblems(rendered), ...duplicateKeyProblems(rerendered)]),
     ...checkRenderReproduced(rendered),
   ]
   for (const problem of renderProblems) console.error(`rules render: ${problem}`)
@@ -464,7 +629,49 @@ function selfConsistencyProblems(rendered: { name: string; content: string }[]):
     if (name === PLACEHOLDER) {
       if (/\bhl\./.test(content)) problems.push(`${name}: the placeholder registers a rule`)
     } else if (!/\bhl\./.test(content)) {
-      problems.push(`${name}: registers no rule`)
+      problems.push(`${name}: registers no rule and runs nothing at start`)
+    }
+    // The directory is mounted with a parse-time require, so a command emitted at
+    // a fragment's top level would run while the config is being read. Every
+    // command belongs inside a start hook registration.
+    if (/^hl\.exec_cmd\(/m.test(content))
+      problems.push(
+        `${name}: runs a command at the fragment's top level — register it on hl.on("hyprland.start", …)`,
+      )
+  }
+  return problems
+}
+
+/** The key string as a binding identity: uppercase, `+`-separated, trimmed and
+ *  sorted, so `"SHIFT + SUPER + V"` and `"SUPER + SHIFT + V"` are ONE key
+ *  (Hyprland keys a bind by (modmask, key), and the modifier order in the string
+ *  does not change either). */
+function normalizeKey(keys: string): string {
+  return keys
+    .split("+")
+    .map((part) => part.trim().toUpperCase())
+    .sort()
+    .join("+")
+}
+
+/** The one bind failure that is silent at runtime: a key declared twice. The
+ *  later registration wins, so the earlier command simply never runs and the
+ *  compositor reports nothing — a duplicated key has to be rejected HERE, where
+ *  the whole tree is visible at once. */
+function duplicateKeyProblems(rendered: { name: string; content: string }[]): string[] {
+  const problems: string[] = []
+  const first = new Map<string, string>()
+  for (const { name, content } of rendered) {
+    for (const match of content.matchAll(/hl\.bind\(\s*"([^"]*)"/g)) {
+      const key = normalizeKey(match[1])
+      const declared = first.get(key)
+      if (declared) {
+        problems.push(
+          `${name}: the key "${match[1]}" is already bound by ${declared} — Hyprland keys a bind by (modmask, key) and a second declaration silently replaces the first`,
+        )
+        continue
+      }
+      first.set(key, name)
     }
   }
   return problems

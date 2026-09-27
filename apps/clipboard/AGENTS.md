@@ -15,7 +15,7 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 | Window namespace | `clipboard-picker` (owned by `identity.ts`) |
 | Compositor rule | blur `clipboard-picker` (ignore_alpha 0.2 — own rule; the surface is a picker popup); DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/050-clipboard.lua` by `npm run gen:hypr-rules` |
 | Router | `route-map.conf`: `clipboard=shell,clipboard` |
-| Keybind | mod+SHIFT+V → `tinshell-route clipboard toggle` |
+| Keybind | mod+SHIFT+V → `tinshell-route clipboard toggle`. The key is DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/050-clipboard.lua` by `npm run gen:hypr-rules` |
 
 ## Sources (what lives here)
 

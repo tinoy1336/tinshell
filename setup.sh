@@ -448,11 +448,11 @@ fi
 
 HYPR="$HOME_DIR/.config/hypr/hyprland.lua"
 if [ -f "$HYPR" ]; then
-  # The compositor rules that belong to a tinshell surface are DATA beside the
-  # surface and are generated into this directory (npm run gen:hypr-rules); the
-  # config mounts it with a wildcard require. A rule counts as present when
-  # EITHER the config or a generated fragment carries it, so this verification
-  # answers for both layouts.
+  # The compositor rules, keybinds and start hooks that belong to a tinshell
+  # surface are DATA beside the surface and are generated into this directory
+  # (npm run gen:hypr-rules); the config mounts it with a wildcard require. A
+  # rule, a keybind or a start hook counts as present when EITHER the config or a
+  # generated fragment carries it, so this verification answers for both layouts.
   RULES_DIR="$HOME_DIR/.config/hypr/rules"
   hypr_rule_present() { # <grep pattern>
     grep -q "$1" "$HYPR" 2>/dev/null || grep -rq "$1" "$RULES_DIR" 2>/dev/null
@@ -462,7 +462,7 @@ if [ -f "$HYPR" ]; then
   hypr_rule_present 'dock-\.\*' || MISSING_RULES+=("layerrule blur, dock-.*")
   hypr_rule_present 'namespace = "launcher"' || hypr_rule_present 'blur, launcher' || MISSING_RULES+=('layerrule blur, launcher')
   hypr_rule_present 'namespace = "promptd"' || hypr_rule_present 'blur, promptd' || MISSING_RULES+=('layerrule blur, promptd')
-  grep -q 'start tinshell-shell' "$HYPR" 2>/dev/null || MISSING_RULES+=('systemctl --user start tinshell-shell')
+  hypr_rule_present 'start tinshell-shell' || MISSING_RULES+=('systemctl --user start tinshell-shell')
   hypr_rule_present 'namespace = "notifications' || hypr_rule_present 'blur, notifications' || MISSING_RULES+=('layerrule blur, notifications-.*')
   hypr_rule_present 'keyboard-\.\*' || MISSING_RULES+=('layerrule blur, keyboard-.*')
   hypr_rule_present 'clipboard-picker' || MISSING_RULES+=('layerrule blur, clipboard-picker')
@@ -472,15 +472,33 @@ if [ -f "$HYPR" ]; then
   hypr_rule_present 'annotate-float' || MISSING_RULES+=('windowrule float, annotate-float (io.Astal.annotate)')
   hypr_rule_present 'portal-float' || MISSING_RULES+=('windowrule float, portal-float (io.Astal.portal)')
   hypr_rule_present 'media-float' || MISSING_RULES+=('windowrule float, media-float (io.Astal.media)')
-  grep -q 'shell/ensure-launcher-toggle.sh' "$HYPR" 2>/dev/null || MISSING_RULES+=('SUPER+Space → shell/ensure-launcher-toggle.sh (launcher keybind)')
-  grep -q 'shell/ensure-screengrab.sh' "$HYPR" 2>/dev/null || MISSING_RULES+=('Print → shell/ensure-screengrab.sh (region capture keybind)')
-  grep -q 'tinshell-route.sh' "$HYPR" 2>/dev/null || MISSING_RULES+=('tinshell-route.sh (notifications/clipboard keybinds)')
-  grep -q 'shell/restart-shell.sh' "$HYPR" 2>/dev/null || MISSING_RULES+=('SUPER+SHIFT+B → shell/restart-shell.sh (shell restart keybind)')
+  hypr_rule_present 'shell/ensure-launcher-toggle.sh' || MISSING_RULES+=('SUPER+Space → shell/ensure-launcher-toggle.sh (launcher keybind)')
+  hypr_rule_present 'shell/ensure-screengrab.sh' || MISSING_RULES+=('Print → shell/ensure-screengrab.sh (region capture keybind)')
+  hypr_rule_present 'tinshell-route.sh' || MISSING_RULES+=('tinshell-route.sh (notifications/clipboard keybinds)')
+  hypr_rule_present 'shell/restart-shell.sh' || MISSING_RULES+=('SUPER+SHIFT+B → shell/restart-shell.sh (shell restart keybind)')
   if [ ${#MISSING_RULES[@]} -eq 0 ]; then
-    done_ "Hyprland integration verified (blur rules + start hook present)"
+    done_ "Hyprland integration verified (blur rules + keybinds + start hook present)"
   else
     err "Hyprland config missing some integration lines. Add these to $HYPR (or generate them with npm run gen:hypr-rules):"
     for rule in "${MISSING_RULES[@]}"; do echo "    $rule"; done
+  fi
+
+  # A key declared twice is the one bind failure the compositor reports silently:
+  # Hyprland keys a bind by (modmask, key), so the later registration wins and the
+  # earlier command simply never runs. The build-time check (npm run
+  # check:hypr-rules) covers the generated fragments across both layouts, so this
+  # asks the LIVE compositor instead — its bind list also covers the binds the
+  # config still spells inline. Skipped when there is no running compositor to
+  # answer, so setup never fails for the want of a live session.
+  if command -v hyprctl >/dev/null 2>&1 && hyprctl -j binds >/dev/null 2>&1; then
+    DUP_BINDS="$(hyprctl -j binds 2>/dev/null | jq -r '.[] | "\(.modmask):\(.key)"' | sort | uniq -d | paste -sd', ' -)"
+    if [ -n "$DUP_BINDS" ]; then
+      err "the live compositor binds more than one key to the same (modmask, key) pair: $DUP_BINDS"
+    else
+      done_ "no keybind is bound twice in the live compositor"
+    fi
+  else
+    skip "live keybind duplicate check (no compositor running)"
   fi
 else
   err "$HYPR not found — Hyprland config must be set up separately."

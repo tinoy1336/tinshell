@@ -153,9 +153,12 @@ Window namespaces are UNCHANGED (`dock-.*`, `launcher`, `notifications-.*`,
 `keyboard-.*`, `clipboard-picker`, plus the desktop apps' float rules). Each
 name is owned once, in the surface's `apps/<app>/identity.ts` (the app_id a card
 window sets with `setAppId` / passes as `appId`, the layer-shell namespace a
-surface passes), and the compositor rules that match them are DATA beside the
-surface: `apps/<app>/hypr-rules.ts` (plus `common/session-rules.ts` for the
-session-transition scrim). `npm run gen:hypr-rules` renders that data into
+surface passes), and the compositor rules that match them — plus the keybind that
+summons the surface — are DATA beside the surface: `apps/<app>/hypr-rules.ts`,
+plus the common-owned sets (`common/shell-rules.ts` for the shell's own restart
+key and start hook, `common/session-rules.ts` for the session-transition scrim).
+`npm run
+gen:hypr-rules` renders that data into
 `~/.config/hypr/rules/`, which the config mounts with a wildcard `require` — see
 "Generated compositor rules".
 
@@ -234,7 +237,7 @@ quit path |
 | `common/config/app-store` | `createAppStore(appName, opts?)` — per-app config facade over `createConfigStore` (dir `apps/<name>`): get/all/set (schema-checked, `{ok,error}`)/reloadConfig; `opts.onReject` overrides the rejection sink (media logs via `common/log/logger`). Non-surface apps' `config.ts` are thin re-exports of one instance |
 | `common/config/schema-build` | TypeBox schema-builder adapter for `config.schema.ts` sources (obj/openObj/mapOf/arr/enumOf, `Type`/`Static` re-export). DevDep typebox; never bundled into app runtime (config.ts imports the derived type type-only) |
 | `scripts/gen-config-schemas.ts` | schema generator: imports every `apps/<app>/config.schema.ts`, prunes loader-unreadable keys, merges the `tiers` sidecar as `x-tier`, emits `config.schema.json` (npm `gen:schemas`) or verifies staleness (`check:schemas`) |
-| `scripts/gen-hypr-rules.ts` | compositor-rule generator: imports every `apps/<app>/hypr-rules.ts` plus `common/session-rules.ts`, renders one Lua fragment per owner into `~/.config/hypr/rules/` (npm `gen:hypr-rules`; `check:hypr-rules` renders the rule sets into a scratch directory and compares the machine's own directory when it exists, part of `npm run check`). Registration order is the fixed-width numeric file prefix the ORDER table assigns, each fragment is written temp-file→fsync→rename inside the target directory, an unchanged fragment is left alone, and a fragment this build no longer produces is removed; `00-placeholder.lua` keeps the config's wildcard `require` matching an otherwise empty directory |
+| `scripts/gen-hypr-rules.ts` | compositor-rule generator: imports every `apps/<app>/hypr-rules.ts` plus the common-owned sets (`common/shell-rules.ts` for the shell's restart keybind and start hook, `common/session-rules.ts` for the session-transition scrim), renders one Lua fragment per owner into `~/.config/hypr/rules/` (npm `gen:hypr-rules`; `check:hypr-rules` renders the rule sets into a scratch directory and compares the machine's own directory when it exists, part of `npm run check`). A fragment carries rules, the KEYBINDS that summon the owner's surfaces and the commands it runs at session start; a bind is a top-level `hl.bind` (parse-time registration, exactly the call the config made inline), a command bind is emitted against the tree root the fragment derives from `$HOME`, and a key declared twice anywhere in the tree is a HARD failure — the gate compares normalized key strings, so `SHIFT + SUPER + V` collides with `SUPER + SHIFT + V`. Registration order is the fixed-width numeric file prefix the ORDER table assigns, each fragment is written temp-file→fsync→rename inside the target directory, an unchanged fragment is left alone, and a fragment this build no longer produces is removed; `00-placeholder.lua` keeps the config's wildcard `require` matching an otherwise empty directory |
 | `scripts/artifacts.sh` | THE artifact registry (`npm run build:all` / `check:builds` both read it): one row per shipped artifact — universal bundle, every app's bundle cache, the greeter login bundle, the lock bundle, the deployed `/etc/greetd/tinshell-greeter.sh` — with its source app, output path, stamp sidecar and kind (cache \| dist \| deployed). Locates the store through `bundle_store_dir` (`ARTIFACTS_CACHE`) — the same call the bundler writes through, never a second spelling of the path |
 | `scripts/build-all.sh` | `npm run build:all` — builds every artifact through the ONE bundler (`tinshell-host.sh warm shell`, `run.sh <app>`, `apps/greeter/build.sh`, `build-lock.sh`), each under a hard `timeout`; an artifact already built from the current sources is a no-op. Prints artifact → source fingerprint → destination plus the store it wrote to, and records the same-run receipt (`TINSHELL_BUILD_RECEIPT`) for the boot warm. Never escalates: the `/etc/greetd` deploy stays `apps/greeter/install.sh` under root |
 | `scripts/check-builds.sh` | `npm run check:builds` — the freshness gate: re-derives each artifact's fingerprint from the current sources and exits non-zero naming every stale artifact AND every changed/added/removed source, in a verdict that also names the store it read and the REASON (`STALE` moved inputs, `payload` a payload replaced after its build, `unbuilt`/`missing` no artifact in this store at all) and prints the same-run verified count before the verdict. Honours a build's same-run receipt only while the tree it built from still matches. `--quiet` = no table (the boot freshness probe); store, per-artifact reason and summary still print |
@@ -277,7 +280,7 @@ quit path |
 | `common/glyph/hover-glyph` | `hoverGlyph({...})` — Cairo glyph with radial-glow hover (colours as plain rgba tuples) |
 | `common/glyph/spinner` | `createSpinnerGlyph({...})` — rotating Cairo glyph; ease-back-to-upright optional |
 | `common/glyph/password-eye` | `passwordEye({ getEntry, box?, fontSize?, rest?, glowAlpha?, maskedClass?, emojiHidden?, emojiShown?, onToggle? })` → `{ widget, isMasked() }` — the show/hide password toggle: the shared `hoverGlyph` carrying the eye/eye-slash pair and flipping `Gtk.Entry` visibility at click time (promptd's askpass, the greeter's login card, the dock's wifi password entry) |
-| `common/hyprland/*` | `dispatch` — `launchPinned(cmd, ws?, float?)` / `focusWorkspace(id)` / `focusWindow(addr)` / `activeWorkspaceId()` / `hyprctlJson(subcmd)`, the Lua-eval hyprctl wrapper (`cmd` is a shell command line: `hl.dsp.exec_cmd` runs it through `sh -c`); `lua-string` — `luaStringLiteral(s)`, the ONE encoder of a runtime string into a Lua short-string literal (double-quoted; escapes `\`, `"` and every control character as `\ddd`); `rule` — the TS model of a compositor rule (`LayerRuleSpec` / `WindowRuleSpec` / `HyprRuleSet` / `ConfigMapSize`, `appIdPattern(appId)` for a rule's `class` match), which a per-surface rule definition is written in and the rule generator renders |
+| `common/hyprland/*` | `dispatch` — `launchPinned(cmd, ws?, float?)` / `focusWorkspace(id)` / `focusWindow(addr)` / `activeWorkspaceId()` / `hyprctlJson(subcmd)`, the Lua-eval hyprctl wrapper (`cmd` is a shell command line: `hl.dsp.exec_cmd` runs it through `sh -c`); `lua-string` — `luaStringLiteral(s)`, the ONE encoder of a runtime string into a Lua short-string literal (double-quoted; escapes `\`, `"` and every control character as `\ddd`); `rule` — the TS model of a compositor rule and of a session-start command (`LayerRuleSpec` / `WindowRuleSpec` / `HyprRuleSet` / `ConfigMapSize` / `StartEntry`, `appIdPattern(appId)` for a rule's `class` match, `START_HOOK_REASON` for why a start command is registered on a hook rather than emitted as a top-level call), which a per-surface rule definition is written in and the rule generator renders |
 | `common/clipboard` | `copy(text)` — GDK4 `set_content` (no `set_text` in GDK4) |
 | `common/fs/files` | `ensureDir` / `writeFileAsync` / `writeFileSync` (the synchronous ensure-dir + atomic write owner) (Gio callback idiom) / `resolvePath` (tilde expansion — the shared `expandTilde` primitive of `common/path/complete`) — one impl each; apps re-use instead of re-rolling (`common/fs/bytes.ts` also owns `bytesToUtf8`/`b64encode`) |
 | `common/state` | the ONE shared runtime-state store: `createStateStore({ app, version, keys })` — a versioned `state.json` under the XDG state dir `~/.local/state/tinshell/apps/<app>/` (NOT config), in-memory mirror, per-key validation, sync ATOMIC writes (GLib.file_set_contents temp+rename — serialized by construction, no async chain needed for tiny files), sync `reload()` for mount-time freshness + `appStateFilePath(app)` canonical-path helper used by boot restoreIf predicates (registry.ts must not import lazy apps). Unifies the dock row's mode store (`apps/dock/dock-row.ts`), the applet-setting stores in `common/applets/domains/*`, notes' session store and the launcher's emoji recents (`common/emoji/recency.ts`) — ONE state-store implementation across every app |
@@ -294,10 +297,10 @@ quit path |
 | `common/host/registry-exports` | `assertModuleExports(app, decl, mod)` (throws) / `resolveModuleExports(app, decl, mod, log)` (logs and returns null, so the host skips exactly that one app) + the named `RegistryExportError` — the guard that turns a misdeclared `mount`/`css`/`unmount` export name into a named failure instead of a silent `undefined`; pure (no `gi://` imports), so a plain-Node probe can import it (`registry-exports.probe.ts` is its probe) |
 | `common/shell/tinshell-route.sh` | the generic request router (see Addressing) |
 | `common/shell/route-map.conf` | route-priority + cold-start map for the router (`<app>=<prod>[,<dev>…]`); live routing probes reality beyond the map. An app with no entry (`applets`) is live-scan only: it is never cold-started |
-| `common/shell/ensure-launcher-toggle.sh` | mod+Space keybind wrapper → `tinshell-route launcher toggle` |
-| `common/shell/ensure-launcher-emoji.sh` | mod+. keybind wrapper → `tinshell-route launcher emoji` |
-| `common/shell/ensure-screengrab.sh` | the Print-key handler — routes a region capture into the live instance that hosts the screengrab applet (its Annotate action is an in-process handler, so the capture must run in that process); never cold-starts a bundle, and reports the miss on both channels |
-| `common/shell/restart-shell.sh` | mod+SHIFT+B wrapper — restart the live instance (shell or island) |
+| `common/shell/ensure-launcher-toggle.sh` | mod+Space keybind wrapper → `tinshell-route launcher toggle`; the key is declared in `apps/launcher/hypr-rules.ts` and rendered into `020-launcher.lua` |
+| `common/shell/ensure-launcher-emoji.sh` | mod+. keybind wrapper → `tinshell-route launcher emoji`; declared beside the toggle key in the same data file |
+| `common/shell/ensure-screengrab.sh` | the Print-key handler — routes a region capture into the live instance that hosts the screengrab applet (its Annotate action is an in-process handler, so the capture must run in that process); never cold-starts a bundle, and reports the miss on both channels. The key is declared in `apps/dock/hypr-rules.ts` (the applet host) and rendered into `010-dock.lua` |
+| `common/shell/restart-shell.sh` | mod+SHIFT+B wrapper — restart the live instance (shell or island); declared in `common/shell-rules.ts` and rendered into `005-shell.lua`. A tree that cannot render loses the key, so the paths that do not depend on it stay: the always-inline SUPER+Return terminal, this script run by hand, and a TTY `systemctl --user restart tinshell-shell` |
 | `common/shell/tinshell-mode.sh` | mode switcher — `tinshell-mode shell\\|island\\|toggle\\|status`; symlinked to `~/.local/bin/tinshell-mode` by setup.sh. Thin preset layer over tinshell-host: island mode = the long-running set (manifest non-lazy apps) via tinshell-host transient units + promptd/portal/polkit dev units; status table probe-based (per-app host-instance, all hosts listed when multi-hosted) |
 | `common/shell/run.sh` | the bundler (`ags bundle` → hashed outfile; `TINSHELL_BUNDLE_WARM=1` = build-only; `TINSHELL_HOST_ENTRY/TINSHELL_HOST_NAME` select the universal host mode). ONLY the boot-fleet fallback + debug path — the launch path is tinshell-host.sh. Every build runs `bundle-guard.sh` first (below); the store and the recorded identity come from `bundle-stamp.sh` (`bundle_store_dir`, `bundle_inputs_capture`), and the per-app CACHE HIT IS the gate's own test (`bundle_stamp_verify` over the recorded fingerprint and the sha256 of the payload) — so a build and `npm run check:builds` cannot disagree about whether an artifact is current |
 | `common/shell/bundle-guard.sh` | the bundle build's refusal check, sourced by `run.sh`: `bundle_guard_sources` aborts on a source file with no code at all (zero bytes / whitespace only), naming it plus its importers, and `bundle_guard_diagnostics` promotes EVERY esbuild diagnostic to a build failure — esbuild is advisory about a named import it cannot resolve (a module with no import/export syntax), satisfies it with `undefined`, emits `(void 0)(...)` and still exits 0, so the bundle throws at mount instead of failing the build |
@@ -665,7 +668,8 @@ command. Manual equivalent:
    use it where the surface passes the name (the layer-shell `namespace`, the
    card window's `appId`), then add its compositor rules as DATA in
    `apps/<app>/hypr-rules.ts` (a blur layer rule for a layer surface, a float
-   window rule for a desktop window) and an entry in the rule generator's ORDER
+   window rule for a desktop window), any keybind that summons the surface as a
+   `bind` entry in the same file, and an entry in the rule generator's ORDER
    table; `npm run gen:hypr-rules` renders them into `~/.config/hypr/rules/`.
    A rule never spells its namespace or app_id — it imports the constant.
 
@@ -1037,20 +1041,51 @@ repository owns:
 
 ## Generated compositor rules
 
-A compositor rule that belongs to a tinshell surface is DATA beside that
-surface, never a literal in the compositor config:
+A compositor rule — or a keybind, or a start hook — that belongs to a tinshell
+surface is DATA beside that surface, never a literal in the compositor config:
 
 - `apps/<app>/identity.ts` owns the names the compositor matches — the app_id a
   card window sets (`setAppId` / `createCardFrame({ appId })`) and the
   layer-shell namespace a layer surface passes. Renaming a surface is a rename
   of that constant, so a rule cannot be left matching the old name.
-- `apps/<app>/hypr-rules.ts` (and `common/session-rules.ts` for the
-  session-transition scrim) owns the rules themselves, written in the model
+- `apps/<app>/hypr-rules.ts` (and `common/shell-rules.ts` for the shell's own
+  restart key and start hook, `common/session-rules.ts` for the session-transition
+  scrim) owns
+  the rules themselves, written in the model
   `common/hyprland/rule.ts` defines — the same keys `hl.layer_rule` /
   `hl.window_rule` take, so a generated fragment and a hand-written rule have
   the same semantics. A rule imports its namespace/app_id constant and never
   repeats the literal.
-- A rule definition carries the REASON for its shape: a rule set's `note` (why
+- **The rules directory carries more than rules.** An owner may also declare
+  commands the compositor runs at session start (`HyprRuleSet.start`, the
+  `StartEntry` model): the shell's own compositor integration IS its start hook —
+  it passes no layer-shell namespace and sets no app_id, so it owns no identity
+  name and contributes no rule. A start command is emitted inside an
+  `hl.on("hyprland.start", function() … end)` registration and NEVER as a bare
+  `hl.exec_cmd` at a fragment's top level: the config mounts the directory with a
+  PARSE-TIME `pcall(require, …)`, so a top-level call would run while the config
+  is being read instead of at login. Registering the hook from a required file is
+  valid because `hl` is a GLOBAL in that same Lua state, and because the config
+  registers its own hook BEFORE it mounts the directory, a hook registered in a
+  fragment fires after the config's own. The self-consistency half of
+  `check:hypr-rules` rejects a fragment that runs a command at its top level.
+  `identityModule` is therefore OPTIONAL: an owner that matches no Wayland name
+  has no identity module to point a reader at, and its fragment header omits the
+  `source:` line.
+- **A keybind is declared the same way** (`HyprRuleSet.bind`, the `BindEntry`
+  model), beside the surface it summons. `keys` is the key string `hl.bind` takes
+  VERBATIM, so the data spells its own modifier and no fragment needs a `mod`
+  local. Exactly ONE of two fields is set: `cmd`, a shell command line whose
+  command word is a path relative to the tree root — keybind exec has no
+  `~/.local/bin` in PATH, so a fragment with a `cmd` bind emits
+  `local shellDir = os.getenv("HOME") .. "/dev/tinshell"` once and concatenates
+  each line to it, never a baked absolute path — or `dispatch`, a compositor
+  dispatcher the data declares directly (the dock's workspace keys 10 and 11
+  exist because its workspaces slider renders that many steps, so the surface
+  that dictates the number declares the key). A bind IS a top-level `hl.bind`,
+  which is parse-time registration — the same call the config made inline — so
+  unlike a start command it needs no hook.
+- **A rule definition carries the REASON for its shape**: a rule set's `note` (why
   media positions instances by rule, say) and a reason belonging to one KEY,
   declared on the key in `common/hyprland/rule.ts` and emitted wherever that key
   is set (`DECORATION_REASSERTION_REASON` — the smart-gaps workspace rule `w[tv1]`
@@ -1072,7 +1107,14 @@ surface, never a literal in the compositor config:
   same atomic write the real target uses, reads it back, and asserts the shape of
   the set (unique names, the placeholder sorting first, ascending fixed-width
   prefixes, a generated marker and at least one rule per fragment, a
-  deterministic re-render). That half needs no generated directory, so a clean
+  deterministic re-render). The generator also rejects the one bind failure the
+  compositor reports silently: a key declared twice anywhere in the tree, compared
+  NORMALIZED (uppercase, modifiers sorted), so `SHIFT + SUPER + V` collides with
+  `SUPER + SHIFT + V` — Hyprland keys a bind by (modmask, key) and the later
+  registration wins, so the earlier command would simply never run. A bind with
+  both or neither of `cmd`/`dispatch`, an empty `keys` or `cmd`, an `hl.dsp.*`
+  expression written into `cmd`, or a `dispatch` with no workspace is a hard
+  error naming its data file. That half needs no generated directory, so a clean
   checkout — CI, a fresh clone — passes it. The machine's OWN directory is then
   compared when it exists: a missing, stale or unexpected fragment fails the
   gate there, and a checkout that has never run the generator gets a warning
@@ -1086,7 +1128,11 @@ generator's ORDER table assigns it, and every fragment's header restates the
 rule for a reader reordering the directory. A window rule's keys are applied over
 every earlier match and the LAST match wins, so the directory must be required
 AFTER the inline rules in the config (the generic `float-decorations` rule sets
-rounding 12 on every float, and the app rules override it). The directory is
+rounding 12 on every float, and the app rules override it). A KEYBIND's position
+is not load-bearing: Hyprland keys a bind by (modmask, key) rather than matching
+in order, so a bind's prefix only decides where it is required — the one
+order-sensitive case is the same key declared twice, which the gate rejects
+outright. The directory is
 GENERATED: `00-placeholder.lua` carries no rule and exists only because a
 wildcard `require` fails on a pattern that matches nothing, and a fragment this
 build no longer produces is deleted by the next run.

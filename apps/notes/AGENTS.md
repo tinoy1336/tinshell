@@ -30,7 +30,8 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
 
 ## Launch path & lifecycle
 
-- **SUPER+N** (hyprland.lua) runs `notes/ensure-new.sh fresh` and
+- **SUPER+N** (generated from `apps/notes/hypr-rules.ts` into
+  `~/.config/hypr/rules/080-notes.lua`) runs `notes/ensure-new.sh fresh` and
   **SUPER+SHIFT+N** runs the same wrapper with `new` — a thin wrapper over the
   router (`tinshell-route.sh notes <action>`, shell-first per
   `route-map.conf`). The router probes the live instances for the `notes`
@@ -278,7 +279,8 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
 
 - Ctrl+Shift+T reopens the most recently CLOSED note, focused; pressing it
   again steps back to the next older closed note. **Mod+SHIFT+N pops the SAME
-  stack**: the SUPER+SHIFT+N keybind (`notes new`) reopens the most recent
+  stack**: the SUPER+SHIFT+N keybind (`notes new`, declared beside the SUPER+N
+  key in `apps/notes/hypr-rules.ts`) reopens the most recent
   closed note, or creates a fresh blank note when the history holds nothing
   restorable — Mod+SHIFT+N is never dead. SUPER+N deliberately does NOT touch
   this stack: it always opens a fresh empty note (§Mod+N below).

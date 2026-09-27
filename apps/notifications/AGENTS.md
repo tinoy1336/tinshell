@@ -17,7 +17,7 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 | Window namespaces | `notifications-popup` (full-screen overlay, input region = card rects), `notifications-centre` (500×600, top-centre) — owned by `identity.ts` |
 | Compositor rule | blur `notifications-.*` (ignore_alpha 0.2); DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/030-notifications.lua` by `npm run gen:hypr-rules` |
 | Router | `route-map.conf`: `notifications=shell,notifications` |
-| Keybind | mod+TAB → `tinshell-route notifications toggle-centre` |
+| Keybind | mod+TAB → `tinshell-route notifications toggle-centre`. The key is DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/030-notifications.lua` by `npm run gen:hypr-rules` |
 
 ## Sources (what lives here)
 
