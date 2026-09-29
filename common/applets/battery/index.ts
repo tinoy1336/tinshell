@@ -19,12 +19,16 @@ import { notify } from "@apps/notifications/Notifd"
 import type { AppletBackend } from "@common/applets/backend"
 import type { AppletConfig } from "@common/applets/config"
 import { continuousPanel } from "@common/applets/panel-framework"
-import { batteryRingColour, isPluggedIdle } from "@common/applets/shared/battery-colour"
+import {
+  batteryRingBands,
+  configuredChargeCap,
+  isPluggedIdle,
+} from "@common/applets/shared/battery-colour"
 import { createContinuousApplet } from "@common/applets/shared/create-continuous-applet"
-import type { RingSpec } from "@common/applets/shared/draw-utils"
 import { clamp01, drawDisc, drawGlyph, drawRings } from "@common/applets/shared/draw-utils"
 import { createElementFade, withFadeAlpha } from "@common/applets/shared/element-fade"
 import { createValueTick } from "@common/applets/shared/value-tick"
+import { CHARGE_THRESHOLD_KEY } from "@common/applets/store-paths"
 import type { AppletContext, DrawIcon } from "@common/applets/types"
 import { mkReactive } from "@common/applets/utils/reactive"
 import { createStateStore, type StateStore } from "@common/state"
@@ -36,9 +40,6 @@ import { createLowWarningLatch } from "./low-warning"
 // name the reads fail and the writes are refused — the applet then has no
 // applied value to show and never invents one.
 const THRESHOLD_SYSFS = "/sys/class/power_supply/BAT0/charge_control_end_threshold"
-/** Durable store key holding the user's charge limit. */
-const THRESHOLD_KEY = "chargeThreshold" as const
-
 /** Durable low-battery warning latch: true while the warning has fired for the
  *  current discharge and has not been re-armed (see ./low-warning.ts). */
 const LOW_WARNING_KEY = "lowBatteryWarned" as const
@@ -80,23 +81,8 @@ async function readSysfs(fs: AppletBackend["fs"]): Promise<number | null> {
   return Number.isNaN(val) ? null : clampPct(val)
 }
 
-/** The user's configured limit, or null while the store holds none or has not
- *  answered yet. NEVER writes: the durable value changes only on an explicit
- *  user set, so a runtime read can never overwrite the user's choice.
- *  `get` FIRST, never `ready`: a transport-read store (the greeter's socket
- *  client) only fetches on a get, so probing `ready` alone can never answer and
- *  the value would stay UNKNOWN for the host's whole lifetime. The memo miss it
- *  guards IS "nothing has arrived yet" — `undefined`, never a confirmed
- *  absence — and both callers below read null as UNKNOWN (nothing shown,
- *  nothing written). */
-function storedThreshold(battery: AppletBackend["battery"]): number | null {
-  const store = battery.chargeThresholdStore
-  const v = store.get(THRESHOLD_KEY)
-  return typeof v === "number" && !Number.isNaN(v) ? clampPct(v) : null
-}
-
 function persistThreshold(battery: AppletBackend["battery"], pct: number): boolean {
-  return battery.chargeThresholdStore.set(THRESHOLD_KEY, Math.round(pct))
+  return battery.chargeThresholdStore.set(CHARGE_THRESHOLD_KEY, Math.round(pct))
 }
 
 /** Apply a user-chosen limit: sysfs, plus the durable store that records the
@@ -129,7 +115,7 @@ async function tickThreshold(
   fs: AppletBackend["fs"],
   battery: AppletBackend["battery"],
 ): Promise<number | null> {
-  const stored = storedThreshold(battery)
+  const stored = configuredChargeCap(battery)
   // No fs domain (the lock screen's socket client): the applied value is not
   // readable and must never be written — show the configured limit only.
   if (!fs.available) return stored
@@ -163,7 +149,7 @@ function thresholdState(
     // already answer (the dock's file read is synchronous), else the ring's
     // resting value until the first tick lands — UNVERIFIED, so it paints no
     // cap segment until a real value arrives.
-    const seeded = storedThreshold(backend.battery)
+    const seeded = configuredChargeCap(backend.battery)
     _capVerified = seeded !== null
     _threshState = mkReactive(seeded ?? 100)
     let last: number | null = null
@@ -318,55 +304,47 @@ export default function mount({ port, config, backend }: AppletContext): void {
 
     // ── Non-overlapping rings, drawn in declaration order ──
     if (overlayAlpha > 0.001) {
-      const rings: RingSpec[] = []
-
-      const chargeColour = ct(bc.charging)
-      /** The battery's own percentage ring colour (the applet's threshold
-       *  policy: charging / warn / low / ok), resolved by the shared policy
-       *  every battery surface reads its colour through. */
-      const pctColour = (pct: number): [number, number, number, number] =>
-        ct(
-          batteryRingColour(
-            { percentage: pct, status: bs.status },
-            config.appearance.thresholds,
-            bc,
-          ),
-        )
+      // The bands the reading paints, split at the charge limit by the shared
+      // policy every battery surface reads its colours through: the level arc
+      // (charging / plugged / warn / low / ok), the reserved cap segment, and —
+      // when the pack sits ABOVE its limit — the over-cap band in the charging
+      // colour. An unverified limit passes null, which paints the level arc with
+      // NO reserved segment (the 100 fallback from the seed above is not a
+      // reading); the policy always answers the level band first.
+      const bands = batteryRingBands(
+        { percentage: batPct, status: bs.status },
+        config.appearance.thresholds,
+        bc,
+        _capVerified ? capPct : null,
+      )
+      const level = bands[0]
+      const reserved = bands.slice(1)
 
       // The level-coloured arc: the ring segment the colour policy colours and
       // the applet's declared fade element. It is painted through the fade, so
       // ANY change of the colour this arc renders cross-fades — a level the
       // ring crosses (ok → warn → low), charging starting or stopping, the
-      // charger being plugged or unplugged — while the constant segments beside
-      // it (the charge-cap segment) paint once. The fade keys on that painted
+      // charger being plugged or unplugged, the charge limit moving under a
+      // reading already above it — while the constant bands beside it (the cap
+      // segment and the over-cap band) paint once. The fade keys on that painted
       // colour itself: a colour change fades however it was caused.
-      let arcEnd = batPct
-      let arcPct = batPct
-
-      if (!_capVerified) {
-        // No VERIFIED charge limit: the ring paints the battery's percentage
-        // and NO cap segment. The 100 fallback (the seed above) is not a
-        // reading — painting it drew a 0.28-grey arc over pct→100 that no host
-        // with a readable cap ever shows (the dock's cap equals its
-        // percentage). The value itself stays available for the panel's limit
-        // display; the difference is the segment, not the number.
-      } else if (capPct > batPct) {
-        rings.push({ start: batPct, end: capPct, colour: ct(bc.cap) })
-      } else if (batPct > capPct) {
-        rings.push({ start: capPct, end: batPct, colour: chargeColour })
-        arcEnd = capPct
-        arcPct = capPct
-      }
-
-      drawRings(cr, cx, cy, radius, thickness, rings, ringFill)
-      levelArcFade.paint(pctColour(arcPct), (colour, alpha) =>
+      drawRings(
+        cr,
+        cx,
+        cy,
+        radius,
+        thickness,
+        reserved.map((b) => ({ start: b.start, end: b.end, colour: ct(b.colour) })),
+        ringFill,
+      )
+      levelArcFade.paint(ct(level.colour), (colour, alpha) =>
         drawRings(
           cr,
           cx,
           cy,
           radius,
           thickness,
-          [{ start: 0, end: arcEnd, colour: withFadeAlpha(colour, alpha) }],
+          [{ start: level.start, end: level.end, colour: withFadeAlpha(colour, alpha) }],
           ringFill,
         ),
       )

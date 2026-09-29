@@ -135,8 +135,9 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   greeter strip has its own layout and needs none of those policies. It takes
   `dockBackend` as a second argument (`applets.ts`) so its clock can read the
   battery and the volume/brightness domains. Its rim-marker scale
-  (`litMarkerCount` / `notchRun` / the run state its declared fade element is fed,
-  `notchRunState` / the two-tier `notchTicks`) is pinned by `Overflow.probe.ts`
+  (`litMarkerCount` / `notchRun` / the run state its declared fade element is fed
+  and the band round-trip the painter reads back, `notchRunState` /
+  `notchRunBands` / the two-tier `notchTicks`) is pinned by `Overflow.probe.ts`
   beside it.
 - **Battery notches (overflow `hide` mode).** With every applet parked the
   battery icon is off the row, so the clock dial's 12 rim ticks double as the
@@ -147,20 +148,27 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   a constant (`floor(pct · n/100)`, capped at the last marker) — so a 0 % dial
   keeps its 12 o'clock marker lit and a full charge lights all twelve. The scale
   itself is ONE exported pure function in the same file — `notchRun(value, count,
-  colour)`, with `litMarkerCount` under it: marker `i` lights once the value
-  reaches `i·100/count`, and a marker past the lit run answers null so the caller
+  bands)`, with `litMarkerCount` under it: marker `i` lights once the value
+  reaches `i·100/count`, a LIT marker carries the colour of the band its own
+  threshold falls in (a marker sitting exactly on a boundary belongs to the LOWER
+  band, so the marker the reading sits on keeps the reading's colour), and a
+  marker past the lit run answers null so the caller
   paints its own idle colour there.
-  A lit marker takes the shared battery colour policy
-  (`common/applets/shared/battery-colour`, the same call
+  The bands come from the shared battery policy
+  (`common/applets/shared/battery-colour`'s `batteryRingBands` — the same call
   the battery applet's ring makes: `charging` while sysfs status reads
   `Charging`, `plugged` while AC is present with the pack neither filling nor
   draining — status `Full` or `Not charging`, which is what a topped-out and a
   charge-capped battery each report — else `warn`/`low`/`ok` by
-  `appearance.thresholds`), while a
-  depleted marker keeps `appearance.clock.dot`. The state colour is the WHOLE lit
-  run's, not a per-marker shade: every notch the charge has reached carries that
-  one colour (the blend mixes two RUNS, never an index), and how MANY notches
-  carry it is the charge's fraction — so the run's surface is supplied by the
+  `appearance.thresholds`), split at the machine's charge limit
+  (`configuredChargeCap`, the intent store the battery applet also applies): below
+  the limit the reading's level band, then the reserved span up to the limit in
+  the `cap` colour, and — when the pack sits ABOVE its own limit — that portion in
+  the charging colour, so an overcharged reading reads purple/green below the
+  limit and blue above it. A reading with nothing to split (the transient
+  readout, a limit the store has not answered) is ONE uniform band. A depleted
+  marker keeps `appearance.clock.dot`. How MANY notches
+  carry a colour is the charge's fraction — so the run's surface is supplied by the
   lane's painted value, which ADOPTS the first reading it is handed (a fresh
   lane starts at 0 and would otherwise paint the 12 o'clock notch alone until an
   unrelated transient started the frame loop). Ticks only (analogue + digital —
@@ -202,7 +210,7 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   transient at all (no frame loop and no hold timer for a dial that paints none of
   it). `transient` — the reading the dial is on, null = the idle charge scale — IS
   the run the dial paints, so every change of what the dial shows is a change of
-  that run's COLOUR and goes through the dial's ONE declared fade element below:
+  that run's BANDS and goes through the dial's ONE declared fade element below:
   the outgoing run's alpha falls as the incoming one rises, each pass painting its
   own run's lit slots, so the idle run is never left underneath the reading and
   neither run is ever painted at full strength over the other. Both directions
@@ -247,9 +255,11 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   declared fade element, created through the shared
   `common/applets/shared/element-fade.ts` exactly as the battery applet's ring arc
   is: its painted state is the run itself, built by the pure `notchRunState(value,
-  colour)` (the lit fraction it is scaled by, then the colour every notch it lights
-  carries), and the identity it fades on is that COLOUR. So ANY change of the
-  run's colour cross-fades — a battery state change (charging starting or stopping,
+  bands)` (the lit fraction it is scaled by, then one record per band: start, end,
+  r, g, b, a — read back out of the state by `notchRunBands`), and the identity it
+  fades on is those BANDS (spans and colours, never the lit fraction). So ANY
+  change of the
+  run's bands — a colour, a span or the number of them — cross-fades — a battery state change (charging starting or stopping,
   the charger being plugged in or out, a level crossing one of the policy's
   thresholds) and a reading arriving, leaving or switching source alike — the
   outgoing run's alpha falling as the incoming one rises, each pass painting its

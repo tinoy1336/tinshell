@@ -21,6 +21,13 @@ import { appStateFilePath } from "@common/state"
  *  installs (one per account that may set it). */
 export const CHARGE_CAP_FILE = "/var/lib/tinshell/charge-cap"
 
+/** The key the charge-cap store holds its value under. Beside the file it names
+ *  the durable RECORD (the domain's store, the applet that applies the limit and
+ *  the surfaces that only READ it — `common/applets/shared/battery-colour` —
+ *  must agree on it), and it lives here so the reading side pulls in no domain
+ *  module. */
+export const CHARGE_THRESHOLD_KEY = "chargeThreshold"
+
 /** The fully-charged counter's start time (epoch seconds; 0 = the count is not
  *  running). MACHINE-level for the same reason as the charge cap: the pre-login
  *  greeter paints the same counter and cannot read the session user's state

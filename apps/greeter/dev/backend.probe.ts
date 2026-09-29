@@ -16,6 +16,7 @@
  * Run: ags run --gtk 4 apps/greeter/dev/backend.probe.ts
  */
 import GLib from "gi://GLib"
+import { CHARGE_THRESHOLD_KEY } from "@common/applets/store-paths"
 import { greeterLocalDomains, greeterLocalSamples } from "../strip/backend"
 
 const d = greeterLocalDomains
@@ -72,7 +73,7 @@ GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
   if (t === null) note("cpu temperature", "no hwmon sensor path answered (the applet paints '--')")
   else check("cpu temperature is a real reading", t > 0 && t < 130, `${t}°C`)
 
-  const cap = d.battery.chargeThresholdStore.get("chargeThreshold")
+  const cap = d.battery.chargeThresholdStore.get(CHARGE_THRESHOLD_KEY)
   const capOk = cap === undefined || (typeof cap === "number" && cap >= 0 && cap <= 100)
   check("cap input answers a value or unknown", capOk, `${JSON.stringify(cap)}`)
   // The store is the MACHINE intent file that both the greeter and the session
@@ -86,7 +87,7 @@ GLib.timeout_add(GLib.PRIORITY_DEFAULT, 3000, () => {
   // valid set here would really change the machine's charge limit).
   check(
     "cap input rejects an out-of-range value",
-    d.battery.chargeThresholdStore.set("chargeThreshold", 1234) === false,
+    d.battery.chargeThresholdStore.set(CHARGE_THRESHOLD_KEY, 1234) === false,
   )
 
   // ── fs: sysfs reads + the cap writes, never the owner's home ──

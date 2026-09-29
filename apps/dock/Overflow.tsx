@@ -3,7 +3,11 @@ import { easeQuadInOut } from "@common/anim/easings"
 import { type FrameRunner, runFrames } from "@common/anim/run-frames"
 import type { AppletWindow } from "@common/applets/applet-window"
 import type { AppletBackend } from "@common/applets/backend"
-import { batteryRingColour, type ConfigColour } from "@common/applets/shared/battery-colour"
+import {
+  batteryRingBands,
+  type ConfigColour,
+  configuredChargeCap,
+} from "@common/applets/shared/battery-colour"
 import { createStepApplet } from "@common/applets/shared/create-step-applet"
 import { clamp01, drawDisc, drawGlyph } from "@common/applets/shared/draw-utils"
 import { createElementFade, withFadeAlpha } from "@common/applets/shared/element-fade"
@@ -122,11 +126,30 @@ export function litMarkerCount(value: number, count: number): number {
   return Math.min(n, Math.floor((pct * n) / 100) + 1)
 }
 
-/** The dial's rim-marker scale — ONE value + ONE colour → a notch run. Marker i
- *  (0 at 12 o'clock, clockwise) lights once the value REACHES its threshold
- *  `i·100/count`: 12 o'clock at 0 %, 1 o'clock at 8.33 %, the 11 o'clock marker
- *  at 91.67 %. A marker the value has not reached answers null, so the caller
- *  paints its own idle colour there.
+/** One band of a run: a 0-100 span and the colour its markers carry. The
+ *  battery scale's bands come from the shared policy
+ *  (common/applets/shared/battery-colour — the reading's level colour below the
+ *  machine's charge limit, the charging blue above it); the transient
+ *  volume/brightness reading is one uniform band. Pure — the probe drives it. */
+export interface NotchBand {
+  start: number
+  end: number
+  colour: ConfigColour
+}
+
+/** The one band a reading without segments paints. */
+export function uniformNotchBands(colour: ConfigColour): NotchBand[] {
+  return [{ start: 0, end: 100, colour }]
+}
+
+/** The dial's rim-marker run — ONE value + ONE band list → the colour of each
+ *  marker. Marker i (0 at 12 o'clock, clockwise) lights once the value REACHES
+ *  its threshold `i·100/count`: 12 o'clock at 0 %, 1 o'clock at 8.33 %, the 11
+ *  o'clock marker at 91.67 %. A LIT marker carries the colour of the band its
+ *  own threshold falls in, so one run paints several colours, and a marker on a
+ *  band boundary belongs to the LOWER band — the marker the reading sits on keeps
+ *  the reading's own colour. A marker the value has not reached, or one no band
+ *  covers, answers null, so the caller paints its own idle colour there.
  *
  * Every ring readout goes through it: the battery charge in the overflow `hide`
  * mode (the battery icon is parked, so the markers double as the charge scale)
@@ -142,10 +165,17 @@ export function litMarkerCount(value: number, count: number): number {
 export function notchRun(
   value: number,
   count: number,
-  colour: ConfigColour,
+  bands: NotchBand[],
 ): (i: number) => ConfigColour | null {
   const lit = litMarkerCount(value, count)
-  return (i: number) => (i < lit ? colour : null)
+  const n = Math.floor(count)
+  return (i: number) => {
+    if (bands.length === 0 || i < 0 || i >= lit) return null
+    const at = n > 0 ? (i * 100) / n : 0
+    // The first band whose END the marker has not passed: boundaries resolve to
+    // the lower band (the marker the reading sits on keeps the reading's colour).
+    return (bands.find((b) => at <= b.end) ?? bands[bands.length - 1]).colour
+  }
 }
 
 /** One tick of the dial's two-tier scale, in slot order clockwise from 12
@@ -172,23 +202,56 @@ export function notchTicks(count: number, minorPerGap: number): NotchTick[] {
   return ticks
 }
 
-/** The dial's painted run — the lit fraction it is scaled by and the COLOUR it
+/** The dial's painted run — the lit fraction it is scaled by and the BANDS it
  *  paints — in the shape the declared fade element's state must be: an ARRAY,
  *  because the shared mechanism keys a change on the state's own string form.
- *  `key` is the identity that mechanism fades on — the COLOUR alone — so a
- *  change of the lit fraction alone (a charge step, a slider step) adopts at
- *  once and stays the value sweep's business, while a change of colour
- *  cross-fades. Pure. */
+ *  `key` is the identity that mechanism fades on — the run's spans and colours,
+ *  never the lit fraction — so a change of the lit fraction alone (a charge
+ *  step, a slider step) adopts at once and stays the value sweep's business,
+ *  while a change of the run's colours cross-fades. Pure. */
 interface NotchRun {
-  state: [number, number, number, number, number]
+  state: number[]
   key: string
 }
 
-/** The run the dial paints: `value` is the lit fraction, `colour` the colour
- *  every notch the run lights carries. Pure — the probe drives it. */
-export function notchRunState(value: number, colour: ConfigColour): NotchRun {
-  const [r, g, b] = colour.rgb
-  return { state: [value, r, g, b, colour.alpha], key: `${r},${g},${b},${colour.alpha}` }
+/** The bands a painted run state carries — the inverse of `notchRunState`, so a
+ *  painter reads the whole run (spans and colours) back out of the state the
+ *  fade mechanism hands it. */
+export function notchRunBands(state: number[]): NotchBand[] {
+  const bands: NotchBand[] = []
+  for (let i = 1; i + 5 < state.length; i += 6) {
+    bands.push({
+      start: state[i],
+      end: state[i + 1],
+      colour: { rgb: [state[i + 2], state[i + 3], state[i + 4]], alpha: state[i + 5] },
+    })
+  }
+  return bands
+}
+
+/** The run's bands with the cross-fade's alpha applied to every colour: the
+ *  multi-colour form of the `withFadeAlpha` step the single-colour run needed. */
+function fadedNotchBands(state: number[], alpha: number): NotchBand[] {
+  return notchRunBands(state).map((b) => {
+    const c = withFadeAlpha(
+      [b.colour.rgb[0], b.colour.rgb[1], b.colour.rgb[2], b.colour.alpha],
+      alpha,
+    )
+    return { start: b.start, end: b.end, colour: { rgb: [c[0], c[1], c[2]], alpha: c[3] } }
+  })
+}
+
+/** The run the dial paints: `value` is the lit fraction and `bands` the spans
+ *  its markers are coloured by, in ascending order. Pure — the probe drives it. */
+export function notchRunState(value: number, bands: NotchBand[]): NotchRun {
+  const state = [value]
+  for (const b of bands) {
+    state.push(b.start, b.end, b.colour.rgb[0], b.colour.rgb[1], b.colour.rgb[2], b.colour.alpha)
+  }
+  const key = bands
+    .map((b) => `${b.start}-${b.end}:${b.colour.rgb.join(",")}@${b.colour.alpha}`)
+    .join("|")
+  return { state, key }
 }
 
 /** The transient lane's state: the reading the readout compares against. It is
@@ -573,13 +636,14 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
       } = clk
       // Battery notches: in the overflow "hide" mode every other applet is
       // parked, so the battery icon is not on the row and the dial's rim
-      // markers double as the charge readout. The charge is coloured by the
-      // policy every battery surface renders through
+      // markers double as the charge readout. The charge is BANDED by the policy
+      // every battery surface renders through
       // (common/applets/shared/battery-colour: charging, plugged while AC is
       // present with the pack neither filling nor draining, else the level's
-      // warn / low / ok) and turned into lit markers by `notchRun` — the dial's
-      // ONE scale. The policy is handed the WHOLE reading (status included), so
-      // the plugged state reaches the dial without a decision of its own here.
+      // warn / low / ok, split at the machine's charge limit) and turned into lit
+      // markers by `notchRun` — the dial's ONE scale. The policy is handed the
+      // WHOLE reading (status included) and the limit, so the plugged state and
+      // the over-cap portion reach the dial without a decision of its own here.
       // A depleted marker keeps the clock's dot colour. Tick dials
       // only (analogue + digital) — clean mode's 4 cardinal dots carry no such
       // scale.
@@ -587,21 +651,24 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
       const batteryState = batteryNotches
         ? backend.battery.batteryState(config.timing.poll.batteryPower).peek()
         : null
-      /** The colour the battery policy paints this reading with — the colour the
-       *  idle scale's charge run carries, and part of the state the dial's fade
-       *  element is fed. */
-      const batteryColour = batteryState
-        ? batteryRingColour(
+      /** The spans the idle scale's charge run paints — the shared battery policy
+       *  (the reading's level colour below the machine's charge limit, the
+       *  charging blue above it) — and part of the state the dial's fade element
+       *  is fed. A null limit (a store that has not answered) paints the level
+       *  colour alone, never an invented reserved segment. */
+      const batteryBands = batteryState
+        ? batteryRingBands(
             batteryState,
             config.appearance.thresholds,
             config.appearance.ringColours.battery,
+            configuredChargeCap(backend.battery),
           )
         : null
       // The dial paints ONE run of rim notches: the idle scale's charge run, or
       // the transient volume/brightness reading while one is being adjusted. Its
-      // colour is the charge policy's in the first case and the adjusting
-      // applet's own ring colour in the second; its lit fraction is the run's
-      // own painted value.
+      // bands are the charge policy's in the first case and one uniform band in
+      // the adjusting applet's own ring colour in the second; its lit fraction is
+      // the run's own painted value.
       //
       // The run — either one — belongs to the overflow `hide` mode alone: that
       // mode parks every other applet, so the dial is the only readout, while in
@@ -612,8 +679,11 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
       const notchesUp = hideMode()
       let run: NotchRun | null = null
       if (notchesUp) {
-        if (transient !== null) run = notchRunState(transientSmoother.value, transient.colour)
-        else if (batteryColour !== null) run = notchRunState(batterySmoother.value, batteryColour)
+        if (transient !== null) {
+          run = notchRunState(transientSmoother.value, uniformNotchBands(transient.colour))
+        } else if (batteryBands !== null) {
+          run = notchRunState(batterySmoother.value, batteryBands)
+        }
       }
       // Every clock element (the 12 dots, the three hands, the centre dot)
       // carries the same screen-space shadow the caret glyph uses
@@ -703,14 +773,12 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
         notchRunFade.paint(
           shown.state,
           (painted, alpha) => {
-            const faded = withFadeAlpha([painted[1], painted[2], painted[3], painted[4]], alpha)
-            const lit: ConfigColour = { rgb: [faded[0], faded[1], faded[2]], alpha: faded[3] }
-            const litAt = notchRun(painted[0], scaleSlots, lit)
-            drawRimTicks(scaleTicks, major, MINOR_TICK, (i) => (litAt(i) === null ? null : lit))
+            const litAt = notchRun(painted[0], scaleSlots, fadedNotchBands(painted, alpha))
+            drawRimTicks(scaleTicks, major, MINOR_TICK, (i) => litAt(i))
           },
           shown.key,
         )
-        const unlitAt = notchRun(shown.state[0], scaleSlots, dotColour)
+        const unlitAt = notchRun(shown.state[0], scaleSlots, uniformNotchBands(dotColour))
         drawRimTicks(scaleTicks, major, MINOR_TICK, (i) => (unlitAt(i) === null ? dotColour : null))
       }
       if (mode === "digital") {
@@ -969,7 +1037,7 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
   //
   // `transient` is the reading the dial is on (null = the idle charge scale).
   // EVERY change of what the dial shows — a reading arriving, leaving, or
-  // switching source — is a change of the run's COLOUR, so it goes through the
+  // switching source — is a change of the run's bands, so it goes through the
   // dial's ONE declared fade element (`notchRunFade`): the outgoing run's alpha
   // falls as the incoming one rises, each pass painting that run's own lit slots.
   // The lane owns no transition animation of its own.
@@ -1017,18 +1085,15 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
   // The dial's ONE declared fade element: the RUN of rim notches — the run the
   // colour policy colours on the idle scale (the battery charge) and the
   // transient volume/brightness reading while one is being adjusted. Its painted
-  // state is the run itself and its change identity is the run's COLOUR, so every
-  // colour change cross-fades (a battery state change — charging, plugged, a
-  // level's warn/low, the charger plugged in or out — and a reading arriving,
-  // leaving or switching source) exactly as the battery applet's ring arc does:
-  // the mechanism is shared (common/applets/shared/element-fade) and the dial
+  // state is the run itself and its change identity is the run's BANDS (spans and
+  // colours, the lit fraction excluded), so every colour change cross-fades (a
+  // battery state change — charging, plugged, a level's warn/low, the charger
+  // plugged in or out, the charge limit moving — and a reading arriving, leaving
+  // or switching source) exactly as the battery applet's ring arc does: the
+  // mechanism is shared (common/applets/shared/element-fade) and the dial
   // declares it here. A change of the lit fraction alone is the value sweep's
   // business and adopts at once.
-  const notchRunFade = createElementFade<[number, number, number, number, number]>(
-    aw,
-    config,
-    "notches",
-  )
+  const notchRunFade = createElementFade<number[]>(aw, config, "notches")
   onCleanup(() => notchRunFade.dispose())
 
   /** True while the row's overflow mode is `hide`. The row OWNS the mode —

@@ -1,6 +1,10 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
-import { CHARGE_CAP_FILE, PLUGGED_SINCE_FILE } from "@common/applets/store-paths"
+import {
+  CHARGE_CAP_FILE,
+  CHARGE_THRESHOLD_KEY,
+  PLUGGED_SINCE_FILE,
+} from "@common/applets/store-paths"
 import { mkReactive, type Reactive } from "@common/applets/utils/reactive"
 import { bytesToUtf8 } from "@common/fs/bytes"
 import type { StateStore } from "@common/state"
@@ -185,7 +189,7 @@ function isStamp(v: unknown): boolean {
  *  pre-login greeter. */
 export const chargeThresholdStore = createMachineNumberStore({
   file: CHARGE_CAP_FILE,
-  key: "chargeThreshold",
+  key: CHARGE_THRESHOLD_KEY,
   valid: isPct,
 })
 

@@ -4,8 +4,10 @@
  * through (`notchRun` / `litMarkerCount`, exported from ./Overflow) at the
  * boundaries the clock documents, the two-tier scale that divides each gap
  * between the majors into sub-ticks (`notchTicks`), the run state the dial hands
- * its declared fade element and the colour identity it fades on
- * (`notchRunState`), the lane rule that decides which
+ * its declared fade element and the BAND identity it fades on
+ * (`notchRunState` / `notchRunBands`), the shared battery band policy
+ * (`batteryRingBands`) the charge scale's colours come from, the lane rule that
+ * decides which
  * reading paints (`transientStep`), the hands' 1 Hz pinned reading
  * (`dialTimeOf` / `secondHandAngle`), plus the timings the transient readout
  * reads from the dock config.
@@ -25,7 +27,12 @@
  *   bash /tmp/overflow-probe.sh     # exit 1 on any violated invariant
  */
 
-import { batteryRingColour, type ConfigColour } from "@common/applets/shared/battery-colour"
+import {
+  type BatteryBand,
+  batteryRingBands,
+  batteryRingColour,
+  type ConfigColour,
+} from "@common/applets/shared/battery-colour"
 import { config } from "./config"
 import {
   CLOCK_SMOOTH_FPS,
@@ -35,7 +42,9 @@ import {
   litMarkerCount,
   NOTCH_SMOOTH_EPSILON,
   NOTCH_SMOOTH_FACTOR,
+  type NotchBand,
   notchRun,
+  notchRunBands,
   notchRunState,
   notchTicks,
   secondHandAngle,
@@ -43,6 +52,7 @@ import {
   smoothLoopRuns,
   type TransientLane,
   transientStep,
+  uniformNotchBands,
 } from "./Overflow.tsx"
 
 const failures: string[] = []
@@ -89,20 +99,68 @@ check("a 4-marker dial rescales (50 % → 3)", litMarkerCount(50, 4) === 3)
 check("a zero-marker dial lights nothing", litMarkerCount(50, 0) === 0)
 check("a fractional count is floored", litMarkerCount(50, 12.9) === 7)
 
-// ── The run itself: the colour it was given, null past the lit run ──
+// ── The run itself: the band each LIT marker falls in, null past the lit run ──
 
 const colour = { rgb: [1, 0.5, 0.25], alpha: 0.8 }
-const dark = notchRun(0, COUNT, colour)
+/** ONE uniform band over the whole dial — the transient readout's own shape. */
+const oneBand = uniformNotchBands(colour)
+const dark = notchRun(0, COUNT, oneBand)
 check("0 % lights only the 12 o'clock marker", dark(0) !== null && dark(1) === null)
-check("the run answers the colour it was given", dark(0)?.alpha === 0.8 && dark(0)?.rgb[0] === 1)
-const full = notchRun(100, COUNT, colour)
+check(
+  "the run answers the colour of the band it was given",
+  dark(0)?.alpha === 0.8 && dark(0)?.rgb[0] === 1,
+)
+const full = notchRun(100, COUNT, oneBand)
 check("100 % lights the last marker", full(COUNT - 1) !== null)
 check("the run never answers a marker past the dial", full(COUNT) === null)
-const mid = notchRun(50, COUNT, colour)
+const mid = notchRun(50, COUNT, oneBand)
 check(
   "a mid value lights through the 6 o'clock marker, not past it",
   mid(6) !== null && mid(7) === null,
 )
+
+// ── Several bands in ONE run: the charge scale's split at the charge limit ──
+// A lit marker carries the colour of the band its OWN threshold falls in, so one
+// run paints the level colour below the limit and the charging blue above it. A
+// marker sitting exactly ON a boundary belongs to the LOWER band — the marker the
+// reading itself sits on keeps the reading's colour — and a run with no bands
+// answers nothing at all.
+
+const underColour = { rgb: [0.2, 0.8, 0.2], alpha: 0.9 }
+const overColour = { rgb: [0.3, 0.6, 0.95], alpha: 0.9 }
+const splitBands: NotchBand[] = [
+  { start: 0, end: 80, colour: underColour },
+  { start: 80, end: 100, colour: overColour },
+]
+const split = notchRun(100, COUNT, splitBands)
+check(
+  "a marker below the boundary carries the lower band's colour",
+  split(9)?.rgb[0] === underColour.rgb[0],
+)
+check(
+  "a marker past the boundary carries the upper band's colour",
+  split(10)?.rgb[0] === overColour.rgb[0],
+)
+// A 10-marker dial puts a marker exactly ON 80 %, which is the boundary case.
+const splitAt = notchRun(100, 10, splitBands)
+check(
+  "a marker exactly ON the boundary belongs to the lower band, the one after it to the upper",
+  splitAt(8)?.rgb[0] === underColour.rgb[0] && splitAt(9)?.rgb[0] === overColour.rgb[0],
+)
+check(
+  "a run with no bands lights nothing",
+  notchRun(100, COUNT, [])(0) === null && notchRun(100, COUNT, [])(COUNT - 1) === null,
+)
+
+/** The distinct colours a run answers for its lit slots (nulls excluded). */
+function litColours(run: (i: number) => ConfigColour | null, slots: number): string[] {
+  const seen = new Set<string>()
+  for (let i = 0; i < slots; i++) {
+    const c = run(i)
+    if (c) seen.add(`${c.rgb.join(",")}@${c.alpha}`)
+  }
+  return [...seen]
+}
 
 // ── The two-tier scale: minor sub-ticks between the majors ──
 // `notchTicks` divides each gap between adjacent majors into minorTicksPerGap + 1
@@ -115,12 +173,12 @@ check(
 /** The lit flags of the majors at `value` on a scale with `minorPerGap` sub-ticks. */
 const majorLit = (value: number, minorPerGap: number): boolean[] => {
   const ticks = notchTicks(COUNT, minorPerGap)
-  const run = notchRun(value, ticks.length, colour)
+  const run = notchRun(value, ticks.length, oneBand)
   return ticks.filter((t) => t.major).map((t) => run(t.slot) !== null)
 }
 /** The lit flags of the 12 markers on the majors-only scale. */
 const singleTierLit = (value: number): boolean[] => {
-  const run = notchRun(value, COUNT, colour)
+  const run = notchRun(value, COUNT, oneBand)
   return Array.from({ length: COUNT }, (_, i) => run(i) !== null)
 }
 
@@ -173,7 +231,7 @@ for (const value of [0, 4.17, 100 / COUNT, 12.5, 50, 11 * (100 / COUNT), 99.9, 1
 // is two thirds of the way to it, which the sub-ticks show.
 const at6Majors = singleTierLit(6)
 const at6Fine = notchTicks(COUNT, 3)
-const at6Run = notchRun(6, at6Fine.length, colour)
+const at6Run = notchRun(6, at6Fine.length, oneBand)
 const at6Lit = at6Fine.filter((t) => at6Run(t.slot) !== null)
 check(
   "6 % lights only the 12 o'clock marker on the majors-only scale",
@@ -197,7 +255,7 @@ check(
 // towards the value's threshold, it does not shift it.
 const litCountAt = (value: number, m: number): number => {
   const ticks = notchTicks(COUNT, m)
-  const run = notchRun(value, ticks.length, colour)
+  const run = notchRun(value, ticks.length, oneBand)
   return ticks.filter((t) => run(t.slot) !== null).length
 }
 for (const value of [6, 17, 55, 83.4]) {
@@ -207,37 +265,53 @@ for (const value of [6, 17, 55, 83.4]) {
   )
 }
 
-// ── The run's declared fade state and the colour identity it fades on ──
+// ── The run's declared fade state and the BAND identity it fades on ──
 // The dial hands its run to the shared declared fade element as ONE state
 // (`notchRunState`). That mechanism keys a change on BOTH the state's own string
 // form and the identity the caller declares: it cross-fades only when the two
 // move together, and ADOPTS when either stays put. The run therefore passes its
-// COLOUR as the identity, so a change of the lit fraction alone — a charge step,
-// a slider step — moves the state, keeps the identity and adopts at once, while
-// a change of colour moves both and cross-fades. Two consequences are
-// load-bearing, and the checks below bite on both: the state must carry the lit
-// fraction where the string form sees it, and the key must carry the colour in
-// FULL, alpha included — a colour change is never hidden behind an adopt.
+// BANDS — spans and colours — as the identity, so a change of the lit fraction
+// alone (a charge step, a slider step) moves the state, keeps the identity and
+// adopts at once, while a change of colour, of a span, or of the number of bands
+// moves both and cross-fades. Two consequences are load-bearing, and the checks
+// below bite on both: the state must carry the lit fraction where the string form
+// sees it (then one six-number record per band), and the key must carry every
+// band in FULL, alpha included — a colour change is never hidden behind an adopt.
 
 const runColour = { rgb: [0.54, 0.71, 0.97], alpha: 0.9 }
 /** The same colour in a fresh object — a paint re-states its run every frame. */
 const runColourAgain = { rgb: [0.54, 0.71, 0.97], alpha: 0.9 }
-const runAt20 = notchRunState(20, runColour)
-const runAt35 = notchRunState(35, runColour)
+const runBands: NotchBand[] = [{ start: 0, end: 100, colour: runColour }]
+const runBandsAgain: NotchBand[] = [{ start: 0, end: 100, colour: runColourAgain }]
+const runAt20 = notchRunState(20, runBands)
+const runAt35 = notchRunState(35, runBands)
 
 check(
   "the run's state is an ARRAY (the mechanism keys on its string form) opening on the lit fraction",
   Array.isArray(runAt20.state) &&
-    runAt20.state.length === 5 &&
+    runAt20.state.length === 7 &&
     near(runAt20.state[0], 20) &&
     near(runAt35.state[0], 35),
 )
 check(
-  "...followed by the colour every lit notch carries (r, g, b, a)",
-  near(runAt20.state[1], runColour.rgb[0]) &&
-    near(runAt20.state[2], runColour.rgb[1]) &&
-    near(runAt20.state[3], runColour.rgb[2]) &&
-    near(runAt20.state[4], runColour.alpha),
+  "...followed by one record per band: start, end, r, g, b, a",
+  near(runAt20.state[1], 0) &&
+    near(runAt20.state[2], 100) &&
+    near(runAt20.state[3], runColour.rgb[0]) &&
+    near(runAt20.state[4], runColour.rgb[1]) &&
+    near(runAt20.state[5], runColour.rgb[2]) &&
+    near(runAt20.state[6], runColour.alpha),
+)
+// The painter reads the run back out of the state it is handed, so the round trip
+// is what the multi-colour paint depends on.
+const roundTrip = notchRunBands(runAt20.state)
+check(
+  "the bands round-trip out of the painted state (the painter's only input)",
+  roundTrip.length === 1 &&
+    roundTrip[0]?.start === 0 &&
+    roundTrip[0]?.end === 100 &&
+    roundTrip[0]?.colour.rgb[0] === runColour.rgb[0] &&
+    roundTrip[0]?.colour.alpha === runColour.alpha,
 )
 
 // The lit fraction moves the state and NOT the identity: one charge step adopts,
@@ -249,39 +323,55 @@ check(
 // The SAME identity at two lit fractions: an identity that carried the fraction
 // would start a transition on every charge step the user already sees sweeping.
 check(
-  "...so two lit fractions of ONE colour are one identity at any pair of fractions",
-  notchRunState(0, runColour).key === notchRunState(100, runColour).key &&
-    notchRunState(0, runColour).key === runAt20.key,
+  "...so two lit fractions of ONE band list are one identity at any pair of fractions",
+  notchRunState(0, runBands).key === notchRunState(100, runBands).key &&
+    notchRunState(0, runBands).key === runAt20.key,
 )
 
 // A colour change moves BOTH, which is what a transition needs: the identity
 // moved and the state's string form moved with it.
-const runOtherColour = notchRunState(20, { rgb: [0.98, 0.89, 0.33], alpha: 0.8 })
+const runOtherColour = notchRunState(20, [
+  { start: 0, end: 100, colour: { rgb: [0.98, 0.89, 0.33], alpha: 0.8 } },
+])
 check(
   "a change of colour at the SAME lit fraction moves the identity AND the state",
   runOtherColour.key !== runAt20.key && String(runOtherColour.state) !== String(runAt20.state),
 )
+// A SPAN change is a colour change's equal: the charge limit moving under an
+// otherwise identical reading re-draws where the bands split, and the identity
+// must move with it or the new split snaps into place.
+const runSplitBands = notchRunState(20, [
+  { start: 0, end: 80, colour: runColour },
+  { start: 80, end: 100, colour: { rgb: [0.98, 0.89, 0.33], alpha: 0.8 } },
+])
+check(
+  "a change of the band SPANS at the same colours moves the identity",
+  runSplitBands.key !== runAt20.key,
+)
 // Alpha is part of the colour, not a detail the identity may drop: a colour that
 // reads as one identity hides the change behind an adopt, and a run that fades
 // in and out of strength would snap instead.
-const runSameRgbAlpha = notchRunState(20, { rgb: [0.54, 0.71, 0.97], alpha: 0.6 })
+const runSameRgbAlpha = notchRunState(20, [
+  { start: 0, end: 100, colour: { rgb: [0.54, 0.71, 0.97], alpha: 0.6 } },
+])
 check(
   "two colours differing ONLY in alpha are two identities (and two states)",
   runSameRgbAlpha.key !== runAt20.key && String(runSameRgbAlpha.state) !== String(runAt20.state),
 )
 check(
   "the colour the run paints is the colour the key names, rgb and alpha together",
-  runAt20.key === `${runColour.rgb[0]},${runColour.rgb[1]},${runColour.rgb[2]},${runColour.alpha}`,
+  runAt20.key ===
+    `0-100:${runColour.rgb[0]},${runColour.rgb[1]},${runColour.rgb[2]}@${runColour.alpha}`,
 )
 // An UNCHANGED run moves neither: a repaint of the same reading must start no
 // transition at all, whatever object the colour arrives in.
-const runRestated = notchRunState(20, runColourAgain)
+const runRestated = notchRunState(20, runBandsAgain)
 check(
   "an unchanged run re-stated in a fresh object moves neither the state nor the identity",
   String(runRestated.state) === String(runAt20.state) && runRestated.key === runAt20.key,
 )
 check(
-  "...while the same colour at a DIFFERENT fraction moves the state alone (the adopt path)",
+  "...while the same bands at a DIFFERENT fraction move the state alone (the adopt path)",
   String(runRestated.state) !== String(runAt35.state) && runRestated.key === runAt35.key,
 )
 
@@ -602,6 +692,15 @@ const PALETTE_WITHOUT_PLUGGED: Record<string, ConfigColour> = {
   low: PALETTE.low,
   cap: PALETTE.cap,
 }
+/** The same palette with no reserved-span token: the open map a config written
+ *  before `cap` existed resolves to. */
+const PALETTE_WITHOUT_CAP: Record<string, ConfigColour> = {
+  charging: PALETTE.charging,
+  plugged: PALETTE.plugged,
+  ok: PALETTE.ok,
+  warn: PALETTE.warn,
+  low: PALETTE.low,
+}
 const COL_THRESHOLDS = { batteryLow: 15, batteryWarn: 30 }
 
 function tokenOf(c: ConfigColour, palette: Record<string, ConfigColour> = PALETTE): string {
@@ -666,70 +765,102 @@ if (livePlugged) {
   )
 }
 
-// ── The run itself: a state colour is a property of the WHOLE lit run ──
-// `notchRun` answers the run's ONE colour for every slot the value has reached
-// and null past it, so the colour is never decided per INDEX: every lit notch of
-// a plugged ring carries the plugged colour, and how MANY of them carry it is the
-// charge's fraction. The lane's value is what supplies that fraction, and a fresh
-// lane starts at 0 — one lit marker — until it adopts its first reading.
+// ── The charge scale's bands: the shared policy is what colours the run ──
+// The charge run's colours are not decided here: `batteryRingBands` — the policy
+// the battery applet's ring renders through — splits the reading at the machine's
+// charge limit, and the run colours each lit marker by its own threshold. These
+// checks pin that split at the clock's own boundaries, then the run it produces.
 
 const SLOTS = notchTicks(COUNT, 3).length
-
-/** The distinct colours a run answers for its lit slots (nulls excluded). */
-function litColours(run: (i: number) => ConfigColour | null, slots: number): string[] {
-  const seen = new Set<string>()
-  for (let i = 0; i < slots; i++) {
-    const c = run(i)
-    if (c) seen.add(`${c.rgb.join(",")}@${c.alpha}`)
-  }
-  return [...seen]
-}
-
-const pluggedRunColour = batteryRingColour(
-  { percentage: 80, status: "Full" },
-  COL_THRESHOLDS,
-  PALETTE,
-)
-const chargingRunColour = batteryRingColour(
-  { percentage: 80, status: "Charging" },
-  COL_THRESHOLDS,
-  PALETTE,
-)
-const levelRunColour = batteryRingColour(
-  { percentage: 80, status: "Discharging" },
-  COL_THRESHOLDS,
-  PALETTE,
-)
-const litFraction = (value: number): number => Math.floor((value * SLOTS) / 100) + 1
-
-for (const [name, colour] of [
-  ["plugged", pluggedRunColour],
-  ["charging", chargingRunColour],
-  ["discharging", levelRunColour],
-] as [string, ConfigColour][]) {
-  const run = notchRun(80, SLOTS, colour)
-  const lit = litMarkerCount(80, SLOTS)
-  const distinct = litColours(run, SLOTS)
-  check(
-    `${name}: EVERY lit notch carries the run's own colour`,
-    distinct.length === 1 && distinct[0] === `${colour.rgb.join(",")}@${colour.alpha}`,
-  )
-  check(
-    `${name}: the run lights the charge's fraction (${lit} of ${SLOTS})`,
-    lit === litFraction(80) && lit > 1,
-  )
-  check(
-    `${name}: a notch past the lit run answers null (the caller's idle colour)`,
-    run(lit) === null && run(SLOTS - 1) === null,
-  )
-}
+const chargeBands = (status: string, percentage: number, cap: number | null): BatteryBand[] =>
+  batteryRingBands({ percentage, status }, COL_THRESHOLDS, PALETTE, cap)
 
 check(
-  "the plugged run is a different colour from the charging and level runs",
-  litColours(notchRun(80, SLOTS, pluggedRunColour), SLOTS)[0] !==
-    litColours(notchRun(80, SLOTS, chargingRunColour), SLOTS)[0] &&
-    litColours(notchRun(80, SLOTS, pluggedRunColour), SLOTS)[0] !==
-      litColours(notchRun(80, SLOTS, levelRunColour), SLOTS)[0],
+  "no readable charge limit paints ONE level band, ending at the reading",
+  chargeBands("Discharging", 60, null).length === 1 &&
+    chargeBands("Discharging", 60, null)[0].kind === "level" &&
+    chargeBands("Discharging", 60, null)[0].end === 60,
+)
+const reserved = chargeBands("Not charging", 60, 80)
+check(
+  "a limit above the reading reserves the span up to it in the cap colour",
+  reserved.length === 2 &&
+    reserved[0].kind === "level" &&
+    tokenOf(reserved[0].colour) === "plugged" &&
+    reserved[1].kind === "cap" &&
+    tokenOf(reserved[1].colour) === "cap" &&
+    reserved[1].start === 60 &&
+    reserved[1].end === 80,
+)
+const overcharged = chargeBands("Not charging", 100, 80)
+check(
+  "a reading ABOVE its limit paints the over-cap span in the charging colour",
+  overcharged.length === 2 &&
+    overcharged[1].kind === "overcharge" &&
+    tokenOf(overcharged[1].colour) === "charging" &&
+    overcharged[1].start === 80 &&
+    overcharged[1].end === 100,
+)
+check(
+  "...while the span below it keeps the reading's own plugged colour",
+  overcharged[0].kind === "level" &&
+    overcharged[0].end === 80 &&
+    tokenOf(overcharged[0].colour) === "plugged",
+)
+check(
+  "a reading exactly ON its limit paints ONE band (no empty span)",
+  chargeBands("Discharging", 80, 80).length === 1,
+)
+check(
+  "a config without the cap token reserves no span (the open-map fallback)",
+  batteryRingBands(
+    { percentage: 60, status: "Discharging" },
+    COL_THRESHOLDS,
+    PALETTE_WITHOUT_CAP,
+    80,
+  ).length === 1,
+)
+
+// The run those bands produce: several colours across the lit markers, and null
+// past the charge's fraction whatever the bands say.
+const overchargedRun = notchRun(100, SLOTS, overcharged)
+const overchargedColours = litColours(overchargedRun, SLOTS)
+check(
+  "the overcharged run paints exactly the two band colours",
+  overchargedColours.length === 2 &&
+    overchargedColours.includes(`${PALETTE.plugged.rgb.join(",")}@${PALETTE.plugged.alpha}`) &&
+    overchargedColours.includes(`${PALETTE.charging.rgb.join(",")}@${PALETTE.charging.alpha}`),
+)
+{
+  // 24/48 slots is the 50 % marker (inside the plugged span), 43/48 the 89.6 %
+  // one (past the limit).
+  const below = overchargedRun(24)
+  const above = overchargedRun(43)
+  check(
+    "a marker inside the plugged span carries purple; one past the limit carries blue",
+    below?.rgb[0] === PALETTE.plugged.rgb[0] && above?.rgb[0] === PALETTE.charging.rgb[0],
+  )
+}
+const litFraction = (value: number): number => Math.floor((value * SLOTS) / 100) + 1
+check(
+  `the lit run still lights the charge's fraction (${litFraction(90)} of ${SLOTS}) and nothing past it`,
+  litMarkerCount(90, SLOTS) === litFraction(90) &&
+    notchRun(90, SLOTS, overcharged)(litMarkerCount(90, SLOTS)) === null,
+)
+
+// A flat reading below its limit stays ONE colour over the whole lit run — the
+// split is the charge limit's business, not the run's.
+const pluggedRun = notchRun(80, SLOTS, uniformNotchBands(PALETTE.plugged))
+check(
+  "a plugged reading below its limit paints one colour over every lit marker",
+  litColours(pluggedRun, SLOTS).length === 1 &&
+    litColours(pluggedRun, SLOTS)[0] ===
+      `${PALETTE.plugged.rgb.join(",")}@${PALETTE.plugged.alpha}`,
+)
+check(
+  "the charging run differs from the plugged run, marker for marker",
+  litColours(notchRun(80, SLOTS, uniformNotchBands(PALETTE.charging)), SLOTS)[0] !==
+    litColours(pluggedRun, SLOTS)[0],
 )
 
 // The startup arithmetic: an UNSEEDED lane paints its initial 0 — the 12 o'clock
@@ -742,10 +873,10 @@ check(
   !unseededLane.seeded && litMarkerCount(unseededLane.value, SLOTS) === 1,
 )
 {
-  const run = notchRun(unseededLane.value, SLOTS, pluggedRunColour)
+  const run = notchRun(unseededLane.value, SLOTS, uniformNotchBands(PALETTE.plugged))
   check(
     "...so its run lights the 12 o'clock notch alone, in the plugged colour",
-    run(0) !== null && run(0)?.rgb[0] === pluggedRunColour.rgb[0] && run(1) === null,
+    run(0) !== null && run(0)?.rgb[0] === PALETTE.plugged.rgb[0] && run(1) === null,
   )
 }
 check(
@@ -768,6 +899,6 @@ if (failures.length > 0) {
   imports.system.exit(1)
 }
 console.log(
-  `OK — the marker scale holds at all ${cases.length} documented boundaries, the two-tier scale lights the sub-ticks between the majors without moving or re-thresholding one of them (0 sub-ticks per gap reproduces the majors-only scale), the run the dial declares carries its lit fraction where the fade mechanism's string form sees it and its colour — alpha included — as the whole of the identity it fades on, so a lit-fraction change adopts at once while a colour change cross-fades (an unchanged run moving neither), the notch value eases to its reading with the applet rings' own shape (adopting the first reading, sweeping through intermediate lit fractions) and settles exactly on it, a fresh lane adopts its first reading so the run paints the whole charge fraction instead of its initial single marker, a state colour is the WHOLE lit run's (every lit notch carries it and the count of them is the charge's) for the plugged, charging and level runs alike, the frame loop runs for a transition in flight, for an easing lit fraction and for a live reading on a visible clock and for neither else, the lane adopts a fresh process's first reading (a full-brightness 100 % included) and shows the first adjustment after it in both the fresh and the rebuilt lane, the hands step one whole second per second off a single pinned reading (no frame repaint can move them), the battery colour policy holds for charging, for plugged-and-idle (Full / Not charging at any level), for the level colour on every other status including an unknown one, at both level boundaries and in the missing-token fallback, and the clock's timings and sub-tick count are live config`,
+  `OK — the marker scale holds at all ${cases.length} documented boundaries, the two-tier scale lights the sub-ticks between the majors without moving or re-thresholding one of them (0 sub-ticks per gap reproduces the majors-only scale), the run the dial declares carries its lit fraction where the fade mechanism's string form sees it and its BANDS — spans and colours, alpha included — as the whole of the identity it fades on, so a lit-fraction change adopts at once while a colour or span change cross-fades (an unchanged run moving neither, and the bands round-tripping out of the painted state), the notch value eases to its reading with the applet rings' own shape (adopting the first reading, sweeping through intermediate lit fractions) and settles exactly on it, a fresh lane adopts its first reading so the run paints the whole charge fraction instead of its initial single marker, the charge scale's bands split the reading at the machine's charge limit (the level span, the reserved cap span, and the over-cap span in the charging colour) so one run paints several colours across its lit markers while a flat reading below its limit stays one colour, the frame loop runs for a transition in flight, for an easing lit fraction and for a live reading on a visible clock and for neither else, the lane adopts a fresh process's first reading (a full-brightness 100 % included) and shows the first adjustment after it in both the fresh and the rebuilt lane, the hands step one whole second per second off a single pinned reading (no frame repaint can move them), the battery colour policy holds for charging, for plugged-and-idle (Full / Not charging at any level), for the level colour on every other status including an unknown one, at both level boundaries and in the missing-token fallback, and the clock's timings and sub-tick count are live config`,
 )
 imports.system.exit(0)
