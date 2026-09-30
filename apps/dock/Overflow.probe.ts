@@ -39,6 +39,7 @@ import {
   createNotchSmoother,
   type DialTime,
   dialTimeOf,
+  intendedClockVisible,
   litMarkerCount,
   NOTCH_SMOOTH_EPSILON,
   NOTCH_SMOOTH_FACTOR,
@@ -491,6 +492,24 @@ check(
   !smoothLoopRuns({ animating: false, easing: false, transient: false, clockVisible: false }),
 )
 
+// ── The tick kind reads the clock's INTENDED visibility ──
+// The idle tick is chosen from this: a 1 s repaint while the clock is visible,
+// the 500 ms watchdog while it is hidden. A fade in flight has not moved
+// `clockFade` yet when the tick is armed, so the pending tween's TARGET is what
+// answers — reading the raw fade armed the hidden watchdog for a clock fading
+// IN, and the watchdog then re-armed a reappear delay over a clock already on
+// screen: the hands froze for `appearMs` and stamped forward by it.
+check(
+  "with no fade pending the current fade decides",
+  intendedClockVisible(1, null) && !intendedClockVisible(0, null),
+)
+check("a fade IN is visible before its tween has moved the fade", intendedClockVisible(0, 1))
+check("a fade OUT is hidden before its tween has moved the fade", !intendedClockVisible(1, 0))
+check(
+  "a tween target of exactly 0 is hidden, however far the fade has run",
+  !intendedClockVisible(0.9, 0),
+)
+
 // ── The notch-value easing: the applet rings' own animation ──
 // The dial's painted values ease toward their readings a frame at a time — the
 // shape the applet cores smooth their closed-state ring with (`ringValue += diff
@@ -899,6 +918,6 @@ if (failures.length > 0) {
   imports.system.exit(1)
 }
 console.log(
-  `OK — the marker scale holds at all ${cases.length} documented boundaries, the two-tier scale lights the sub-ticks between the majors without moving or re-thresholding one of them (0 sub-ticks per gap reproduces the majors-only scale), the run the dial declares carries its lit fraction where the fade mechanism's string form sees it and its BANDS — spans and colours, alpha included — as the whole of the identity it fades on, so a lit-fraction change adopts at once while a colour or span change cross-fades (an unchanged run moving neither, and the bands round-tripping out of the painted state), the notch value eases to its reading with the applet rings' own shape (adopting the first reading, sweeping through intermediate lit fractions) and settles exactly on it, a fresh lane adopts its first reading so the run paints the whole charge fraction instead of its initial single marker, the charge scale's bands split the reading at the machine's charge limit (the level span, the reserved cap span, and the over-cap span in the charging colour) so one run paints several colours across its lit markers while a flat reading below its limit stays one colour, the frame loop runs for a transition in flight, for an easing lit fraction and for a live reading on a visible clock and for neither else, the lane adopts a fresh process's first reading (a full-brightness 100 % included) and shows the first adjustment after it in both the fresh and the rebuilt lane, the hands step one whole second per second off a single pinned reading (no frame repaint can move them), the battery colour policy holds for charging, for plugged-and-idle (Full / Not charging at any level), for the level colour on every other status including an unknown one, at both level boundaries and in the missing-token fallback, and the clock's timings and sub-tick count are live config`,
+  `OK — the marker scale holds at all ${cases.length} documented boundaries, the two-tier scale lights the sub-ticks between the majors without moving or re-thresholding one of them (0 sub-ticks per gap reproduces the majors-only scale), the run the dial declares carries its lit fraction where the fade mechanism's string form sees it and its BANDS — spans and colours, alpha included — as the whole of the identity it fades on, so a lit-fraction change adopts at once while a colour or span change cross-fades (an unchanged run moving neither, and the bands round-tripping out of the painted state), the notch value eases to its reading with the applet rings' own shape (adopting the first reading, sweeping through intermediate lit fractions) and settles exactly on it, a fresh lane adopts its first reading so the run paints the whole charge fraction instead of its initial single marker, the charge scale's bands split the reading at the machine's charge limit (the level span, the reserved cap span, and the over-cap span in the charging colour) so one run paints several colours across its lit markers while a flat reading below its limit stays one colour, the frame loop runs for a transition in flight, for an easing lit fraction and for a live reading on a visible clock and for neither else, the idle tick's KIND is read from the clock's intended visibility (a pending fade's target, never the fade a tween has not moved yet, so a reappear fade cannot arm the hidden watchdog), the lane adopts a fresh process's first reading (a full-brightness 100 % included) and shows the first adjustment after it in both the fresh and the rebuilt lane, the hands step one whole second per second off a single pinned reading (no frame repaint can move them), the battery colour policy holds for charging, for plugged-and-idle (Full / Not charging at any level), for the level colour on every other status including an unknown one, at both level boundaries and in the missing-token fallback, and the clock's timings and sub-tick count are live config`,
 )
 imports.system.exit(0)

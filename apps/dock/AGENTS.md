@@ -329,7 +329,17 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   without ever advancing a hand: a repaint from a fade frame, the transient
   fade or a config reload paints the second already on screen. A clock hidden
   while the loop runs advances nothing either — the tick is the only advancer
-  and it is stopped while hidden. `dialTimeOf` takes the second BOUNDARY
+  and it is stopped while hidden. The idle tick has TWO kinds and picks between
+  them by the clock's INTENDED visibility — the exported pure
+  `intendedClockVisible(clockFade, tweenTo)`, which prefers a pending fade's
+  TARGET: a fade is armed before its tween moves `clockFade`, so the raw value
+  there still names the PREVIOUS state, and a reappear fade-in would otherwise
+  arm the hidden watchdog. The watchdog in turn arms a reappear delay only for a
+  clock that is genuinely hidden; finding a visible clock it clears its slot and
+  hands the dial back to the 1 s repaint tick. Without that pair a reappear left
+  the clock on screen with no repaint source for
+  `appearance.clock.reappearMs`, freezing the hands until the second reappear
+  stamped them forward by exactly that delay. `dialTimeOf` takes the second BOUNDARY
   (milliseconds ignored), and the digital `HH:MM` rides the same reading.
 - Applet machinery and classes live in `common/applets/`, NOT here (its spec sheet is `common/applets/AGENTS.md` — the mount contract, the draw path, the row/panel/pointer model, the backend and config seams): `shared/`
   (factories), `types.ts` (Panel/PanelHandle/Dial surface + the `Applet` /

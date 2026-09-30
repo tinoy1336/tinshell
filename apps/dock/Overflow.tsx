@@ -421,6 +421,17 @@ export function smoothLoopRuns(state: {
   return state.animating || ((state.easing || state.transient) && state.clockVisible)
 }
 
+/** The visibility the clock's TICK machinery must act on: `clockFade` while no
+ *  fade is pending, else the pending tween's target. A fade is armed BEFORE its
+ *  tween moves `clockFade` (animateClockFade records the tween, then arms the
+ *  tick), so reading the raw fade there answers the clock's PREVIOUS state — a
+ *  reappear fade-in would arm the hidden watchdog, which then re-arms a
+ *  `reappearMs` delay over a clock already on screen and freezes the hands until
+ *  it expires. Pure — the probe drives it. */
+export function intendedClockVisible(clockFade: number, tweenTo: number | null): boolean {
+  return (tweenTo ?? clockFade) > 0.001
+}
+
 /** The notch scale's per-frame approach to its reading — the shape the applet
  *  rings animate with (the closed-state ring smoothing in
  *  `common/applets/shared/create-applet-core.ts`: a frame moves
@@ -1305,8 +1316,10 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
       ensureClockTick() // (re)arm the fast tick or the hidden-state watchdog
       return
     }
-    ensureClockTick()
-    if (clockTween && clockTween.to === to) return // already heading there
+    if (clockTween && clockTween.to === to) {
+      ensureClockTick()
+      return // already heading there
+    }
     const from = clockFade
     const durMs = Math.max(0, config.timing.pillAnim)
     if (durMs <= 0) {
@@ -1318,6 +1331,10 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
     }
     clockTween = { from, to, startUs: GLib.get_monotonic_time(), durUs: durMs * 1000 }
     ensureSmoothLoop()
+    // Arm the tick AFTER the tween is recorded: the tick's kind is chosen from
+    // the clock's intended visibility, which only the tween can supply while
+    // the fade is in flight (`intendedClockVisible`).
+    ensureClockTick()
   }
 
   let lastClockActive: boolean | null = null
@@ -1367,7 +1384,7 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
   function ensureClockTick(): void {
     if (clockTickId !== null) return
     if (!config.appearance.clock.enabled) return
-    if (clockFade > 0.001) {
+    if (intendedClockVisible(clockFade, clockTween?.to ?? null)) {
       // Visible: repaint tick, once per second.
       const myId = (clockTickId = GLib.timeout_add(
         GLib.PRIORITY_DEFAULT,
@@ -1412,6 +1429,16 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
         const myId = clockTickId
         if (!config.appearance.clock.enabled) {
           if (clockTickId === myId) clockTickId = null
+          return GLib.SOURCE_REMOVE
+        }
+        // The clock is on screen (a reappear fade-in armed this watchdog before
+        // its tween moved `clockFade`): hand the dial to the visible repaint
+        // tick instead of arming a reappear delay over a clock the operator is
+        // looking at — that delay leaves the hands frozen for `reappearMs` and
+        // then stamps them forward by exactly it.
+        if (intendedClockVisible(clockFade, clockTween?.to ?? null)) {
+          if (clockTickId === myId) clockTickId = null
+          ensureClockTick()
           return GLib.SOURCE_REMOVE
         }
         const active = row.isMoveMode() || row.isRevealed() || panelToggled || cursorInOverflow
