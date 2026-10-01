@@ -465,11 +465,16 @@ there. `config.screengrab.notify` still gates the notification.
    the shell unmount (`unmountAnnotate`, which walks every open window) run
    `teardown()` BEFORE `destroy()`. `teardown()` is idempotent and — in the
    multi-window registry — removes ONLY ITS OWN handle from `editors`, arming
-   `scheduleUnload` when that was the last one. Never defer to the default
+   `scheduleUnload` when that was the last one (teardown also releases that window's image and strokes and arms the collection — GOTCHA 14). Never defer to the default
    handler
    (`() => false` closes nothing this contract does not) and never rely on the
    `destroy` signal — it stays wired as a backstop only. Never `present()` a
-   window you cannot prove is in `editors`.
+   window you cannot prove is in `editors`. The placement chain re-checks that
+   membership AFTER its own awaits as well as before them: a window closed while
+   the chain was awaiting hyprctl must not be presented, because presenting a
+   torn-down handle re-shows a DESTROYED window that no longer sits in
+   `editors` — a zombie `close`, `closeEditors()` and `quit` can never remove
+   (six survived one rapid open/close loop).
 4. **The window rule matches `class = "^(io\\.Astal\\.annotate)$"`** — the
    GTK4 app_id (from applicationId; the pattern is built from
    `ANNOTATE_APP_ID`). A bare `annotate` class matches
@@ -556,6 +561,21 @@ dispatch 'hl.dsp.focus({workspace = N})'`), restore workspace + keyboard
    Rules that must beat the shared chrome belong in mount.ts's own USER-priority
    provider (`CHROME_OVERRIDES`, the keyboard app's pattern) — applied once per
    process and never removed.
+
+14. **Closing an editor RELEASES its image and nudges a collection.** The still
+   a window loaded owns the decoded `Gdk.Texture` and, once the canvas has drawn
+   it, its full-size `Cairo.ImageSurface` — native memory gjs does NOT report to
+   the JS collector, so the collector has no reason to run, and a window closed
+   while those are still referenced keeps them for the life of the process (a
+   measured open/close of a 2880x1800 image retained ~15-23 MB each, and a
+   long-lived shell grew to multiple GB). `teardown()` therefore unbinds the
+   picture, drops `image` and clears the stroke stacks BEFORE `win.destroy()`,
+   and the LAST teardown arms `nudgeGc()` — one `imports.system.gc()` on a low
+   idle callback, the call `dock debug gc` exposes. Keep BOTH halves: releasing
+   without the collection reclaims nothing, and collecting without releasing
+   cannot free what is still referenced. Do not add a cross-window still cache
+   to this app — a per-open decode plus this release is what keeps the shell
+   flat.
 
 ## Optional integrations (DEFERRED — do not implement in v1)
 

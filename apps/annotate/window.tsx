@@ -188,6 +188,24 @@ let cascadeSlot = 0
 /** Placement chain — see placeAndPresent. */
 let placement: Promise<void> = Promise.resolve()
 
+/** Reclaim the images a closing editor drops.
+ *
+ *  gjs hands a decoded image's native memory to the process without reporting
+ *  it to the collector, so a `Gdk.Texture`'s bytes come back only when a GC
+ *  runs — and with nothing pressing on the JS heap it does not run on its own.
+ *  One idle-time collection after the LAST editor closes returns them (the same
+ *  `imports.system.gc()` the dock exposes as `dock debug gc`). */
+let gcArmed = false
+function nudgeGc(): void {
+  if (gcArmed) return
+  gcArmed = true
+  GLib.idle_add(GLib.PRIORITY_LOW, () => {
+    gcArmed = false
+    imports.system.gc()
+    return GLib.SOURCE_REMOVE
+  })
+}
+
 interface HyprMonitor {
   x?: number
   y?: number
@@ -314,6 +332,13 @@ function placeAndPresent(handle: EditorHandle, slot: number): void {
     } catch (e) {
       log(`[annotate] cascade placement failed: ${String(e)}`)
     }
+    // Re-check at the LAST moment, after every await above: a window closed
+    // while the chain was awaiting hyprctl has already been destroyed and
+    // dropped from `editors`, and presenting that handle re-shows a DESTROYED
+    // window as a zombie NOTHING can close — `closeEditors()` walks `editors`,
+    // so the window would be permanently unreachable (GOTCHA 3: never
+    // `present()` a window you cannot prove is in `editors`).
+    if (!editors.includes(handle)) return
     try {
       handle.win.present()
     } catch (e) {
@@ -1132,11 +1157,21 @@ function createEditorWindow(): EditorHandle {
     if (torn) return
     torn = true
     commitWidth() // a window closed with the width popover still open keeps the width
+    // Release the image AND the strokes BEFORE the destroy. The still owns the
+    // decoded texture plus, once the canvas has drawn it, a full-size Cairo
+    // surface — native memory gjs does not report to the collector, so a window
+    // closed while those are still referenced keeps them for the process's life
+    // (one open/close of a 2880x1800 image measured ~15-23 MB retained). The
+    // last close nudges the collection that returns them.
+    picture.paintable = null
+    image = null
+    resetHistory()
     const i = editors.indexOf(handle)
     if (i >= 0) editors.splice(i, 1)
     if (editors.length === 0) {
       cascadeSlot = 0 // no editors left: the next open starts at the origin again
       scheduleUnload("annotate") // shell unload grace (no-op in islands)
+      nudgeGc()
     }
   }
   win.connect("destroy", teardown) // backstop only — may never fire (see above)
