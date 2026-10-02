@@ -415,6 +415,15 @@ fallback (state.ts `defaultColours()`); `export.suffix` at save time.
   (`recentColours`/`defaultColours`/`rememberColour`, common/state app
   `annotate`).
 - `commands.ts` — request handlers (ping/open/save/close/config).
+- `window.probe.ts` — the editor registry's lifecycle contract, including the
+  placement race that once stranded windows: one open maps exactly one window and
+  registers exactly one editor, and close, the rapid open/close interleaving (a
+  window closed before the placement chain's `hyprctl` awaits land) and the shell
+  unmount each leave BOTH the registry and `app.windows` at their pre-open state.
+  Its image is a 1x1 PNG the probe writes itself.
+  `TINSHELL_SHELL=1 ags bundle --gtk 4 apps/annotate/window.probe.ts /tmp/a.sh && TINSHELL_SHELL=1 bash /tmp/a.sh`
+  — the env keeps annotate in RESIDENT mode, because as an island it quits with
+  its last window and would end the probe before its first assertion.
 - `config.ts` + `config.defaults.json` + `config.schema.json`.
 - `style.css` — annotate's own pieces only (the cairo colour well/chips, the
   transparent canvas, the tool row's scroller surface and the LEFT group's
