@@ -219,6 +219,18 @@ unload/quit) plus an idle PRELOAD of the next ring entry
 actually flips at (a second or so per image) hits the preload; a first view of
 a still still pays the decode.
 
+**Decodes are capped to the WINDOW, not to the file.** A decoded still is
+retained by the renderer for roughly twice its pixel bytes and never returned
+(measured in the shell: a 400x300 image costs ~0.55 MB, a 2880x1800 one ~29 MB
+per distinct image, and nothing gives it back), so a full-screen screenshot
+shown in a 670x380 window must not be decoded at full size. `applyStillTexture`
+decodes at the window's device pixels (`stillCap` — the frame's configured size
+while the window has no allocation yet, NEVER the picture's own, which at 1:1 is
+as large as the image) and decodes SOURCE resolution only for 1:1 (`zoom 100`),
+re-decoding when the zoom crosses that boundary. The readout and the zoom maths
+keep the source dimensions from `GdkPixbuf.Pixbuf.get_file_info`, which needs no
+decode, and the preload decodes the next ring entry at the same cap.
+
 Why playbin3 and NOT GstPlay.Play: `GstPlay.Play` exposes its video sink
 only through the `GstPlay.PlayVideoRenderer` interface, and GJS cannot
 IMPLEMENT GObject interfaces (vfunc lookup fails), so a custom renderer is

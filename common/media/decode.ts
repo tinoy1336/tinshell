@@ -37,7 +37,7 @@ export function loadStill(path: string): StillImage {
  *  buffer, which yields an empty surface (an export with no image in it) while
  *  the on-screen `Gtk.Picture` still looks correct, because the picture binds
  *  the texture and not the surface. */
-function surfaceFromTexture(texture: Gdk.Texture): Cairo.ImageSurface {
+export function surfaceFromTexture(texture: Gdk.Texture): Cairo.ImageSurface {
   const tmp = GLib.build_filenamev([
     GLib.get_tmp_dir(),
     `tinshell-still-${GLib.get_monotonic_time()}.png`,

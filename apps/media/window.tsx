@@ -74,6 +74,7 @@
  */
 
 import Gdk from "gi://Gdk?version=4.0"
+import GdkPixbuf from "gi://GdkPixbuf"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import Gtk from "gi://Gtk?version=4.0"
@@ -84,7 +85,7 @@ import { scheduleUnload } from "@common/app/lazy"
 import { createCardFrame } from "@common/card/frame"
 import { ignore, log } from "@common/log/logger"
 import { isStillImage } from "@common/media/classify"
-import { loadStill } from "@common/media/decode"
+import { loadStill, surfaceFromTexture } from "@common/media/decode"
 import { NullIntrinsicPaintable } from "@common/media/paintable"
 import { createMediaPipeline } from "@common/media/pipeline"
 import type { MediaPipeline, StillImage } from "@common/media/types"
@@ -193,6 +194,42 @@ function decodeStill(path: string): StillImage {
 export function clearStillCache(): void {
   stillCache.clear()
   stillCachePx = 0
+}
+
+/** Decode `path` at a display cap: never larger than `maxW`x`maxH` device px.
+ *
+ *  Why: a decoded still is retained by the renderer for roughly TWICE its pixel
+ *  bytes and never returned (measured: 0.5 MP -> ~0.55 MB, 5.2 MP -> ~29 MB per
+ *  distinct image). A 2880x1800 screenshot shown in a 630x450 window never uses
+ *  those pixels on screen, so decoding them is pure retention; 1:1 zoom is the
+ *  one view that does, and it decodes full size then (see applyStillTexture).
+ *  Cached under a key that carries the bucket, so the two sizes never collide. */
+function decodeStillScaled(path: string, maxW: number, maxH: number): StillImage {
+  const key = `${path}@${maxW}x${maxH}`
+  const hit = cachedStill(key)
+  if (hit) return hit
+  const pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, maxW, maxH, true)
+  const texture = Gdk.Texture.new_for_pixbuf(pb)
+  const image: StillImage = {
+    path,
+    texture,
+    width: pb.get_width(),
+    height: pb.get_height(),
+    surface: () => surfaceFromTexture(texture),
+  }
+  const px = image.width * image.height
+  if (px > 0 && px <= STILL_CACHE_PX) {
+    stillCache.set(key, { image, px })
+    stillCachePx += px
+    while (stillCachePx > STILL_CACHE_PX || stillCache.size > STILL_CACHE_MAX) {
+      const oldest = stillCache.keys().next().value as string | undefined
+      if (oldest === undefined) break
+      const evicted = stillCache.get(oldest)
+      stillCache.delete(oldest)
+      stillCachePx -= evicted?.px ?? 0
+    }
+  }
+  return image
 }
 
 /** The stills a ring holds: every sibling `isStillImage` accepts in the
@@ -607,12 +644,23 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
 
   function setZoom(next: ZoomMode): void {
     if (empty) return
+    const wasOneToOne = zoom === 1
     if (next === "fit") zoom = "fit"
     // 100% is 1:1 and nothing else: one image pixel per one screen pixel.
     else if (next === "100") zoom = 1
     // A step is relative to what is on screen NOW, so stepping out of fit
     // starts from the scale fit computed rather than from 100%.
     else zoom = steppedZoom(zoom, zoom === "fit" ? currentFitScale() : null, next)
+    // Crossing the 1:1 boundary changes which decode the view needs: 1:1 wants
+    // the source pixels, everything else the viewer-sized one (see
+    // applyStillTexture).
+    if (mode === "viewer" && path && wasOneToOne !== (zoom === 1)) {
+      try {
+        applyStillTexture(path)
+      } catch (e) {
+        ignore("media zoom re-decode", e)
+      }
+    }
     applyZoom()
   }
 
@@ -634,7 +682,14 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
     preloadTimer = GLib.timeout_add(GLib.PRIORITY_LOW, PRELOAD_DELAY_MS, () => {
       preloadTimer = 0
       try {
-        decodeStill(next)
+        // Preload at the SAME cap the display uses: warming the next flip must
+        // not cost a full-size decode (and its retention) either.
+        const cap = stillCap()
+        const info = GdkPixbuf.Pixbuf.get_file_info(next)
+        const w = info?.[1] ?? 0
+        const h = info?.[2] ?? 0
+        if (cap && w > 0 && h > 0 && (cap.w < w || cap.h < h)) decodeStillScaled(next, cap.w, cap.h)
+        else decodeStill(next)
       } catch (e) {
         ignore("media still preload", e)
       }
@@ -642,21 +697,56 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
     })
   }
 
+  /** The display cap for this window's stills, in device px: the viewer's own
+   *  allocation. Null while it cannot be measured (before the first allocation),
+   *  which leaves the decode uncapped. */
+  function stillCap(): { w: number; h: number } | null {
+    // The WINDOW is the constraint, never the picture's own allocation: at 1:1
+    // the picture is as large as the image, and capping from it would undo the
+    // cap the moment the user returns to fit.
+    const scale = deviceScale(win) || deviceScale(still) || 1
+    const box = win.get_allocation()
+    let w = Math.round(box.width * scale)
+    let h = Math.round(box.height * scale)
+    if (w <= 32 || h <= 32) {
+      // Not allocated yet — the first load runs on `map`. The configured frame
+      // size is the box the view will get, so cap from that.
+      w = Math.round(getConfig("window.width") * scale)
+      h = Math.round(getConfig("window.height") * scale)
+    }
+    return w > 32 && h > 32 ? { w, h } : null
+  }
+
+  /** Bind `target` at the size the CURRENT view needs: full resolution for 1:1
+   *  zoom, the viewer's own device pixels otherwise. `imgW`/`imgH` stay the
+   *  SOURCE dimensions, so the readout and the zoom maths are unaffected by
+   *  which decode is bound. */
+  function applyStillTexture(target: string): void {
+    const info = GdkPixbuf.Pixbuf.get_file_info(target)
+    const srcW = info?.[1] ?? 0
+    const srcH = info?.[2] ?? 0
+    const cap = zoom === 1 ? null : stillCap()
+    const image =
+      cap && srcW > 0 && srcH > 0 && (cap.w < srcW || cap.h < srcH)
+        ? decodeStillScaled(target, cap.w, cap.h)
+        : decodeStill(target)
+    imgW = srcW > 0 ? srcW : image.width
+    imgH = srcH > 0 ? srcH : image.height
+    stillSrc = image.texture
+  }
+
   /** Show `target` as this window's still (the ONE display path). */
   function showStill(target: string): void {
     path = target
+    zoom = "fit"
     try {
-      const image = decodeStill(target)
-      imgW = image.width
-      imgH = image.height
-      stillSrc = image.texture
+      applyStillTexture(target)
     } catch (e) {
       imgW = 0
       imgH = 0
       stillSrc = null
       log(`media: cannot display ${target}: ${String(e)}`)
     }
-    zoom = "fit"
     applyZoom()
     schedulePreload()
   }
