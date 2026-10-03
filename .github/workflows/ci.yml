@@ -70,6 +70,19 @@ jobs:
       AGS_VERSION: "3.1.2"
       ASTAL_COMMIT: "67ddc83e0bdbda6de7f6f15e4fbc5d6b9d2d1b18"
       GO_VERSION: "1.24.6"
+      # The toolchain prefix is known before the first byte is built into it, and
+      # the astal stages install into it in sequence: gtk4's configure resolves
+      # `astal-io-0.1` from the `.pc` the io stage just wrote, and the probes
+      # resolve the typelibs and the shared objects. So the three search paths
+      # belong to the JOB's environment, not to one step — every stage that
+      # builds or runs inherits them, and no stage has to repair the environment
+      # the previous one needed. Each of the three is additive: pkg-config keeps
+      # its built-in directories alongside PKG_CONFIG_PATH, and gjs and the
+      # loader keep theirs alongside GI_TYPELIB_PATH / LD_LIBRARY_PATH, so the
+      # distribution's GTK4, gtk4-layer-shell and gjs bindings still resolve.
+      PKG_CONFIG_PATH: ${{ runner.temp }}/toolchain/astal/lib/pkgconfig
+      GI_TYPELIB_PATH: ${{ runner.temp }}/toolchain/astal/lib/girepository-1.0
+      LD_LIBRARY_PATH: ${{ runner.temp }}/toolchain/astal/lib
     steps:
       - uses: actions/checkout@v7
       # The runtime the probe modules import, from the distribution: on Arch each
@@ -116,18 +129,17 @@ jobs:
           # so every path the CLI bakes into it is decided here.
           "$root/go/bin/go" build -C "$root/ags/cli" -mod=vendor -o "$root/bin/ags" \
             -ldflags "-X main.gtk4LayerShell=/usr/lib/libgtk4-layer-shell.so -X main.agsJsPackage=$root/ags -X main.gjs=/usr/bin/gjs -X main.bash=/usr/bin/bash" .
-      # On both the built and the cached path: PATH, the astal prefix the typelibs
-      # load from, and the version the probes are written against — read from the
-      # pinned source, so a bump above cannot leave a stale expectation behind.
-      # Upstream's v3.1.2 asset carries `cli/version` at 3.1.0, which is why the
-      # number is read rather than typed.
-      - name: Put the toolchain on PATH
+      # On both the built and the cached path: the CLI on PATH, and the version
+      # the probes are written against — read from the pinned source, so a bump
+      # above cannot leave a stale expectation behind. Upstream's v3.1.2 asset
+      # carries `cli/version` at 3.1.0, which is why the number is read rather
+      # than typed. The library search paths are already on the job (see the env
+      # block above), so nothing is exported here but the binary's directory.
+      - name: Put the toolchain's CLI on PATH
         run: |
           set -euo pipefail
           root="$RUNNER_TEMP/toolchain"
           echo "$root/bin" >> "$GITHUB_PATH"
-          echo "GI_TYPELIB_PATH=$root/astal/lib/girepository-1.0" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$root/astal/lib" >> "$GITHUB_ENV"
           echo "PROBE_AGS_VERSION=$(cat "$root/ags/cli/version")" >> "$GITHUB_ENV"
       - name: Toolchain versions
         run: |
