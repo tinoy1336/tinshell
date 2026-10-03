@@ -38,6 +38,7 @@ import Gdk from "gi://Gdk?version=4.0"
 import GLib from "gi://GLib"
 import Gtk from "gi://Gtk?version=4.0"
 import Pango from "gi://Pango"
+import { SURFACE } from "@common/css/tokens"
 import { log } from "@common/log/logger"
 import { isStillImage, mediaKind } from "./classify"
 import { loadStill } from "./decode"
@@ -312,10 +313,11 @@ function noteSize(fontSize: number): number {
 
 /** Pango attributes for one line of the pane's ink — the same foreground +
  *  alpha + absolute-size shape the menu labels use. A colour the host states
- *  wrong falls back to the card scrim instead of throwing. */
+ *  wrong falls back to the card scrim (the palette's surface base) instead of
+ *  throwing. */
 function inkAttrs(colour: string, alpha: number, sizePx: number): Pango.AttrList {
   const rgba = new Gdk.RGBA()
-  if (!rgba.parse(colour)) rgba.parse("#0a0c11")
+  if (!rgba.parse(colour)) rgba.parse(SURFACE)
   const attrs = new Pango.AttrList()
   attrs.insert(
     Pango.attr_foreground_new(

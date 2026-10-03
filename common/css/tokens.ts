@@ -41,6 +41,12 @@
  *  CSS carrier: `--tinshell-font-family`. */
 export const FONT_FAMILY = "JetBrainsMono Nerd Font"
 
+/** The base every glass surface composites over — the scrim a card renders
+ *  before its own opacity. CSS carrier: `--tinshell-panel`, which carries
+ *  this colour painted at `opacity.panel`; this constant is the raw value a
+ *  JS consumer needs. */
+export const SURFACE = "#0a0c11"
+
 /** Primary text ink. CSS carrier: `--tinshell-ink`. */
 export const INK = "#e6e6e6"
 
