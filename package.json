@@ -1,6 +1,7 @@
 {
   "name": "tinshell",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*"
   ],

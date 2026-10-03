@@ -92,7 +92,10 @@ AGENTS.md before touching anything.
 ├── package.json     workspaces: ["apps/*"] (every app is an @apps/<app> workspace
 │                    package; common/ is NOT a workspace — plain dir, imported
 │                    via the @common alias; devDeps biome+typescript only, ags/gnim
-│                    stay as manual node_modules shims)
+│                    stay as manual node_modules shims; "type": "module", so every
+│                    script and probe the tree runs under plain node is ESM — the
+│                    same key sits in common/package.json and in the app packages
+│                    whose probes node executes directly)
 ├── tsconfig.json    base compilerOptions (strict, Bundler, jsxImportSource:ags/gtk4)
 │                    + paths @apps/* → ./apps/* and @common/* → ./common/* (the
 │                    two repo-root import aliases; the bundler resolves the same)
