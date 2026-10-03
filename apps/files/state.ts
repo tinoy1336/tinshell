@@ -43,7 +43,7 @@ export function setShowHidden(value: boolean): void {
 }
 
 /**
- * Carry the view filter across from the config file it used to be persisted in.
+ * Carry the view filter across from the config key.
  *
  * The store's own value wins when it has one; otherwise the `view.showHidden`
  * key a pre-store build wrote is copied across, so the filter the browser was

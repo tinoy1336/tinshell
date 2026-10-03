@@ -7,7 +7,8 @@
  * click-through (a full-screen cover surface whose input region is narrowed to
  * the cards).
  * The region only takes effect on a surface commit, so every region update is
- * followed by queue_draw() (the dock scrim's proven pattern on this machine).
+ * followed by queue_draw() (the commit-then-redraw pattern the dock scrim
+ * uses).
  *
  * Cards are managed IMPERATIVELY (append/destroy by id) so the per-card
  * appear animation doesn't replay on unrelated list changes and the input

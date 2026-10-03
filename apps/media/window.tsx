@@ -199,7 +199,7 @@ export function clearStillCache(): void {
 /** Decode `path` at a display cap: never larger than `maxW`x`maxH` device px.
  *
  *  Why: a decoded still is retained by the renderer for roughly TWICE its pixel
- *  bytes and never returned (measured: 0.5 MP -> ~0.55 MB, 5.2 MP -> ~29 MB per
+ *  bytes and never returned (0.5 MP -> ~0.55 MB, 5.2 MP -> ~29 MB per
  *  distinct image). A 2880x1800 screenshot shown in a 630x450 window never uses
  *  those pixels on screen, so decoding them is pure retention; 1:1 zoom is the
  *  one view that does, and it decodes full size then (see applyStillTexture).

@@ -1,7 +1,7 @@
 /**
  * dock/screengrab/capture.ts — capture backend for the screen grab applet.
  *
- * Tools (verified on this machine): grim (stills, -g region, -t format,
+ * Tools: grim (stills, -g region, -t format,
  * -q jpeg quality, -c cursor), slurp (region selection, prints "x,y WxH"),
  * wf-recorder (video, -g region, -r framerate, -c codec, -p codec params,
  * SIGINT for the graceful stop), hyprctl (focused monitor / active window

@@ -212,7 +212,7 @@ function storedDnd(): boolean {
 const [dndEnabled, setDndEnabledState] = createState<boolean>(storedDnd())
 
 /**
- * Carry DND across from the config file it used to be persisted in.
+ * Carry DND across from the config key.
  *
  * The store's own value wins when it has one; otherwise the `dnd.enabled` key a
  * pre-store build wrote is copied across, so the mode the desktop is in does

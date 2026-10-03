@@ -6,8 +6,8 @@
  * glyph map. Errors NEVER throw out of the app: every operation returns
  * `{ ok, error? }` and the window surfaces failures in the status bar.
  *
- * Verified on this machine:
- *  - gvfs is NOT installed, yet `Gio.File.trash` works on real filesystems
+ * Traps:
+ *  - gvfs is not installed, yet `Gio.File.trash` works on real filesystems
  *    (ext4 → ~/.local/share/Trash) via GLib's built-in local trash. It fails
  *    with "Trashing on system internal mounts is not supported" on tmpfs
  *    (/tmp) — that failure surfaces as a status-bar error, never a crash.

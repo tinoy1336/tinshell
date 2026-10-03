@@ -779,10 +779,8 @@ function createEditorWindow(): EditorHandle {
   click.group(drag)
 
   // A drag still ends with a GestureClick release on this GTK — grouping does
-  // NOT suppress it. Without this flag every pen/highlighter drag leaves a
-  // phantom single-point dot on the stack (pushed at the release point, hidden
-  // under the stroke the user drew), which is why undo appeared to need two
-  // presses: the first popped the invisible dot, the second removed the stroke.
+  // NOT suppress it, so without this flag every pen/highlighter drag pushes a
+  // phantom single-point dot at the release point, hidden under the stroke.
   // Reset on click-press (which fires before the drag threshold is crossed),
   // so the released handler knows which gesture owned the sequence.
   let draggedThisPress = false
