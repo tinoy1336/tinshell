@@ -153,13 +153,13 @@ contract below — METADATA only, payload behind one explicit opt-in.
 
 | Path | Answers |
 | --- | --- |
-| `clipboard toggle/show/hide` | picker visibility |
+| `clipboard toggle` / `clipboard show` / `clipboard hide` | picker visibility |
 | `clipboard focus-search` | focus the search entry |
 | `clipboard history [<limit>]` | entry METADATA, newest first (default 20) |
 | `clipboard entry <id> [--reveal]` | one entry's METADATA; with `--reveal`, that entry's payload |
 | `clipboard clear` | clear all (pins survive by design) |
 | `clipboard delete <id>` | delete one entry |
-| `clipboard pin/unpin <id>` | pin an entry (survives clearing) |
+| `clipboard pin` / `clipboard unpin` `<id>` | pin an entry (survives clearing) |
 | `clipboard debug` | capture-loop state + entry/pin COUNTS |
 | `clipboard config get/set/reload` | live config via facade |
 

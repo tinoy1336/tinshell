@@ -164,7 +164,7 @@ All registered PREFIXED (`["launcher", …]`) — same paths in shell and island
 
 | Path | Purpose |
 | --- | --- |
-| `launcher toggle/show/hide` | open/close the popup |
+| `launcher toggle` / `launcher show` / `launcher hide` | open/close the popup |
 | `launcher emoji` | the emoji keybind contract (see "Emoji mode") |
 | `launcher emoji-insert <glyph>` | insert without the row/grid (live + debug entry) |
 | `launcher emoji-debug` | emoji introspection JSON (table size, mode, typer, grid, recents) |

@@ -55,6 +55,15 @@
  *   - css-class-undefined misses classes composed at runtime from config; treat
  *     every hit as a question. css-rule-unused cannot see GTK state selectors
  *     applied by widget code and over-reports.
+ *   - command-undocumented / command-doc-only compare registered paths against
+ *     the app's AGENTS.md. A registered path reached through a helper that
+ *     takes the app prefix (`registerConfigCommands("<app>", …)`,
+ *     `registerBuildStampRequest("<app>", …)`) counts as registered; a helper
+ *     this list does not name reads as unregistered. A documented command is a
+ *     code span (`app cmd`), a request string (`request "app cmd …"`) or the
+ *     first cell of the app's own `| Command | … |` table, where the file names
+ *     the app so the cell may carry a bare verb. Two verbs joined in one span
+ *     (`clipboard toggle/show/hide`) document only the first.
  *   - doc-stale-ref only sees path-like tokens that carry a directory prefix;
  *     a bare `foo.ts` mention is ignored.
  *   - duplicate-impl compares AST node-kind sequences, so two functions with the
@@ -398,6 +407,23 @@ for (const sf of projectFiles) {
       line: sf.getLineAndCharacterOfPosition(m.index).line + 1,
     })
   }
+  // Helpers that register a path of their own for the prefix they are handed:
+  // the literal-call scan above cannot see them.
+  for (const [helper, verb] of [
+    ["registerConfigCommands", "config"],
+    ["registerBuildStampRequest", "debug"],
+  ] as const) {
+    const helperRe = new RegExp(`${helper}\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g")
+    let hm: RegExpExecArray | null
+    while ((hm = helperRe.exec(sf.text)) !== null) {
+      registered.push({
+        app: hm[1],
+        path: [hm[1], verb],
+        file: rel(sf.fileName),
+        line: sf.getLineAndCharacterOfPosition(hm.index).line + 1,
+      })
+    }
+  }
 }
 const registeredByApp = new Map<string, Set<string>>()
 for (const c of registered) {
@@ -412,15 +438,37 @@ for (const app of appsDirs) {
   const agentsPath = join(APPS_DIR, app, "AGENTS.md")
   if (!existsSync(agentsPath)) continue
   const doc = readFileSync(agentsPath, "utf8")
-  // A documented command is written in a code span (`app cmd`) or inside a
-  // request string ("app cmd ...") — bare prose after the app name is not a
-  // command, so only those two shapes count.
+  // A documented command is written in a code span (`app cmd`), inside a
+  // request string (`request "app cmd ..."`), or as the first cell of the
+  // app's own `| Command | … |` table — where the app is named by the file, so
+  // a bare `` `cmd` `` counts. Bare prose after the app name is not a command.
   const esc = app.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   const docTokens = new Set<string>()
-  for (const src of [`\`${esc}\\s+([a-z][a-z0-9-]*)`, `"${esc}\\s+([a-z][a-z0-9-]*)`]) {
+  for (const src of [
+    `\`${esc}\\s+([a-z][a-z0-9-]*)`,
+    `request\\s+"${esc}\\s+([a-z][a-z0-9-]*)`,
+  ]) {
     const re = new RegExp(src, "g")
     let m: RegExpExecArray | null
     while ((m = re.exec(doc)) !== null) docTokens.add(m[1])
+  }
+  let inCommandTable = false
+  for (const line of doc.split("\n")) {
+    if (/^\|\s*Command\b/i.test(line)) {
+      inCommandTable = true
+      continue
+    }
+    if (!inCommandTable) continue
+    if (!line.startsWith("|")) {
+      inCommandTable = false
+      continue
+    }
+    const cell = /^\|\s*((?:\\.|[^|])*)\|/.exec(line)?.[1] ?? ""
+    for (const span of cell.matchAll(/`([^`]+)`/g)) {
+      const words = span[1].replace(/^`+|`+$/g, "").trim().split(/\s+/)
+      const head = words[0] === app ? words[1] : words[0]
+      if (head && /^[a-z][a-z0-9-]*$/.test(head)) docTokens.add(head)
+    }
   }
   const reg = registeredByApp.get(app) ?? new Set<string>()
   const regTokens = new Set([...reg].map((p) => p.split(" ")[0]).filter(Boolean))

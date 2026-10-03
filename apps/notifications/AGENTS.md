@@ -141,7 +141,7 @@ All registered PREFIXED (`["notifications", …]`):
 | --- | --- |
 | `notifications ping` | alive check (pong) |
 | `notifications dnd get/set` | read/write DND through its ONE owner in `Notifd` (`setDndEnabled`: the reactive state + the daemon's `dont_disturb` + the durable value in the app's state store). `get` answers the owner's live state, not a file. DND has no config key |
-| `notifications toggle-centre/show-centre/hide-centre` | control centre |
+| `notifications toggle-centre` / `notifications show-centre` / `notifications hide-centre` | control centre |
 | `notifications close-all` | dismiss every live notification AND wipe the history (the one path that empties the centre's list) |
 | `notifications dismiss` | dismiss one notification — it leaves the screen, its history entry stays |
 | `notifications forget` | dismiss one notification and drop its history entry |

@@ -97,7 +97,7 @@ All registered PREFIXED (`["keyboard", …]`):
 
 | Path | Purpose |
 | --- | --- |
-| `keyboard toggle/show/hide` | surface visibility |
+| `keyboard toggle` / `keyboard show` / `keyboard hide` | surface visibility |
 | `keyboard ping` | alive check (pong) |
 | `keyboard rebuild` | rebuild the key rows (layout/keyScale changes) |
 | `keyboard status` | state line (layout, showMode, visibility, shift/caps, …) |
