@@ -243,7 +243,11 @@ export default function Prompt() {
     out.put_string(`${password}\n`, null)
     out.close(null)
     file.set_attribute_uint32("unix::mode", 0o600, Gio.FileQueryInfoFlags.NONE, null)
-    return file.get_path()!
+    const path = file.get_path()
+    // A GFile from new_tmp always carries a path; refuse loudly rather than
+    // write a password to something we cannot name.
+    if (!path) throw new Error("askpass temp file has no path")
+    return path
   }
 
   /** `sudo -n -v` — is the credential cache still valid? Non-interactive,
@@ -265,15 +269,16 @@ export default function Prompt() {
         resolve(false)
       }, 8000)
       try {
-        proc = Gio.Subprocess.new(
+        const handle = Gio.Subprocess.new(
           ["sudo", "-n", "-v"],
           Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE,
         )
-        proc.wait_check_async(null, (_p: any, res: any) => {
+        proc = handle
+        handle.wait_check_async(null, (_p: any, res: any) => {
           clearTimeout(timer)
           let ok = false
           try {
-            ok = proc!.wait_check_finish(res)
+            ok = handle.wait_check_finish(res)
           } catch {
             ok = false
           }
@@ -331,10 +336,16 @@ export default function Prompt() {
    *  The spinner appears at the end of the glyph row while locked and
    *  eases away after release (comes and goes, never permanent). */
   function setValidatingUI(on: boolean): void {
+    const eye = eyeGlyph
+    const x = xGlyph
+    const check = checkGlyph
+    // The three glyph buttons are built with the window; the lock only has a
+    // meaning once they exist (a request cannot arrive before the build).
+    if (!eye || !x || !check) return
     entry.sensitive = !on
-    eyeGlyph!.sensitive = !on
-    xGlyph!.sensitive = !on
-    checkGlyph!.sensitive = !on
+    eye.sensitive = !on
+    x.sensitive = !on
+    check.sensitive = !on
     if (on) {
       spinner.widget.visible = true
       spinner.setSpinning(true)

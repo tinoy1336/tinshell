@@ -95,7 +95,8 @@ export function keyboardMount(): void {
     })
 
   // Dynamic tokens (config.appearance.*) via a display-level provider.
-  kbRefreshCss()
+  const refreshCss = kbRefreshCss
+  refreshCss()
 
   // Build the window once; expose its control surface to the dispatcher.
   const kbWin = kbBuildWindow()
@@ -109,7 +110,7 @@ export function keyboardMount(): void {
   // subtree changes.
   kbOnConfigChanged(() => {
     kbWin.rebuild()
-    kbRefreshCss!()
+    refreshCss()
   })
 }
 

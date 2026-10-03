@@ -377,6 +377,9 @@ function makeKey(k: KeyDef, fill = false): Gtk.Widget {
   // drives both tap and swipe — a co-located GestureClick rejects sibling drag
   // gestures on this gjs build.
   if (k.swipeKeysym) {
+    // Captured from the guard: the gesture callbacks below close over it, and
+    // a controller only exists for a key that declares a swipe symbol.
+    const swipe = k.swipeKeysym
     let swiped = false
     const drag = new Gtk.GestureDrag()
     drag.connect("drag-begin", () => {
@@ -386,7 +389,7 @@ function makeKey(k: KeyDef, fill = false): Gtk.Widget {
     drag.connect("drag-update", (_g: any, offsetX: number, _offsetY: number) => {
       if (!swiped && Math.abs(offsetX) > 30) {
         swiped = true
-        sendKey(k.swipeKeysym!)
+        sendKey(swipe)
       }
     })
     drag.connect("drag-end", () => {
@@ -503,14 +506,15 @@ function buildRow(row: RowDef, rowIdx: number, isThumbs: boolean): Gtk.Widget {
 }
 
 function rebuild(): void {
-  if (!root) return
+  const box = root
+  if (!box) return
   const name = storedLayout()
   layoutName = name
   keyWidgets.length = 0
-  let child = root.get_first_child()
+  let child = box.get_first_child()
   while (child) {
-    root.remove(child)
-    child = root.get_first_child()
+    box.remove(child)
+    child = box.get_first_child()
   }
   const layout = getLayout(name)
   if (!layout) {
@@ -520,7 +524,7 @@ function rebuild(): void {
   const rows = activeRows(layout)
   const isThumbs = name === "thumbs"
   rows.forEach((r, i) => {
-    root!.append(buildRow(r, i, isThumbs))
+    box.append(buildRow(r, i, isThumbs))
   })
   updateState()
   // Force the layer surface to re-commit at the content's natural size. The
