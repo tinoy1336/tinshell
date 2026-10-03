@@ -135,7 +135,9 @@ for (const carrier of CARRIERS) {
     drifted += 1
     continue
   }
-  console.error(`render-failed ${carrier.name}: the render could not happen (exit ${run.status ?? "signal"})`)
+  console.error(
+    `render-failed ${carrier.name}: the render could not happen (exit ${run.status ?? "signal"})`,
+  )
   failed += 1
 }
 
