@@ -616,7 +616,8 @@ export function menuEntryRow(opts: {
     return false
   })
   entry.add_controller(keyCtrl)
-  if (opts.onChange) entry.connect("changed", () => opts.onChange!(entry.get_text()))
+  const onChange = opts.onChange
+  if (onChange) entry.connect("changed", () => onChange(entry.get_text()))
   box.append(entry)
   // Show/hide eyeball (password entries): hidden by default, click toggles.
   // Same hover treatment as every menu emoji — brighten + accent glow.

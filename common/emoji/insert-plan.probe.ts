@@ -123,7 +123,13 @@ async function main(): Promise<void> {
   await run("no typer installed", { ...base, wtypeAvailable: false, ydotoolAvailable: false })
   await run("clipboard write fails", { ...base }, { throwOnCopy: true })
 
-  const byName = (n: string): Row => rows.find((r) => r.name === n)!
+  const byName = (n: string): Row => {
+    const row = rows.find((r) => r.name === n)
+    // A missing row is a broken fixture, not a failed assertion: name it.
+    if (!row)
+      throw new Error(`no probe row named '${n}' (have: ${rows.map((r) => r.name).join(", ")})`)
+    return row
+  }
 
   // Every row except the failed-write row MUST have put the glyph on the
   // clipboard — that is the copy floor the earlier code skipped.

@@ -134,12 +134,13 @@ export function createAppletCore(aw: AppletWindow, opts: AppletCoreOpts): Applet
 
   /** Ease the icon's displayed value toward the current backend value. */
   function startRingAnim(): void {
-    if (!opts.getValue) return
+    const getValue = opts.getValue
+    if (!getValue) return
     clearRingAnim()
     ringRunner = runFrames(
       icon,
       () => {
-        const target = opts.getValue!()
+        const target = getValue()
         const diff = target - ringValue
         if (Math.abs(diff) < 0.3) {
           ringValue = target

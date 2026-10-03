@@ -545,7 +545,8 @@ function createPill(opts: PillConfig): PillCore {
   // model.centreYFor lands content at the same Y as the pill paint. Registered
   // AFTER the icon so Gtk.Overlay stacks it on top of the disc.
   let foreground: Gtk.DrawingArea | null = null
-  if (opts.paintForeground) {
+  const paintForeground = opts.paintForeground
+  if (paintForeground) {
     foreground = (
       <drawingarea
         valign={pillValign}
@@ -577,7 +578,7 @@ function createPill(opts: PillConfig): PillCore {
               cr.rectangle(0, topY, w, oh)
               cr.clip()
             }
-            opts.paintForeground!(cr, pw, ph, {
+            paintForeground(cr, pw, ph, {
               topY,
               semiR: IS(config) / 2,
               iconCentreY: 0,
@@ -1305,7 +1306,8 @@ interface ContinuousOpts {
 }
 
 export function continuousPanel(opts: ContinuousOpts): Panel {
-  const stepFn = opts.step ? (v: number) => Math.round(v / opts.step!) * opts.step! : undefined
+  const step = opts.step
+  const stepFn = step ? (v: number) => Math.round(v / step) * step : undefined
   const snap = (v: number) => clamp(stepFn ? stepFn(v) : Math.round(v), 0, 100)
   const model = makeModel(opts.config, 0, 100, opts.dockGeometry, snap)
 
