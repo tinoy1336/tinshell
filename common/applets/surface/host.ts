@@ -22,7 +22,7 @@
  */
 
 import type { CairoRegion } from "@common/applets/utils/row-region"
-import type { Gtk } from "ags/gtk4"
+import { Gtk } from "ags/gtk4"
 
 /** Raw pointer events, already mapped into the renderer's coordinate space
  *  (surface-local: row-axis band offsets + grow axis from the grow edge). The
@@ -34,6 +34,23 @@ export interface AppletSurfacePointer {
   leave: () => void
   /** A press inside the host's bounds — the touch tap-to-open path. */
   press: (x: number, y: number) => void
+}
+
+/** Wire a substrate's pointer source: one row-level EventControllerMotion plus
+ *  a GestureClick forward enter/leave/motion/press into the renderer's router in
+ *  surface-local coordinates. `target` is whatever receives the events for that
+ *  substrate — the dock's layer window, the greeter's strip container — which is
+ *  why the wiring is shared here and only the target differs. */
+export function connectSurfacePointer(target: Gtk.Widget, sink: AppletSurfacePointer): void {
+  const motion = new Gtk.EventControllerMotion()
+  motion.connect("enter", (_c: any, x: number, y: number) => sink.enter(x, y))
+  motion.connect("motion", (_c: any, x: number, y: number) => sink.motion(x, y))
+  motion.connect("leave", () => sink.leave())
+  target.add_controller(motion)
+
+  const click = new Gtk.GestureClick()
+  click.connect("pressed", (_c: any, _n: number, x: number, y: number) => sink.press(x, y))
+  target.add_controller(click)
 }
 
 export interface AppletSurfaceHost {

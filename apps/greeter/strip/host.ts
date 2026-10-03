@@ -14,7 +14,11 @@
  * and pointer semantics are the renderer's.
  */
 
-import type { AppletSurfaceHost, AppletSurfacePointer } from "@common/applets/surface/host"
+import {
+  type AppletSurfaceHost,
+  type AppletSurfacePointer,
+  connectSurfacePointer,
+} from "@common/applets/surface/host"
 import { Gtk } from "ags/gtk4"
 
 interface StripHostOptions {
@@ -72,15 +76,7 @@ export function createGreeterStripHost(opts: StripHostOptions): GreeterStripHost
     // children — open panel pills included — arrive with the same
     // surface-local coordinates.
     connectPointer: (sink: AppletSurfacePointer) => {
-      const motion = new Gtk.EventControllerMotion()
-      motion.connect("enter", (_c: any, x: number, y: number) => sink.enter(x, y))
-      motion.connect("motion", (_c: any, x: number, y: number) => sink.motion(x, y))
-      motion.connect("leave", () => sink.leave())
-      container.add_controller(motion)
-
-      const click = new Gtk.GestureClick()
-      click.connect("pressed", (_c: any, _n: number, x: number, y: number) => sink.press(x, y))
-      container.add_controller(click)
+      connectSurfacePointer(container, sink)
     },
     // Nothing to commit: the renderer already repaints its own widgets.
     repaint: () => {},

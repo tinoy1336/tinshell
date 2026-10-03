@@ -22,7 +22,8 @@
  */
 
 import type { DockGeometry } from "@common/applets/layout"
-import type { AppletSurfaceHost, AppletSurfacePointer } from "@common/applets/surface/host"
+import type { AppletSurfaceHost } from "@common/applets/surface/host"
+import { connectSurfacePointer } from "@common/applets/surface/host"
 import { type AppletSurface, createAppletSurface } from "@common/applets/surface/surface"
 import { ignore } from "@common/log/logger"
 import { Astal, type Gdk, Gtk } from "ags/gtk4"
@@ -43,20 +44,6 @@ function applySurfaceMargins(win: any, g: DockGeometry, start: number): void {
     if (g.growDir < 0) win.set_margin_right?.(m.right)
     else win.set_margin_left?.(m.left)
   }
-}
-
-/** The window-level pointer source: one row-level EventControllerMotion +
- *  GestureClick forward enter/leave/motion/press into the shared router. */
-function connectSurfacePointer(window: any, sink: AppletSurfacePointer): void {
-  const motion = new Gtk.EventControllerMotion()
-  motion.connect("enter", (_c: any, x: number, y: number) => sink.enter(x, y))
-  motion.connect("motion", (_c: any, x: number, y: number) => sink.motion(x, y))
-  motion.connect("leave", () => sink.leave())
-  window.add_controller(motion)
-
-  const click = new Gtk.GestureClick()
-  click.connect("pressed", (_c: any, _n: number, x: number, y: number) => sink.press(x, y))
-  window.add_controller(click)
 }
 
 export function createDockSurface(gdkmonitor: Gdk.Monitor, g: DockGeometry): AppletSurface {
