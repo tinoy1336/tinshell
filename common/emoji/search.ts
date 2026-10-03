@@ -15,7 +15,10 @@ import { fuzzyScore, rank } from "@common/text"
 import { EMOJI, type EmojiEntry } from "./data"
 import { recentGlyphs, topGlyphs } from "./recency"
 
-/** Noise floor: short/partial subsequence hits below this never surface. */
+/** Noise floor: short/partial subsequence hits below this never surface. It is
+ *  an absolute cut on a score whose weights are hand-tuned (common/text), so a
+ *  change to that scorer shifts it for every query — re-check the cut with the
+ *  scorer, or move the cut to a rank position instead. */
 const MIN_SCORE = 25
 
 const BY_GLYPH = new Map<string, EmojiEntry>(EMOJI.map((e) => [e.glyph, e]))

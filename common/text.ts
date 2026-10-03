@@ -8,8 +8,16 @@
  * Per-field weighting is applied by the caller: a name hit is worth ~10x a
  * description hit.
  *
+ * The bonus weights are hand-tuned against the surfaces' own rows rather than
+ * against a corpus, and the penalty below applies only on the subsequence path
+ * — an exact substring scores on its position alone, so the fast path is a
+ * strong signal at any text length. Cost is O(text × query) per item plus the
+ * sort in `rank`. Upgrade path if the order stops looking right: score a
+ * labelled query set and re-tune the weights, or replace the scorer behind
+ * `rank`'s callback without touching a caller.
+ *
  * Pure module (no gi:// imports) so it is also usable from a plain-Node
- * harness.
+ * harness (`common/text.probe.ts`).
  */
 
 /**
