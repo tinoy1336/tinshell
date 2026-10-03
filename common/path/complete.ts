@@ -6,6 +6,9 @@
  * pattern query (`isGlobQuery`) is answered by `globPath`. `isPathShaped` is
  * the shared path-shape rule a surface gates its completion on.
  *
+ * Every form is pinned against a fixture directory by
+ * `common/path/complete.probe.ts` (bundled).
+ *
  * RUNTIME CONTRACT (gjs 1.88.1): the
  * Gio async methods have NO Promise overloads despite the @girs .d.ts, and
  * FileEnumerator has NO sync `next_files()` (TypeError — only the singular
