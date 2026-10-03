@@ -112,17 +112,13 @@ const ROUTER = GLib.build_filenamev([GLib.get_home_dir(), ".local", "bin", "tins
  *  zombie shape — GOTCHA 15). */
 const browsers: BrowserHandle[] = []
 
-/** The window per-window requests act on: the compositor-activated one
- *  (`notify::is-active`, wired per window), else the newest. */
+/** The window the compositor last activated (`notify::is-active`, wired per
+ *  window); the newest is the fallback. */
 let lastFocused: BrowserHandle | null = null
-
-function activeBrowser(): BrowserHandle | null {
-  return lastFocused ?? browsers[browsers.length - 1] ?? null
-}
 
 /** The window a per-window request acts on (null when none is open). */
 export function getBrowser(): BrowserHandle | null {
-  return activeBrowser()
+  return lastFocused ?? browsers[browsers.length - 1] ?? null
 }
 
 /** Make `b` the request target (called on present and on compositor
@@ -138,7 +134,7 @@ function focus(b: BrowserHandle): void {
  *  so the app must NOT also issue a bus request on cold start (double-open). */
 export function openPath(path?: string): void {
   const target = path ? absolutePath(path) : startupDir()
-  const existing = activeBrowser()
+  const existing = getBrowser()
   if (existing) {
     existing.frame.present()
     focus(existing)
@@ -156,7 +152,7 @@ export function newBrowserWindow(path?: string): void {
 /** Close the window a request acts on (`files close`). False when none is
  *  open, so the handler can reply `error: no window`. */
 export function closeActiveBrowser(): boolean {
-  const b = activeBrowser()
+  const b = getBrowser()
   if (!b) return false
   b.frame.close()
   return true

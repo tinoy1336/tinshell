@@ -16,7 +16,7 @@
  * mode falls back to the recents glyphs.
  */
 import type { EmojiEntry } from "@common/emoji/data"
-import { beginPick, type InsertSettings, insertGlyph, resetTarget } from "@common/emoji/insert"
+import { type InsertSettings, insertGlyph } from "@common/emoji/insert"
 import type { InsertMode, TargetInfo, Typer } from "@common/emoji/insert-plan"
 import { recordGlyph } from "@common/emoji/recency"
 import { recentEntries, searchEntries, tableSize, topEntries } from "@common/emoji/search"
@@ -125,16 +125,6 @@ export function emojiInsertSettings(): InsertSettings {
     delayMs: Math.max(0, get<number>("insert.delayMs", 140)),
     restoreDelayMs: Math.max(0, get<number>("insert.restoreDelayMs", 350)),
   }
-}
-
-/** Capture the focused window for the launcher's pick (the pick owns it). */
-export function emojiBeginPick(): Promise<TargetInfo | null> {
-  return beginPick()
-}
-
-/** Drop any scheduled insertion (a new launcher session supersedes it). */
-export function emojiCancelPick(): void {
-  resetTarget()
 }
 
 /** Record a pick in the shared usage store; a store failure never blocks. */

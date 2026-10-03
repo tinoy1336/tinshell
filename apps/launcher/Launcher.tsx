@@ -47,6 +47,7 @@ import Pango from "gi://Pango"
 import { easeCubicInOut, easeOutCubic } from "@common/anim/easings"
 import { type FrameRunner, runFrames } from "@common/anim/run-frames"
 import type { EmojiEntry } from "@common/emoji/data"
+import { beginPick, resetTarget } from "@common/emoji/insert"
 import type { TargetInfo } from "@common/emoji/insert-plan"
 import { createSpinnerGlyph } from "@common/glyph/spinner"
 import { ignore } from "@common/log/logger"
@@ -75,8 +76,6 @@ import type { LauncherControl } from "./commands"
 import { get } from "./config"
 import {
   EMOJI_ROW_PITCH,
-  emojiBeginPick,
-  emojiCancelPick,
   emojiColumns,
   emojiGridHeight,
   emojiInsert,
@@ -318,7 +317,7 @@ export default function Launcher() {
     ctrlHeld = false
     combiner.cancel()
     // Any insertion this session still had scheduled is stale.
-    emojiCancelPick()
+    resetTarget()
     // The commit buffer dies with the card: Escape / click-outside /
     // focus-loss discard it (a commit clears it before calling hide()).
     pendingGlyphs = []
@@ -347,7 +346,7 @@ export default function Launcher() {
     // scheduled after hide(). A pick that beats the probe degrades to
     // copy-only, never to a wrong target.
     pickTarget = null
-    void emojiBeginPick().then((t) => {
+    void beginPick().then((t) => {
       pickTarget = t
     })
     win.visible = true
