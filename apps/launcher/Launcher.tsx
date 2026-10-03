@@ -784,7 +784,7 @@ export default function Launcher() {
   // row's optional action (runPrime/runStack), falls back to plain activate
   // when the row has none, and logs with the caller's tag.
   function activateSelectedWith(
-    pick: (r: Result) => (() => boolean | void) | undefined,
+    pick: (r: Result) => (() => boolean | undefined) | undefined,
     tag: string,
   ): { selected: number; count: number; ran: boolean } {
     const sel = selected.peek()

@@ -117,9 +117,10 @@ export function registerConfigCommands(
     res("reloaded")
   })
 
-  if (api.all) {
+  const all = api.all
+  if (all) {
     register([prefix, "config", "all"], (_t, res) => {
-      res(JSON.stringify(api.all!()))
+      res(JSON.stringify(all()))
     })
   }
 }

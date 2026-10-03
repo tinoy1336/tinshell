@@ -65,7 +65,8 @@ export function fileSink(path = "/tmp/tinshell-debug.log"): Sink {
     const s = stream
     if (!s) return
     writing = true
-    const line = queue.shift()!
+    const line = queue.shift()
+    if (line === undefined) return // guarded above: an empty queue returned
     try {
       // (1) io_priority must be GLib.PRIORITY_DEFAULT, not null (gjs rejects
       // null → silent 0-byte files on dock AND notes); (2) the buffer must be
@@ -122,7 +123,8 @@ function pumpPath(path: string): void {
   const q = pathQueues.get(path)
   if (!s || !q || q.length === 0) return
   pathWriting.set(path, true)
-  const line = q.shift()!
+  const line = q.shift()
+  if (line === undefined) return // guarded above: an empty queue returned
   try {
     // Same rule as fileSink's pump: io_priority must be GLib.PRIORITY_DEFAULT
     // (null → silent 0-byte files) and the buffer must be wrapped in

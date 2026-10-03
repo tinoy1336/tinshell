@@ -23,7 +23,7 @@ export interface Result {
    * Invoked on Enter. Returns true if the launcher should hide after
    * (the common case — launch/copy/close). False = keep open.
    */
-  run: () => boolean | void
+  run: () => boolean | undefined
   /**
    * Emoji mode: the glyphs this row expands into (category "emoji" only).
    * The row is a normal-height result until selected; on selection its widget
@@ -42,12 +42,12 @@ export interface Result {
    * Optional secondary action: launch on the NVIDIA dGPU via prime-run
    * (app rows only). The row renders a small button when present.
    */
-  runPrime?: () => boolean | void
+  runPrime?: () => boolean | undefined
   /**
    * Optional secondary action: launch the app FLOATING (stacked on top of
    * the tiled layout), via Shift+Enter. App rows only.
    */
-  runStack?: () => boolean | void
+  runStack?: () => boolean | undefined
 }
 
 /** Async sources return this: sync results immediately, optional async batch. */

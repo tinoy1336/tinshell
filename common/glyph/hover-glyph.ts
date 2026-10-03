@@ -56,9 +56,10 @@ export function hoverGlyph(opts: HoverGlyphOpts): {
   let hover = false
   da.set_draw_func((_d: any, cr: any, w: number, h: number) => {
     const emoji = typeof opts.emoji === "function" ? opts.emoji() : opts.emoji
-    const hov = hover && !opts.flat && !!opts.hover
-    if (hov) {
-      const g = opts.hover!.glow
+    const hoverOpts = opts.hover
+    const hov = hover && !opts.flat && !!hoverOpts
+    if (hov && hoverOpts) {
+      const g = hoverOpts.glow
       // SUBTLE: a soft halo sized to the glyph box, not a disc.
       const glow = new (cairo as any).RadialGradient(w / 2, h / 2, 0.5, w / 2, h / 2, w / 2)
       const a = opts.hover!.glowAlpha ?? 0.22
@@ -70,7 +71,7 @@ export function hoverGlyph(opts: HoverGlyphOpts): {
       cr.fill()
     }
     const rest = opts.rest
-    const c = hov ? opts.hover!.colour : rest
+    const c = hov && hoverOpts ? hoverOpts.colour : rest
     cr.selectFontFace(opts.fontFamily, 0, 0)
     cr.setFontSize(opts.fontSize)
     const ext = cr.textExtents(emoji)
@@ -91,9 +92,10 @@ export function hoverGlyph(opts: HoverGlyphOpts): {
     da.add_controller(motion)
   }
   if (opts.onClick) {
+    const onClick = opts.onClick
     const click = new Gtk.GestureClick()
     click.connect("pressed", () => {
-      opts.onClick!()
+      onClick()
       da.queue_draw()
     })
     da.add_controller(click)

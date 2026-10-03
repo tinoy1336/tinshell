@@ -85,8 +85,10 @@ async function readMemInfo(): Promise<{ total: number; available: number }> {
   let total = 0
   let available = 0
   for (const line of data.split("\n")) {
-    if (line.startsWith("MemTotal:")) total = parseInt(line.match(/\d+/)![0]) || 0
-    else if (line.startsWith("MemAvailable:")) available = parseInt(line.match(/\d+/)![0]) || 0
+    const digits = line.match(/\d+/)?.[0]
+    if (!digits) continue // a line without a number carries no reading
+    if (line.startsWith("MemTotal:")) total = parseInt(digits) || 0
+    else if (line.startsWith("MemAvailable:")) available = parseInt(digits) || 0
     if (total > 0 && available > 0) break
   }
   return { total, available }
