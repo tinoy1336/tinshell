@@ -99,7 +99,7 @@ export function createPathAutofill(opts: PathAutofillOpts): PathAutofill {
     // starts AFTER the dir separator (no double slash in the result).
     const expanded = expandPath(committedPath)
     const committedExpanded =
-      committedPath.endsWith("/") && !expanded.endsWith("/") ? expanded + "/" : expanded
+      committedPath.endsWith("/") && !expanded.endsWith("/") ? `${expanded}/` : expanded
     // Case-insensitive: a candidate's real casing may differ from what was
     // typed (Pictures under ~/pict), and a case-sensitive test falls through to
     // the name-append fallback, yielding ~/pictPictures/ instead of ~/Pictures/.

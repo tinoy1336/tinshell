@@ -167,7 +167,7 @@ export default function SessionPicker(sessions: SessionEntry[]): SessionPickerRe
       {sessions.map((s) => (
         // biome-ignore lint/a11y/useButtonType: TINSHELL GTK4 Button widget (no HTML type prop)
         <button
-          class={"greeter-session-btn" + (selected?.id === s.id ? " selected" : "")}
+          class={`greeter-session-btn${selected?.id === s.id ? " selected" : ""}`}
           label={s.name}
           $={(b) => {
             buttons.push({ button: b, id: s.id })

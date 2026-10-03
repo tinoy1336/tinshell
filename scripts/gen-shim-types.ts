@@ -78,7 +78,7 @@ function generatedDigest(): string {
   return digest(OUT, files)
 }
 
-function run(argv: string[], label: string): { status: number | null; output: string } {
+function run(argv: string[], _label: string): { status: number | null; output: string } {
   const res = spawnSync(process.execPath, argv, { cwd: ROOT, encoding: "utf8" })
   if (res.error) throw res.error
   return { status: res.status, output: `${res.stdout ?? ""}${res.stderr ?? ""}` }

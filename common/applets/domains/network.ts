@@ -63,7 +63,7 @@ async function readCounters(name: string): Promise<[number, number] | null> {
   const dev = await readFileAsync("/proc/net/dev")
   if (!dev) return null
   for (const line of dev.split("\n")) {
-    if (line.trim().startsWith(name + ":")) {
+    if (line.trim().startsWith(`${name}:`)) {
       return parseCounters(line)
     }
   }

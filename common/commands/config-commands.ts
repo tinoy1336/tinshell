@@ -100,7 +100,7 @@ export function registerConfigCommands(
   register([prefix, "config", "get"], (tokens, res) => {
     if (!tokens[0]) return res("error: usage: config get <dotted.path>")
     const v = api.get(tokens[0])
-    res(v === undefined ? "error: unknown path: " + tokens[0] : JSON.stringify(v))
+    res(v === undefined ? `error: unknown path: ${tokens[0]}` : JSON.stringify(v))
   })
 
   register([prefix, "config", "set"], (tokens, res) => {

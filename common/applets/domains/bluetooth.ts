@@ -5,7 +5,7 @@ import { createStateStore } from "@common/state"
 
 const BLUEZ = "org.bluez"
 const BLUEZ_ROOT = "/org/bluez"
-const ADAPTER_PATH = BLUEZ_ROOT + "/hci0"
+const ADAPTER_PATH = `${BLUEZ_ROOT}/hci0`
 const ADAPTER_IFACE = "org.bluez.Adapter1"
 const DEVICE_IFACE = "org.bluez.Device1"
 
@@ -113,7 +113,7 @@ function anyConnectedDevice(): Promise<boolean> {
             Record<string, Record<string, unknown>>,
           ]
           for (const [path, ifaces] of Object.entries(objects) as [string, any][]) {
-            if (!path.startsWith(ADAPTER_PATH + "/dev_")) continue
+            if (!path.startsWith(`${ADAPTER_PATH}/dev_`)) continue
             const device = ifaces[DEVICE_IFACE]
             if (device?.Connected?.unpack?.() ?? device?.Connected) {
               resolve(true)
@@ -146,7 +146,7 @@ export function subscribeBluetoothStatus(onChange: () => void): () => void {
     (_c: any, _s: any, path: any, _i: any, _sig: any, params: GLib.Variant) => {
       try {
         const p = path ?? ""
-        if (!p.startsWith(BLUEZ_ROOT + "/")) return
+        if (!p.startsWith(`${BLUEZ_ROOT}/`)) return
         const iface = params.get_child_value(0).get_string()[0]
         if (iface !== ADAPTER_IFACE && iface !== DEVICE_IFACE) return
         onChange()
@@ -212,7 +212,7 @@ export async function listBluetoothDevices(): Promise<BluetoothDevice[]> {
   const objects = await getManagedObjects()
   const devices: BluetoothDevice[] = []
   for (const [path, ifaces] of Object.entries(objects) as [string, any][]) {
-    if (!path.startsWith(ADAPTER_PATH + "/dev_")) continue
+    if (!path.startsWith(`${ADAPTER_PATH}/dev_`)) continue
     const d = ifaces[DEVICE_IFACE]
     if (!d) continue
     const str = (k: string): string => {
@@ -358,7 +358,7 @@ export function pairDevice(path: string): Promise<BluetoothActionResult> {
 // (KeyboardDisplay devices) are NOT supported by this capability.
 // ──────────────────────────────────────────────────────────────────────────
 
-const AGENT_PATH = BLUEZ_ROOT + "/ags_agent"
+const AGENT_PATH = `${BLUEZ_ROOT}/ags_agent`
 const AGENT_MANAGER = "org.bluez.AgentManager1"
 const AGENT_CAPABILITY = "NoInputNoOutput"
 

@@ -1540,7 +1540,7 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
       row.setOverflowPanelOpen(false)
       row.endReveal()
     },
-    onSelect: (step, close) => {
+    onSelect: (step, _close) => {
       switch (step) {
         case 0:
           row.setMode("hide")

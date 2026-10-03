@@ -318,7 +318,7 @@ function loadApp(entry: LazyApp): Promise<boolean> {
  *  later scheduleUnload call can arm a fresh one. */
 export function scheduleUnload(name: string): void {
   const entry = apps.get(name)
-  if (!entry || entry.state.status !== "loaded") return
+  if (entry?.state.status !== "loaded") return
   if (entry.state.timer !== null) return
   const graceMs = entry.cfg.graceMs ?? DEFAULT_GRACE_MS
   if (!Number.isFinite(graceMs) || graceMs <= 0) return // never unload
@@ -336,7 +336,7 @@ export function scheduleUnload(name: string): void {
 /** Cancel a pending grace unload (a new request/window arrived). */
 export function cancelUnload(name: string): void {
   const entry = apps.get(name)
-  if (!entry || entry.state.status !== "loaded") return
+  if (entry?.state.status !== "loaded") return
   if (entry.state.timer !== null) {
     GLib.source_remove(entry.state.timer)
     entry.state.timer = null

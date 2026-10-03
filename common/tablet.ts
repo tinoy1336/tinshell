@@ -326,7 +326,7 @@ export function probeSwitchDevice(): string {
           const m = block.match(/Handlers=([^\n]+)/)
           if (m) {
             const ev = m[1].match(/event\d+/)
-            if (ev) return "/dev/input/" + ev[0]
+            if (ev) return `/dev/input/${ev[0]}`
           }
         }
       }

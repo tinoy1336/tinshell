@@ -1038,7 +1038,7 @@ function createEditorWindow(): EditorHandle {
   function exportPath(src: string): string {
     const dir = GLib.path_get_dirname(src)
     const base = GLib.path_get_basename(src).replace(/\.[^.]+$/, "")
-    return GLib.build_filenamev([dir, base + getConfig("export.suffix") + ".png"])
+    return GLib.build_filenamev([dir, `${base + getConfig("export.suffix")}.png`])
   }
 
   /** Render image + strokes at full size — the ONE export composition, shared by

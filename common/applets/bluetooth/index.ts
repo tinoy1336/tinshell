@@ -49,7 +49,7 @@ function persistState(bluetooth: AppletBackend["bluetooth"], on: boolean): void 
 
 function pickIcon(status: BluetoothStatus | null, config: AppletConfig): string {
   const icons = config.appearance.icons
-  if (!status || !status.enabled) return icons.bluetoothDisabled
+  if (!status?.enabled) return icons.bluetoothDisabled
   if (status.connected) return icons.bluetoothConnected
   return icons.bluetoothIdle
 }

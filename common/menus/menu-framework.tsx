@@ -484,7 +484,7 @@ export function menuRow(opts: MenuRowOpts): Gtk.Widget {
     })
     row.add_controller(motion)
     const click = new Gtk.GestureClick()
-    click.connect("pressed", (_c: any, _n: number, x: number, y: number) => {
+    click.connect("pressed", (_c: any, _n: number, x: number, _y: number) => {
       // A press over the trailing CONTROL zone belongs to the action (trash),
       // not the row — otherwise clicking "forget" would ALSO fire the row's
       // connect/disconnect. The bail covers everything from the trash's LEFT
@@ -1251,7 +1251,7 @@ function ensureMenuShell(monitor: Gdk.Monitor, config: AppletConfig): MenuShell 
   bg.set_size_request(shellW, maxH)
   // Paint only the current panel rect (centred) — the rest of the max-sized
   // surface stays transparent.
-  bg.set_draw_func((_d: any, cr: any, w: number, h: number) => {
+  bg.set_draw_func((_d: any, cr: any, _w: number, _h: number) => {
     if (panelH <= 0) return
     const c = MENU(config).bg
     // Closed: paint the rect at alpha 0 — a real paint keeps the frame
@@ -1559,7 +1559,7 @@ function collectLabelTexts(w: Gtk.Widget, out: string[]): void {
   const t = (w as any).get_text
   if (typeof t === "function") {
     const s = String(t.call(w))
-    if (s && s.trim()) out.push(s.trim())
+    if (s?.trim()) out.push(s.trim())
   }
   let c = w.get_first_child()
   while (c) {

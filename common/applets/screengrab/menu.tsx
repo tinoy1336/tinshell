@@ -601,7 +601,7 @@ export function openScreenGrabSettingsMenu(opts: {
     const ext = sg.format === "jpg" ? "jpg" : "png"
     rows.push(
       menuInfoRow(
-        `Example: ${stem}${stem.toLowerCase().endsWith("." + ext) ? "" : "." + ext}${/%[a-zA-Z]/.test(sg.nameTemplate) ? "" : " (fixed name — overwrites)"}`,
+        `Example: ${stem}${stem.toLowerCase().endsWith(`.${ext}`) ? "" : `.${ext}`}${/%[a-zA-Z]/.test(sg.nameTemplate) ? "" : " (fixed name — overwrites)"}`,
         config,
       ),
     )

@@ -525,7 +525,7 @@ export function createDockRow(
   }
 
   function cancelRotationAnim(): void {
-    if (rotationAnim && rotationAnim.active) {
+    if (rotationAnim?.active) {
       rotationAnim.active = false
       rotationAnim.runner?.cancel()
       rotationAnim.runner = null

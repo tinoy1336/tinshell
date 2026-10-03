@@ -78,7 +78,7 @@ function computeRows(
 /** One-line text snippet (strip newlines, cap length). */
 function snippet(text: string, max = 120): string {
   const one = text.replace(/\s+/g, " ").trim()
-  return one.length > max ? one.slice(0, max - 1) + "…" : one
+  return one.length > max ? `${one.slice(0, max - 1)}…` : one
 }
 
 /** True when a press at (x, y), row-relative, landed on one of the row's

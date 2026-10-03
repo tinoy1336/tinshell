@@ -53,7 +53,7 @@ if (KB_ENABLED) {
   kbStartTabletWatchdog = kbTablet.startTabletWatchdog
   kbStopRepeat = kbRepeat.stopRepeat
   kbOnConfigChanged = kbConfig.store.onConfigChanged.bind(kbConfig.store)
-  kbCssOnly = "\n" + kbCss
+  kbCssOnly = `\n${kbCss}`
   keyboardCss = theme + kbCssOnly
 } else {
   // Stub shadows the whole keyboard subtree.

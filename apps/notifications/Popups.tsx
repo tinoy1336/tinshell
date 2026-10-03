@@ -139,7 +139,7 @@ export default function Popups(): Astal.Window {
   }
 
   function updateInputRegion(): void {
-    if (!win || !win.visible) return // unmapped surface commits nothing
+    if (!win?.visible) return // unmapped surface commits nothing
     try {
       const surface = win.get_surface()
       if (!surface) return

@@ -71,7 +71,7 @@ export function createSpinnerGlyph(opts: {
   }
 
   const start = (): void => {
-    if (run && run.active && run.mode === "spin") return // already spinning
+    if (run?.active && run.mode === "spin") return // already spinning
     cancelRun()
     spinning = true
     const startUs = GLib.get_monotonic_time()

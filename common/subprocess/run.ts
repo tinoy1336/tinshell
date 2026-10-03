@@ -156,7 +156,7 @@ export function runCb(
   debugVar = "DOCK_DEBUG",
 ): void {
   const id = ++seq
-  const label = cmd.length > 60 ? cmd.slice(0, 57) + "..." : cmd
+  const label = cmd.length > 60 ? `${cmd.slice(0, 57)}...` : cmd
   const verbose = debugEnabled(debugVar)
 
   try {

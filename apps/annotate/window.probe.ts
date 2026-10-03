@@ -67,7 +67,7 @@ writeFixture()
 try {
   app.register(null)
 } catch (e) {
-  console.log("note: application register reported: " + String(e))
+  console.log(`note: application register reported: ${String(e)}`)
 }
 pump(200)
 

@@ -240,7 +240,7 @@ export default function Prompt() {
     // new_tmp returns a GFileIOStream — GJS cannot auto-convert it for a
     // base_stream property; unwrap the GOutputStream first.
     const out = new Gio.DataOutputStream({ base_stream: stream.output_stream })
-    out.put_string(password + "\n", null)
+    out.put_string(`${password}\n`, null)
     out.close(null)
     file.set_attribute_uint32("unix::mode", 0o600, Gio.FileQueryInfoFlags.NONE, null)
     return file.get_path()!
@@ -530,7 +530,7 @@ export default function Prompt() {
         const why = new Gtk.Label({
           // 59 chars + the "Why: " prefix = the same 64-char wrap width as
           // the command lines, so the card never widens for justifications.
-          label: "Why: " + GLib.markup_escape_text(c.justification, -1),
+          label: `Why: ${GLib.markup_escape_text(c.justification, -1)}`,
           use_markup: true,
           xalign: 0,
           wrap: true,

@@ -596,7 +596,7 @@ function armFullscreenCheck(): void {
       return GLib.SOURCE_REMOVE
     }
     void hyprctlJson("activewindow").then((aw) => {
-      if (aw && aw.fullscreen && visible) {
+      if (aw?.fullscreen && visible) {
         log("fullscreen window focused — hiding keyboard")
         hideKeyboard()
       }

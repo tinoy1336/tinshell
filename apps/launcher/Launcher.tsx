@@ -1460,7 +1460,7 @@ export default function Launcher() {
           const rowClick = new Gtk.GestureClick()
           rowClick.connect("pressed", (_c, nPress, x, y) => {
             if (nPress > 1) return
-            if (primeBtn && primeBtn.is_visible()) {
+            if (primeBtn?.is_visible()) {
               // SAFETY: @girs miscasts translate_coordinates' result; gjs returns a [x, y] tuple (or null).
               const [bx, by] = primeBtn.translate_coordinates(self, 0, 0) as unknown as [
                 number,

@@ -148,7 +148,7 @@ export function closeNote(nameOrPath: string): { ok: boolean; error?: string } {
   const path = resolveNotePath(nameOrPath)
   if (!path) return { ok: false, error: "empty note name" }
   const existing = open.find((n) => n.path === path && !n.isTorn())
-  if (!existing) return { ok: false, error: "not open: " + nameOrPath }
+  if (!existing) return { ok: false, error: `not open: ${nameOrPath}` }
   closeWindow(existing, "user")
   return { ok: true }
 }

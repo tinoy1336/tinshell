@@ -211,7 +211,7 @@ function sampleGeometrySync(): void {
     const clients = JSON.parse(new TextDecoder().decode(stdout)) as HyprClient[]
     for (const [path, a] of addr) {
       const c = clients.find((cl) => cl.address === a)
-      if (!c || !c.size || !c.at) continue
+      if (!c?.size || !c.at) continue
       const e = entries.get(path)
       if (!e) continue
       const ws = c.workspace?.id
@@ -577,7 +577,7 @@ async function pollOnce(): Promise<void> {
   for (const [path, a] of addr) {
     if (applied.has(path) === false && entries.has(path)) continue
     const c = mine.find((cl) => cl.address === a)
-    if (!c || !c.size || !c.at) continue
+    if (!c?.size || !c.at) continue
     const ws = c.workspace?.id
     const e: SessionEntry = entries.get(path) ?? {
       path,

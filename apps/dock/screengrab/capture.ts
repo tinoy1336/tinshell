@@ -129,7 +129,7 @@ function focusedWindowGeo(): Promise<string | null> {
       }
       try {
         const w = JSON.parse(stdout)
-        if (!w || !w.mapped || !Array.isArray(w.at) || !Array.isArray(w.size)) {
+        if (!w?.mapped || !Array.isArray(w.at) || !Array.isArray(w.size)) {
           ignore("active window geometry missing")
           resolve(null)
           return

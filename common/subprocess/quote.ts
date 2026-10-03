@@ -4,5 +4,5 @@
  *  A command string built this way and handed to a Lua dispatch must be encoded
  *  as a Lua literal, not re-escaped: see `common/hyprland/lua-string`. */
 export function shq(s: string): string {
-  return "'" + s.replace(/'/g, `'\\''`) + "'"
+  return `'${s.replace(/'/g, `'\\''`)}'`
 }

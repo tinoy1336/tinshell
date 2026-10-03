@@ -12,7 +12,7 @@ import { setControl } from "./commands"
 import Prompt, { promptControl } from "./Prompt"
 import style from "./style.css"
 
-export const promptdCss = theme + "\n" + style
+export const promptdCss = `${theme}\n${style}`
 
 export function mountPromptd(): void {
   // Build the window once; hand its prompt control surface to the request

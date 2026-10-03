@@ -82,7 +82,7 @@ window.note popover.menu separator {
 `
 }
 
-export const notesCss = theme + "\n" + style + "\n" + dynamicCss()
+export const notesCss = `${theme}\n${style}\n${dynamicCss()}`
 
 /** Register commands + sinks. Windows are created on demand by the request
  *  handlers (notes/new, notes/open) — nothing is built at startup — EXCEPT

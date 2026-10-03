@@ -367,7 +367,7 @@ export function createConfigStore(dir: string, livePath?: string): ConfigStore {
     if (!SCHEMA) return undefined
     let node: SchemaNode = SCHEMA
     for (const seg of path.split(".")) {
-      if (!node.properties || !node.properties[seg]) return undefined
+      if (!node.properties?.[seg]) return undefined
       node = node.properties[seg]
     }
     return node
@@ -431,7 +431,7 @@ export function createConfigStore(dir: string, livePath?: string): ConfigStore {
   function queueWrite(source: any): Promise<boolean> {
     const p = writeChain.then(() => {
       ensureParentFile(CONFIG_PATH)
-      return writeFileAsync(CONFIG_PATH, JSON.stringify(source, null, 2) + "\n")
+      return writeFileAsync(CONFIG_PATH, `${JSON.stringify(source, null, 2)}\n`)
     })
     // The chain arm keeps the chain alive on failure (a rejection here would
     // stall every later write); the failure itself is logged, not dropped.

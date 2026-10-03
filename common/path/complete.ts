@@ -157,7 +157,7 @@ export function globPath(input: string, opts: CompletePathOpts = {}): GlobResult
     const shown = matches.slice(0, cap)
     return {
       suggestions: shown.map((c) => ({
-        path: dirPart === "/" ? "/" + c.name : dirPart + "/" + c.name,
+        path: dirPart === "/" ? `/${c.name}` : `${dirPart}/${c.name}`,
         name: c.name,
         isDir: c.isDir,
       })),
@@ -197,7 +197,7 @@ export function completePath(input: string, opts: CompletePathOpts = {}): PathSu
       if (!c.name.toLowerCase().startsWith(lcPartial)) continue
       if (opts.dirsOnly && !c.isDir) continue
       sugs.push({
-        path: dirPart === "/" ? "/" + c.name : dirPart + "/" + c.name,
+        path: dirPart === "/" ? `/${c.name}` : `${dirPart}/${c.name}`,
         name: c.name,
         isDir: c.isDir,
       })
