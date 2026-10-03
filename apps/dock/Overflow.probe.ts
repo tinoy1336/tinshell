@@ -34,7 +34,7 @@ import {
   type ConfigColour,
 } from "@common/applets/shared/battery-colour"
 import { config } from "./config"
-import {
+import OverflowApplet, {
   CLOCK_SMOOTH_FPS,
   createNotchSmoother,
   type DialTime,
@@ -909,6 +909,49 @@ check(
 check(
   "an unseeded lane is behind nothing, which is why the tick arms on `seeded` too",
   createNotchSmoother(null).behind(80) === false && createNotchSmoother(null).seeded === false,
+)
+
+// ── The applet built with NO row: the degrade path ──
+// The dock sets a row before constructing this applet, so the branch that paints a
+// plain disc instead is the applet's fallback for the case it does not. That branch
+// touches no row API, which is what makes it checkable without a window: a fake
+// icon records the painter it installs, and the painter is invoked with a recording
+// cairo context.
+
+const drawCalls: string[] = []
+let installed: ((...a: any[]) => void) | null = null
+const fakeAw: any = {
+  row: null,
+  icon: {
+    set_draw_func: (fn: (...a: any[]) => void): void => {
+      installed = fn
+    },
+  },
+}
+let buildThrew: string | null = null
+try {
+  OverflowApplet(fakeAw, {} as any)
+} catch (e) {
+  buildThrew = String(e)
+}
+check(`the applet builds with no row (${buildThrew ?? "no throw"})`, buildThrew === null)
+check("and installs a painter on the icon", typeof installed === "function")
+
+if (typeof installed === "function") {
+  const cr: any = {
+    setSourceRGBA: (...a: number[]): void => void drawCalls.push(`setSourceRGBA(${a.length})`),
+    arc: (cx: number, cy: number, r: number): void => void drawCalls.push(`arc(${cx},${cy},${r})`),
+    fill: (): void => void drawCalls.push("fill"),
+  }
+  try {
+    ;(installed as any)(null, cr, 40, 20)
+  } catch (e) {
+    drawCalls.push(`throw:${String(e)}`)
+  }
+}
+check(
+  `the painter fills a disc sized to the smaller side (${drawCalls.join(" ") || "nothing painted"})`,
+  drawCalls.includes("arc(10,10,10)") && drawCalls.includes("fill"),
 )
 
 console.log()
