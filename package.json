@@ -17,7 +17,8 @@
     "check:builds": "bash scripts/check-builds.sh",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "check": "biome check . && npm run check:shim-types && npm run typecheck && npm run check:schemas && npm run check:hypr-rules && npm run check:palette"
+    "check": "biome check . && npm run check:shim-types && npm run typecheck && npm run check:schemas && npm run check:hypr-rules && npm run check:palette && npm run check:probes",
+    "check:probes": "bash scripts/check-probes.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.11",
