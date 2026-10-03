@@ -35,6 +35,7 @@
  */
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
+import { nowMs } from "@common/anim/run-frames"
 import { APPLETS_NAMESPACE, replyError, replyOk } from "@common/applets/backend-protocol"
 import {
   appletsSocketPath,
@@ -196,10 +197,6 @@ interface Conn {
 const conns = new Set<Conn>()
 let selfUid: number | null = null
 let nextConnId = 0
-
-function nowMs(): number {
-  return GLib.get_monotonic_time() / 1000
-}
 
 const EMPTY_BYTES = new Uint8Array(0)
 const decoder = new TextDecoder()

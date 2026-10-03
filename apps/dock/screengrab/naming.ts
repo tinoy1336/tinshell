@@ -10,14 +10,14 @@
  */
 
 import GLib from "gi://GLib"
-import { expandPath } from "./capture"
+import { expandTilde } from "@common/path/complete"
 
 const TOKEN_RE = /%[a-zA-Z]/
 
 /** Full path for the next capture. `ext` is the format extension (png/jpg/mp4/
  *  webm) appended when the rendered name doesn't already carry it. */
 export function renderCapturePath(dir: string, template: string, ext: string): string {
-  const base = expandPath(dir)
+  const base = expandTilde(dir)
   const dt = GLib.DateTime.new_now_local()
   const stem = (dt.format(template) ?? template).trim() || "capture"
   const hasTokens = TOKEN_RE.test(template)

@@ -28,8 +28,11 @@
 import Gdk from "gi://Gdk?version=4.0"
 import GLib from "gi://GLib"
 import Gtk from "gi://Gtk?version=4.0"
+import { nowMs } from "@common/anim/run-frames"
 import { b64encode } from "@common/fs/bytes"
+import { ensureDir } from "@common/fs/files"
 import { log } from "@common/log/logger"
+import { expandTilde } from "@common/path/complete"
 import { run } from "@common/subprocess/run"
 import { setAppId } from "@common/window/app-id"
 import app from "ags/gtk4/app"
@@ -38,14 +41,7 @@ import { type History, record, redo as redoStep, undo as undoStep } from "./hist
 import { currentOwner, loadForNote, reconcile, saveForNote } from "./history-store"
 import { NOTES_APP_ID } from "./identity"
 import { namedTargetFor, reopenLastClosed, setNamedTarget } from "./session"
-import {
-  ensureDir,
-  readNote,
-  resolvePath,
-  storageDir,
-  writeNoteAsync,
-  writeNoteSync,
-} from "./store"
+import { readNote, storageDir, writeNoteAsync, writeNoteSync } from "./store"
 
 export interface Note {
   /** The Gtk window (present/destroy via this). */
@@ -82,11 +78,6 @@ export interface HistoryInfo {
   at: number
   folded: number
   readOnly: boolean
-}
-
-/** Monotonic milliseconds — the coalescing clock, immune to wall-clock jumps. */
-function nowMs(): number {
-  return Math.round(GLib.get_monotonic_time() / 1000)
 }
 
 export function createNote(
@@ -451,7 +442,7 @@ export function createNote(
       // a torn window must not export anything.
       if (torn) return
 
-      const target = resolvePath(out)
+      const target = expandTilde(out)
       ensureDir(dirnameOf(target))
       await writeNoteAsync(target, buffer.text)
       // The exported file becomes this note's Ctrl+S target (the autosave file
@@ -495,7 +486,7 @@ export function createNote(
 // ── small helpers ──
 
 function resolveExportDir(): string {
-  return resolvePath(getConfig("export.defaultDir"))
+  return expandTilde(getConfig("export.defaultDir"))
 }
 
 function dirnameOf(p: string): string {

@@ -420,7 +420,7 @@ DIRECTORY stays one row: the file rows need a file.
 
 ## Paths and URLs
 
-`sources/paths.ts` resolves a path-shaped query with `resolvePath`
+`sources/paths.ts` resolves a path-shaped query with `expandTilde`
 (tilde expansion) + `GLib.canonicalize_filename` (absolute form), and offers
 ONE row — `Open — <path>` — when the resolved path exists (file or directory);
 a path nothing is at yet offers the create rows instead (see "Shortcut schemes

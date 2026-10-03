@@ -10,16 +10,14 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { bytesToUtf8 } from "@common/fs/bytes"
-import { resolvePath, writeFileAsync, writeFileSync } from "@common/fs/files"
+import { writeFileAsync, writeFileSync } from "@common/fs/files"
 import { log } from "@common/log/logger"
+import { expandTilde } from "@common/path/complete"
 import { get as getConfig } from "./config"
-
-// Re-exports: notes/Note.tsx (and other app files) import these via ./store.
-export { ensureDir, resolvePath } from "@common/fs/files"
 
 /** Absolute storage dir (config `storage.dir` expanded). */
 export function storageDir(): string {
-  return resolvePath(getConfig("storage.dir"))
+  return expandTilde(getConfig("storage.dir"))
 }
 
 // Serialized write chain — rapid debounced saves must never interleave.

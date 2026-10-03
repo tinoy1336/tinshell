@@ -33,9 +33,9 @@ interface CompletePathOpts {
 }
 
 /** Expand a leading `~` to $HOME. Tilde ONLY — no trimming, no
- *  canonicalization: "" stays "", and a relative path stays relative (the
- *  contract common/fs's `resolvePath` exposes). ONE implementation: every
- *  tilde expansion in the repo goes through here. */
+ *  canonicalization: "" stays "", and a relative path stays relative
+ *  (`expandPath` below is the absolute, canonicalized form). ONE
+ *  implementation: every tilde expansion in the repo goes through here. */
 export function expandTilde(p: string): string {
   return p.startsWith("~") ? GLib.get_home_dir() + p.slice(1) : p
 }

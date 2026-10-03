@@ -161,7 +161,7 @@ export default function mount({ port, hooks, config, backend, store }: AppletCon
           break
         case 2:
           runCb(
-            `mkdir -p ${shq(backend.screengrab.expandPath(config.screengrab.dir))} && xdg-open ${shq(backend.screengrab.expandPath(config.screengrab.dir))}`,
+            `mkdir -p ${shq(backend.screengrab.expandTilde(config.screengrab.dir))} && xdg-open ${shq(backend.screengrab.expandTilde(config.screengrab.dir))}`,
             () => {},
           )
           close()

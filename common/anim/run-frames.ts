@@ -24,6 +24,14 @@ export interface FrameRunner {
   cancel: () => void
 }
 
+/** The monotonic clock in whole milliseconds — the ONE spelling of "now" for
+ *  every deadline, retry window and coalescing stamp. Readings are immune to
+ *  wall-clock jumps, so a stamp may sit on a timeline different from the file
+ *  timestamps beside it and must never be compared with those. */
+export function nowMs(): number {
+  return Math.round(GLib.get_monotonic_time() / 1000)
+}
+
 export function runFrames(
   widget: Gtk.Widget,
   step: (nowUs: number) => boolean,

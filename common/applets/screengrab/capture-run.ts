@@ -66,7 +66,7 @@ export async function runCapture(
   const sg = config.screengrab
   // Ensure the storage dir exists before writing (async — capture starts after).
   await new Promise<void>((resolve) =>
-    runCb(`mkdir -p ${shq(backend.screengrab.expandPath(sg.dir))}`, () => resolve()),
+    runCb(`mkdir -p ${shq(backend.screengrab.expandTilde(sg.dir))}`, () => resolve()),
   )
 
   let geo = await backend.screengrab.resolveGeometry(geoMode)

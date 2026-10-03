@@ -50,6 +50,7 @@
  * write instead of claiming success.
  */
 import GLib from "gi://GLib"
+import { nowMs } from "@common/anim/run-frames"
 import type * as Battery from "@common/applets/domains/battery"
 import type { BluetoothActionResult } from "@common/applets/domains/bluetooth"
 import type * as Network from "@common/applets/domains/network"
@@ -105,10 +106,6 @@ let down = false
 let nextProbeAt = 0
 /** Members already reported degraded (reset when the backend answers again). */
 const reported = new Set<string>()
-
-function nowMs(): number {
-  return GLib.get_monotonic_time() / 1000
-}
 
 function clampInterval(ms: number): number {
   if (!Number.isFinite(ms) || ms < MIN_INTERVAL_MS) return MIN_INTERVAL_MS

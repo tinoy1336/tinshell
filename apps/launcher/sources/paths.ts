@@ -8,7 +8,7 @@
  * hijack ordinary app searches ("music" would offer a directory instead of
  * the music player).
  *
- * Resolution: `resolvePath` (@common/fs/files) expands a leading `~`, then
+ * Resolution: `expandTilde` (@common/path/complete) expands a leading `~`, then
  * `GLib.canonicalize_filename` makes the result absolute so the existence
  * check and the open request both resolve against one directory instead of
  * each process's own cwd. A row appears for any EXISTING path — file or
@@ -39,9 +39,8 @@
  */
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
-import { resolvePath } from "@common/fs/files"
 import { ignore } from "@common/log/logger"
-import { isGlobQuery, isPathShaped } from "@common/path/complete"
+import { expandTilde, isGlobQuery, isPathShaped } from "@common/path/complete"
 import { log } from "../log"
 import type { Result, SourceResponse } from "../types"
 import { fileRows, fileTypeAt } from "./apps"
@@ -53,7 +52,7 @@ import { xdgOpenRow } from "./xdg-row"
 /** Tilde-expanded absolute path (relative prefixes resolve against the cwd),
  *  or the expanded path when canonicalization is unavailable. */
 function absolutePath(input: string): string {
-  const expanded = resolvePath(input)
+  const expanded = expandTilde(input)
   try {
     const canon = GLib.canonicalize_filename(expanded, null)
     if (canon) return canon

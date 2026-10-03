@@ -20,6 +20,7 @@
  */
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
+import { nowMs } from "@common/anim/run-frames"
 import { type Envelope, memberRequestTokens, parseEnvelope } from "@common/applets/backend-protocol"
 import {
   appletsSocketPath,
@@ -97,10 +98,6 @@ export function createSocketBackendTransport(
   let nextProbeAt = 0
   /** id → settle callback. One entry per in-flight request. */
   const pending = new Map<string, (env: Envelope) => void>()
-
-  function nowMs(): number {
-    return GLib.get_monotonic_time() / 1000
-  }
 
   function setState(next: boolean, why: string): void {
     if (up === next) return

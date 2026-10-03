@@ -12,10 +12,6 @@ import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { log } from "@common/log/logger"
 
-/** Expand a leading ~ to $HOME (the shared primitive — `expandPath`
- *  (@common/path/complete) is the absolute, canonicalized form). */
-export { expandTilde as resolvePath } from "@common/path/complete"
-
 /** Ensure a directory exists (recursive), created with `mode` (masked by the
  *  umask) when it is missing. Returns true when present/created. */
 export function ensureDir(dir: string, mode = 0o755): boolean {

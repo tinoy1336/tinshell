@@ -21,19 +21,18 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { mkReactive } from "@common/applets/utils/reactive"
-import { ensureDir, resolvePath } from "@common/fs/files"
+import { ensureDir } from "@common/fs/files"
 import { ignore } from "@common/log/logger"
+import { expandTilde } from "@common/path/complete"
 import { shq } from "@common/subprocess/quote"
 import { runCb } from "@common/subprocess/run"
 import { config } from "../config"
 
 export type CaptureMode = "fullscreen" | "window" | "select"
 
-/** Expand a leading ~ (bare or ~/) in a path — alias over the shared helper
- *  (other dock files import expandPath from here). */
-export function expandPath(p: string): string {
-  return resolvePath(p)
-}
+/** The domain's tilde expansion, published as a member of the screengrab
+ *  domain because the applet that needs it may run in another process. */
+export { expandTilde } from "@common/path/complete"
 
 // ── Recording state ──
 
@@ -325,7 +324,7 @@ export async function resolveGeometry(mode: CaptureMode): Promise<string | null>
  *  first frame still shows it. */
 export function takeStill(geo: string | null, file: string, onDone?: (ok: boolean) => void): void {
   const sg = config.screengrab
-  ensureDir(expandPath(sg.dir))
+  ensureDir(expandTilde(sg.dir))
   const cmd = [
     "grim",
     geo ? `-g ${shq(geo)}` : "",
@@ -401,7 +400,7 @@ function buildRecorderArgs(
 export function startRecording(geo: string | null, file: string): void {
   if (recording) return
   const sg = config.screengrab
-  ensureDir(expandPath(sg.dir))
+  ensureDir(expandTilde(sg.dir))
   const crf = sg.videoQuality === "low" ? 28 : sg.videoQuality === "high" ? 18 : 23
   const wantHw = sg.hwEncode
   let retried = false
