@@ -444,10 +444,7 @@ for (const app of appsDirs) {
   // a bare `` `cmd` `` counts. Bare prose after the app name is not a command.
   const esc = app.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   const docTokens = new Set<string>()
-  for (const src of [
-    `\`${esc}\\s+([a-z][a-z0-9-]*)`,
-    `request\\s+"${esc}\\s+([a-z][a-z0-9-]*)`,
-  ]) {
+  for (const src of [`\`${esc}\\s+([a-z][a-z0-9-]*)`, `request\\s+"${esc}\\s+([a-z][a-z0-9-]*)`]) {
     const re = new RegExp(src, "g")
     let m: RegExpExecArray | null
     while ((m = re.exec(doc)) !== null) docTokens.add(m[1])
@@ -465,7 +462,10 @@ for (const app of appsDirs) {
     }
     const cell = /^\|\s*((?:\\.|[^|])*)\|/.exec(line)?.[1] ?? ""
     for (const span of cell.matchAll(/`([^`]+)`/g)) {
-      const words = span[1].replace(/^`+|`+$/g, "").trim().split(/\s+/)
+      const words = span[1]
+        .replace(/^`+|`+$/g, "")
+        .trim()
+        .split(/\s+/)
       const head = words[0] === app ? words[1] : words[0]
       if (head && /^[a-z][a-z0-9-]*$/.test(head)) docTokens.add(head)
     }
@@ -1270,7 +1270,10 @@ for (const sf of projectFiles) {
   const p = sf.fileName
   const text = sf.text
   // relative up-walk into common/ where the @common alias is required
-  if (!/config\.schema\.ts$/.test(p) && !/\.probe\.ts$/.test(p)) {
+  // (exempt: the modules plain Node loads itself — the schema sources and the
+  //  hypr-rule sources, which `scripts/gen-hypr-rules.ts` imports by file URL —
+  //  and the probes)
+  if (!/config\.schema\.ts$/.test(p) && !/hypr-rules\.ts$/.test(p) && !/\.probe\.ts$/.test(p)) {
     for (const m of text.matchAll(/from\s+["']((?:\.\.\/)+common\/[^"']+)["']/g)) {
       add(
         "convention-relative-common",
@@ -1294,8 +1297,11 @@ for (const sf of projectFiles) {
         "common/ imports an app (only the four documented seams may)",
       )
     }
+    // (a probe mounts the real surface, so it builds the store the host would
+    //  have passed in)
     if (
       !p.startsWith(`${COMMON_DIR}/config/`) &&
+      !/\.probe\.ts$/.test(p) &&
       /createConfigStore|createConfigFacade|appSchemaDir|appConfigPath/.test(text)
     ) {
       add(

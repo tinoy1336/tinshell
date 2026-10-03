@@ -376,10 +376,12 @@ exist on exactly one path — the plain-Node one: `apps/*/config.schema.ts` (and
 `common/applets/config.schema.ts`) import
 `../../common/config/schema-build.ts`, because the schema generator runs under
 plain `node --experimental-strip-types` with no tsconfig-paths mapping; the same
-reason gives those imports their `.ts` extension. A `./sibling` import within
+reason gives those imports their `.ts` extension, and the same one applies to
+the hypr-rule sources `apps/*/hypr-rules.ts` (loaded by file URL through
+`scripts/gen-hypr-rules.ts`). A `./sibling` import within
 one directory is fine; crossing a directory inside `common/` uses the alias,
-the two exceptions being that schema source and a plain-Node probe
-(`common/hyprland/lua-string.probe.ts`).
+the exceptions being those two plain-Node module families and a plain-Node
+probe (`common/hyprland/lua-string.probe.ts`).
 
 **`common/` is not an npm workspace.** Root `package.json` declares
 `workspaces: ["apps/*"]` only, so npm creates no `node_modules/common` link and
