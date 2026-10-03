@@ -26,14 +26,6 @@ export const schema = obj({
     autoHideMs: Type.Integer({ minimum: 0 }),
     pollIntervalMs: Type.Integer({ minimum: 250 }),
   }),
-  startup: obj({
-    dir: Type.String(),
-  }),
-  view: obj({
-    showPlaylist: Type.Boolean(),
-    showThumbnail: Type.Boolean(),
-    showTimestamps: Type.Boolean(),
-  }),
 })
 
 export type Config = Static<typeof schema>
@@ -43,6 +35,4 @@ export const tiers: Record<string, string> = {
   appearance: "restart",
   window: "restart",
   timing: "restart",
-  startup: "baked",
-  view: "live",
 }

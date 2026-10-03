@@ -17,13 +17,5 @@
   "timing": {
     "autoHideMs": 3000,
     "pollIntervalMs": 1000
-  },
-  "startup": {
-    "dir": "~"
-  },
-  "view": {
-    "showPlaylist": true,
-    "showThumbnail": false,
-    "showTimestamps": true
   }
 }

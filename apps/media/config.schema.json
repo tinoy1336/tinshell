@@ -68,32 +68,6 @@
       },
       "additionalProperties": false,
       "x-tier": "restart"
-    },
-    "startup": {
-      "type": "object",
-      "properties": {
-        "dir": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "x-tier": "baked"
-    },
-    "view": {
-      "type": "object",
-      "properties": {
-        "showPlaylist": {
-          "type": "boolean"
-        },
-        "showThumbnail": {
-          "type": "boolean"
-        },
-        "showTimestamps": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false,
-      "x-tier": "live"
     }
   },
   "additionalProperties": false

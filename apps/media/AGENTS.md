@@ -458,11 +458,7 @@ loaded by the shared schema-driven loader. Schema uses draft-07 + custom
   `configMapSize("media", …)` (apps/media/hypr-rules.ts) reads it for the map size.
 - `timing.*` (restart) — autoHideMs (0 = off; the transport scrubber's fade
   timeout), pollIntervalMs (>= 250; the position poll period).
-- `startup.*` (baked) — dir (reserved; bare `open` focuses instead of
-  loading a startup path).
-- `view.*` (live) — showPlaylist / showThumbnail / showTimestamps are
-  reserved keys with no rendering path in v1 (the transport window is the
-  picture + scrubber). No viewer-backdrop key: the viewer has no backdrop of
+- No viewer-backdrop key: the viewer has no backdrop of
   its own and the window's card surface shows through instead.
 
 ## Files
@@ -597,6 +593,4 @@ loaded by the shared schema-driven loader. Schema uses draft-07 + custom
 
 ## Deferred (do not implement in v1)
 
-- `view.showThumbnail` / `view.showPlaylist` / `view.showTimestamps`
-  rendering (reserved keys; no rendering path).
 - Animated GIF/WebP playback (first frame only via the texture decoder).
