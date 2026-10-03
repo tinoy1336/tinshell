@@ -10,13 +10,10 @@ export const schema = obj({
   appearance: obj({
     cardColour: Type.String(),
     cardAlpha: Type.Number(),
-    rounding: Type.Integer({ minimum: 0, maximum: 48 }),
     selectionColour: Type.String(),
     textColour: Type.String(),
     accentColour: Type.String(),
     hoverColour: Type.String(),
-    fontSize: Type.Integer({ minimum: 10 }),
-    iconSize: Type.Integer({ minimum: 10 }),
   }),
   window: obj({
     width: Type.Integer({ minimum: 400 }),

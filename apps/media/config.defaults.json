@@ -2,13 +2,10 @@
   "appearance": {
     "cardColour": "#0a0c11",
     "cardAlpha": 0.5,
-    "rounding": 14,
     "selectionColour": "rgba(138, 181, 247, 0.35)",
     "textColour": "#e6e6e6",
     "accentColour": "#8ab5f7",
-    "hoverColour": "rgba(255, 255, 255, 0.08)",
-    "fontSize": 16,
-    "iconSize": 22
+    "hoverColour": "rgba(255, 255, 255, 0.08)"
   },
   "window": {
     "width": 670,

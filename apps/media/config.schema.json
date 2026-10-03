@@ -10,11 +10,6 @@
         "cardAlpha": {
           "type": "number"
         },
-        "rounding": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 48
-        },
         "selectionColour": {
           "type": "string"
         },
@@ -26,14 +21,6 @@
         },
         "hoverColour": {
           "type": "string"
-        },
-        "fontSize": {
-          "type": "integer",
-          "minimum": 10
-        },
-        "iconSize": {
-          "type": "integer",
-          "minimum": 10
         }
       },
       "additionalProperties": false,

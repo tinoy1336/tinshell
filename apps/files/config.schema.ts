@@ -4,7 +4,7 @@
  * Generated artifact: apps/files/config.schema.json (scripts/gen-config-schemas.ts).
  * Loader subset: common/config/loader.ts.
  */
-import { enumOf, obj, type Static, Type } from "../../common/config/schema-build.ts"
+import { obj, type Static, Type } from "../../common/config/schema-build.ts"
 
 export const schema = obj({
   appearance: obj({
@@ -26,7 +26,6 @@ export const schema = obj({
   }),
   view: obj({
     sortDirsFirst: Type.Boolean(),
-    iconStyle: enumOf(["glyphs", "theme"]),
     showSize: Type.Boolean(),
     showModified: Type.Boolean(),
   }),

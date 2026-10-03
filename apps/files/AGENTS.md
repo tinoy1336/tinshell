@@ -416,9 +416,8 @@ Ctrl+Shift+S/Z rule. A single-spelling binding is silently dead.
   extension (NOT `standard::content-type` — extra queries per row are slow on
   big dirs; content-type is a v2 refinement).
   Executable bit from `unix::mode` (one batch query, not per-file).
-- `view.iconStyle: "theme"` (Gtk.Image with real icons) exists as a config
-  flag but is NOT tuned — glyphs win by default (icon-theme rabbit hole
-  deliberately avoided in v1).
+- Icon themes are deliberately avoided: rows render the extension's glyph, and
+  there is no config key for an icon-theme mode (the rabbit hole is out of v1).
 
 ### Aesthetics (mirror notes exactly)
 
@@ -469,13 +468,16 @@ The surface flips it several times a session (the header button, Ctrl+H,
 `files toggle-hidden`), so persisting it in the config file made every toggle
 dirty a file the dotfiles repo tracks; `~/.config` stays backup-worthy config,
 while a wipe of `~/.local/state` loses only re-derivable UI intent. The other
-`view.*` keys (`sortDirsFirst`, `iconStyle`, `showSize`, `showModified`) and
+`view.*` keys (`sortDirsFirst`, `showSize`, `showModified`) and
 `trash.*` STAY in config: a user sets those deliberately, and no surface writes
 them while it runs. `state.ts` also carries the migration: at mount,
 `mountFiles` adopts the legacy `view.showHidden` value into the store when the
 store holds none (so the filter does not change at the switch) and PRUNES the
 key from the live tree — required, not cosmetic, because the closed root schema
-would make the next `config reload` refuse a leftover key.
+would make the next `config reload` refuse a leftover key. `migrateLegacyViewKeys`
+drops the keys the schema no longer declares in that one pass
+(`view.showHidden`, `view.iconStyle`); `view.iconStyle` had no reader, so it is
+simply gone.
 
 The preview
 pane is likewise NOT configured here: its switch and geometry live in the shared
@@ -512,8 +514,9 @@ pane is likewise NOT configured here: its switch and geometry live in the shared
 - `commands.ts` — request handlers (ping/open/navigate/up/back/forward/
   reload/toggle-hidden/mkdir/rename/trash/reveal/config).
 - `state.ts` — the `common/state` store (app `files`): the hidden-entries
-  filter, its read/write API, and the one-time adoption + prune of the legacy
-  `view.showHidden` config key (called by `mount.ts`).
+  filter, its read/write API, and the one-time adoption of the legacy
+  `view.showHidden` config key plus the prune of the config keys the schema no
+  longer declares (`view.showHidden`, `view.iconStyle` — called by `mount.ts`).
 - `config.ts` + `config.defaults.json` + `config.schema.json`.
 - `style.css` — static theme (transparent surfaces).
 - `run.sh` — 1-line shim to the shared bundler (forwards argv).

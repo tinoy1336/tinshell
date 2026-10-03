@@ -14,7 +14,6 @@ export const schema = openObj({
     accentColour: Type.String(),
     selectionColour: Type.String(),
     hoverColour: Type.String(),
-    fontSize: Type.Number(),
   }),
   window: openObj({
     defaultWidth: Type.Integer(),

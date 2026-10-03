@@ -448,11 +448,10 @@ Three files in `apps/media/` (defaults + schema + live),
 loaded by the shared schema-driven loader. Schema uses draft-07 + custom
 `x-tier` (live | baked | restart) per namespace:
 
-- `appearance.*` (restart) — cardColour, cardAlpha, rounding (Hyprland-owned:
-  the `media-float` window rule hardcodes rounding=14 and CSS emits no
-  radius, so the key is cosmetic for now), selectionColour (the shared card
-  chrome's pressed/selection tint), textColour, accentColour, hoverColour,
-  fontSize, iconSize.
+- `appearance.*` (restart) — cardColour, cardAlpha, selectionColour (the shared
+  card chrome's pressed/selection tint), textColour, accentColour, hoverColour.
+  The window's radius is not a config key: the `media-float` window rule
+  hardcodes rounding=14 and CSS emits no radius.
 - `window.*` (restart) — width, height (min 400×240; defaults 670×380) — the
   one window size BOTH modes use; the generated `media-float` rule's
   `configMapSize("media", …)` (apps/media/hypr-rules.ts) reads it for the map size.
@@ -477,6 +476,11 @@ loaded by the shared schema-driven loader. Schema uses draft-07 + custom
   `Response` on the request path derived from our `handle_token` (armed
   before the call, so no race). No GTK dialog of our own.
 - `config.ts` / `config.defaults.json` / `config.schema.json` — config trio.
+  `mountMedia` calls `pruneRemovedKeys()`: a live `media.json` written when
+  `appearance.rounding` / `appearance.fontSize` / `appearance.iconSize` were
+  declared still carries them, and the closed root schema would make the next
+  `media config reload` refuse the file — the keys are dropped at mount
+  (idempotent; a file without them is left untouched).
 - `commands.ts` — request handlers (thin pass-throughs to the active surface;
   `open`/`new` answer the resolved-path refusal of `window.tsx`'s
   `resolveTarget`).

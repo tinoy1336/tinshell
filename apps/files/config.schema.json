@@ -63,10 +63,6 @@
         "sortDirsFirst": {
           "type": "boolean"
         },
-        "iconStyle": {
-          "type": "string",
-          "enum": ["glyphs", "theme"]
-        },
         "showSize": {
           "type": "boolean"
         },

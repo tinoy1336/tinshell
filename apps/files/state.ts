@@ -10,9 +10,9 @@
  * lives in the state dir — `~/.config` stays backup-worthy config, while a wipe
  * of `~/.local/state` loses only re-derivable UI intent.
  *
- * The rest of `view.*` (`sortDirsFirst`, `iconStyle`, `showSize`,
- * `showModified`) and `trash.*` stay in config: those are preferences a user
- * sets deliberately, never values the surface writes while it runs.
+ * The rest of `view.*` (`sortDirsFirst`, `showSize`, `showModified`) and
+ * `trash.*` stay in config: those are preferences a user sets deliberately,
+ * never values the surface writes while it runs.
  */
 import { createStateStore } from "@common/state"
 import { store as configStore, get as getConfig } from "./config"
@@ -43,30 +43,34 @@ export function setShowHidden(value: boolean): void {
 }
 
 /**
- * Carry the view filter across from the config key.
+ * Carry the view filter across from the config key, then drop the keys this app
+ * no longer declares.
  *
  * The store's own value wins when it has one; otherwise the `view.showHidden`
  * key a pre-store build wrote is copied across, so the filter the browser was
- * in does not change at the switch. The key is then PRUNED from the live tree:
- * the root schema is closed (`additionalProperties: false`), so a leftover
- * unknown key would make the next `files config reload` refuse the file. The
- * prune uses the primitives the app's own config path already uses
- * (`applyToLive` + the serialized write chain) and is idempotent — a second
- * mount finds nothing to drop and writes nothing.
+ * in does not change at the switch. `view.showHidden` and `view.iconStyle` are
+ * then PRUNED from the live tree: the root schema is closed
+ * (`additionalProperties: false`), so a leftover unknown key would make the
+ * next `files config reload` refuse the file. The prune uses the primitives the
+ * app's own config path already uses (`applyToLive` + the serialized write
+ * chain) and is idempotent — a second mount finds nothing to drop and writes
+ * nothing.
  *
  * Called from `mountFiles`, the files app's own mount: no process that merely
  * reads something from this app writes its config.
  */
-export function migrateShowHiddenFromConfig(): void {
+export function migrateLegacyViewKeys(): void {
   if (typeof viewState.get("showHidden") !== "boolean") {
     const legacy = getConfig<boolean | undefined>("view.showHidden")
     if (typeof legacy === "boolean") viewState.set("showHidden", legacy)
   }
   const live = configStore.config
   const view = live?.view
-  if (!view || typeof view !== "object" || !("showHidden" in view)) return
+  if (!view || typeof view !== "object") return
+  if (!("showHidden" in view) && !("iconStyle" in view)) return
   const clone = JSON.parse(JSON.stringify(live))
   delete clone.view.showHidden
+  delete clone.view.iconStyle
   configStore.applyToLive(clone)
   void configStore.queueWrite(clone)
 }

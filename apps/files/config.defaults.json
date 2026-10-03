@@ -18,7 +18,6 @@
   },
   "view": {
     "sortDirsFirst": true,
-    "iconStyle": "glyphs",
     "showSize": true,
     "showModified": true
   },

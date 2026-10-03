@@ -15,7 +15,7 @@ import { isProductionShell } from "@common/app/mode"
 import { cardAppCss } from "@common/card/app-css"
 import { hexToRgba } from "@common/colour"
 import { fileSink, setSink } from "@common/log/logger"
-import { get as getConfig } from "./config"
+import { get as getConfig, pruneRemovedKeys } from "./config"
 import { startMpris, stopMpris } from "./mpris"
 import style from "./style.css"
 import { clearStillCache, destroyWindow, setSurfaceHooks } from "./window"
@@ -57,6 +57,9 @@ export const mediaCss = cardAppCss({
  *  Windows are created on demand by the request handlers (media/open,
  *  media/new, ...). */
 export function mountMedia(): void {
+  // Drop the appearance keys the schema no longer declares, so a live
+  // media.json that carries them cannot refuse a reload (see ./config).
+  pruneRemovedKeys()
   setSurfaceHooks({ onFirstSurface: startMpris, onLastClosed: stopMpris })
 }
 

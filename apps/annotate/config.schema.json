@@ -21,9 +21,6 @@
         },
         "hoverColour": {
           "type": "string"
-        },
-        "fontSize": {
-          "type": "number"
         }
       },
       "x-tier": "restart"
