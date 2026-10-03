@@ -22,7 +22,8 @@
  *   export-symbol              (--all-exports) every export + reference count
  *   module-no-importer         source file no other file imports
  *   import-unresolved          project-internal specifier that resolves to nothing
- *   config-key-unread          defaults key with no reader in the owning app or common/
+ *   config-key-unread          defaults key with no read anywhere in the program
+ *   config-key-cannot-tell     defaults key whose read the checker cannot prove either way
  *   command-undocumented       registered command path absent from its AGENTS.md
  *   command-doc-only           documented command path with no registration
  *   app-name-missing           app present in one hosting source, absent from another
@@ -49,9 +50,17 @@
  *     common/host/registry.ts may read as module-no-importer. registry.ts uses
  *     literal dynamic imports, which this tool DOES follow, so that case is
  *     covered; other indirections are not.
- *   - config-key-unread searches the key's own name, so a key whose name
- *     collides with an unrelated identifier or a CSS property reads as used
- *     (false negative). It never invents a reader.
+ *   - config-key-unread resolves each declared key with the type checker rather
+ *     than matching its name: a read counts when a property access steps off
+ *     the schema node that declares the key, when a dotted-path accessor names
+ *     it, or when the value reaches the read through a variable, a parameter, a
+ *     wrapper or a destructuring pattern. What it excludes is the config's own
+ *     interface — the accessor implementations, the store machinery and the
+ *     `config` command handlers traverse the tree generically and serve a path a
+ *     caller names, so a computed path there is not a read of a key. Everything
+ *     else the checker cannot prove (a computed key indexing a config node, an
+ *     accessor called with a computed path, a value whose type only resembles a
+ *     config node) is reported as config-key-cannot-tell, never as unread.
  *   - css-class-undefined misses classes composed at runtime from config; treat
  *     every hit as a question. css-rule-unused cannot see GTK state selectors
  *     applied by widget code and over-reports.
@@ -329,6 +338,13 @@ for (const sf of projectFiles) {
 }
 
 // ── Config keys ──
+// A declared key is resolved with the COMPILER, not matched as text: a read
+// counts when a property access steps off the schema node that declares the
+// key, when a dotted-path accessor names it, or when the value reaches the read
+// through a variable, a parameter, a wrapper or a destructuring pattern. What
+// the checker cannot prove — a computed key, an accessor called with a computed
+// path, a value whose type merely resembles the config node — is reported as
+// cannot-tell, never as unread.
 function leafPaths(obj: unknown, prefix = ""): string[] {
   if (obj === null || typeof obj !== "object" || Array.isArray(obj)) return prefix ? [prefix] : []
   const out: string[] = []
@@ -338,14 +354,94 @@ function leafPaths(obj: unknown, prefix = ""): string[] {
   return out
 }
 
-function readProjectText(scopePrefixes: string[]): Map<string, string> {
-  const out = new Map<string, string>()
-  for (const sf of projectFiles) {
-    if (!/\.(ts|tsx)$/.test(sf.fileName)) continue
-    if (!scopePrefixes.some((p) => sf.fileName.startsWith(p))) continue
-    out.set(sf.fileName, sf.text)
+/** One node of a config schema: a declared key, or an intermediate node a
+ *  deeper key passes through. `nodeId` identifies the node's TYPE by reference
+ *  (the checker interns its types, so one schema node reached from two apps is
+ *  one type object) — that identity is what ties a read site to the key it
+ *  reads. */
+interface ConfigNode {
+  app: string
+  path: string
+  seg: string
+  isLeaf: boolean
+  nodeId: number
+}
+
+const configNodesByParent = new Map<number, ConfigNode[]>()
+const configNodeByPath = new Map<string, ConfigNode>()
+const configNodeTypes = new Map<number, ts.Type>()
+const configAppRoots = new Map<string, number>()
+const appConfigModules = new Map<string, string>()
+const declaredLeaves: ConfigNode[] = []
+const SHARED_APPLET_SCHEMA = join(COMMON_DIR, "applets/config.schema.ts")
+/** Namespace of the shared applet schema: a read rooted at an `AppletConfig`
+ *  value steps through these nodes, which every host composing that schema
+ *  declares as its own keys. */
+const SHARED_APP = "*"
+
+const nodeKey = (app: string, path: string): string => `${app}\u0000${path}`
+const nodeIds = new Map<ts.Type, number>()
+function nodeIdOf(type: ts.Type): number {
+  const known = nodeIds.get(type)
+  if (known !== undefined) return known
+  const id = nodeIds.size
+  nodeIds.set(type, id)
+  return id
+}
+
+function addConfigNode(
+  app: string,
+  parentNodeId: number,
+  seg: string,
+  parentPath: string,
+  nodeType: ts.Type,
+  isLeaf: boolean,
+): void {
+  const nodeId = nodeIdOf(nodeType)
+  if (!configNodeTypes.has(nodeId)) configNodeTypes.set(nodeId, nodeType)
+  const path = parentPath ? `${parentPath}.${seg}` : seg
+  const key = nodeKey(app, path)
+  if (configNodeByPath.has(key)) return
+  const node: ConfigNode = { app, path, seg, isLeaf, nodeId }
+  configNodeByPath.set(key, node)
+  const siblings = configNodesByParent.get(parentNodeId) ?? []
+  siblings.push(node)
+  configNodesByParent.set(parentNodeId, siblings)
+  if (isLeaf && app !== SHARED_APP) declaredLeaves.push(node)
+}
+
+/** Walk one declared dotted path from a schema root, registering every node it
+ *  passes through. A segment the schema declares no property for is an entry of
+ *  an OPEN RECORD (`mapOf`), whose keys the schema does not enumerate — it is a
+ *  child of the record node, not a member of its type. */
+function addConfigTree(app: string, schemaSf: ts.SourceFile, root: ts.Type, paths: string[]): void {
+  const rootId = nodeIdOf(root)
+  if (!configNodeTypes.has(rootId)) configNodeTypes.set(rootId, root)
+  configAppRoots.set(app, rootId)
+  for (const path of paths) {
+    const parts = path.split(".")
+    let cur: ts.Type = root
+    let parentNodeId = rootId
+    let parentPath = ""
+    for (const [i, seg] of parts.entries()) {
+      const sym = cur.getProperty(seg)
+      const child = sym
+        ? checker.getTypeOfSymbolAtLocation(sym, schemaSf)
+        : checker.getIndexTypeOfType(cur, ts.IndexKind.String)
+      if (!child) break
+      addConfigNode(app, parentNodeId, seg, parentPath, child, i === parts.length - 1)
+      parentNodeId = nodeIdOf(child)
+      parentPath = parentPath ? `${parentPath}.${seg}` : seg
+      cur = child
+    }
   }
-  return out
+}
+
+function schemaAlias(sf: ts.SourceFile, name: string): ts.Type | undefined {
+  for (const st of sf.statements) {
+    if (ts.isTypeAliasDeclaration(st) && st.name.text === name) return checker.getTypeAtLocation(st)
+  }
+  return undefined
 }
 
 const appsDirs = readdirSync(APPS_DIR).filter((d) => statSync(join(APPS_DIR, d)).isDirectory())
@@ -358,32 +454,478 @@ for (const app of appsDirs) {
   } catch {
     continue
   }
-  const scope = [join(APPS_DIR, app), `${COMMON_DIR}/`]
-  const texts = readProjectText(scope)
-  for (const path of leafPaths(defs)) {
-    const key = path.split(".").pop() ?? path
-    if (!key) continue
-    const dotted = new RegExp(`\\b${path.replace(/\./g, "\\.")}\\b`)
-    const bare = new RegExp(`\\b${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
-    let used = false
-    for (const [file, text] of texts) {
-      if (/(^|\/)config\.(schema\.ts|json|defaults\.json)$/.test(file)) continue
-      if (dotted.test(text) || bare.test(text)) {
-        used = true
-        break
-      }
-    }
-    if (!used) {
+  const configPath = join(APPS_DIR, app, "config.ts")
+  if (program.getSourceFile(configPath)) appConfigModules.set(configPath, app)
+  const schemaSf = program.getSourceFile(join(APPS_DIR, app, "config.schema.ts"))
+  const root = schemaSf ? schemaAlias(schemaSf, "Config") : undefined
+  if (!schemaSf || !root) {
+    // Nothing to resolve against: the keys stay reported, as unknown rather
+    // than as dead.
+    for (const path of leafPaths(defs)) {
       add(
-        "config-key-unread",
+        "config-key-cannot-tell",
         rel(defsPath),
         1,
         path,
-        "LIKELY",
-        `no reader for '${path}' (key '${key}') in ${rel(join(APPS_DIR, app))} or common/`,
+        "JUDGEMENT",
+        "cannot tell: this app has no config.schema.ts for the checker to resolve its keys against",
       )
     }
+    continue
   }
+  addConfigTree(app, schemaSf, root, leafPaths(defs))
+}
+{
+  const sharedSf = program.getSourceFile(SHARED_APPLET_SCHEMA)
+  const root = sharedSf ? schemaAlias(sharedSf, "AppletConfig") : undefined
+  if (sharedSf && root) {
+    addConfigTree(
+      SHARED_APP,
+      sharedSf,
+      root,
+      checker.getPropertiesOfType(root).map((p) => p.getName()),
+    )
+  }
+}
+
+// ── Reads of a declared key ──
+const readKeys = new Map<string, string>()
+const unsureKeys = new Map<string, string>()
+const unsureApps = new Map<string, string>()
+
+/** The config's own interface — the accessor implementations and the store
+ *  machinery traverse the tree generically and serve a path a CALLER named, so
+ *  their own lookups are not readers of a specific key. Excluding them keeps a
+ *  computed key in the plumbing from making every key of the app unknowable. */
+function isConfigInterface(fileName: string): boolean {
+  return (
+    /(^|\/)common\/config\/(loader|app-store|schema-build)\.ts$/.test(fileName) ||
+    /(^|\/)apps\/[^/]+\/config\.ts$/.test(fileName) ||
+    /(^|\/)common\/commands\/config-commands\.ts$/.test(fileName)
+  )
+}
+
+function siteOf(node: ts.Node): string {
+  return `${rel(node.getSourceFile().fileName)}:${lineAt(node.getSourceFile(), node)}`
+}
+function isProbe(node: ts.Node): boolean {
+  return /\.probe\.ts$/.test(node.getSourceFile().fileName)
+}
+
+function markRead(node: ConfigNode, site: string): void {
+  if (!node.isLeaf) return
+  const key = nodeKey(node.app, node.path)
+  if (!readKeys.has(key)) readKeys.set(key, site)
+}
+function markUnsure(node: ConfigNode, site: string, why: string): void {
+  const key = nodeKey(node.app, node.path)
+  if (!readKeys.has(key) && !unsureKeys.has(key)) unsureKeys.set(key, `${why} at ${site}`)
+}
+/** A computed key reaches every entry below the node it indexes. */
+function markUnsureUnder(anchorId: number, node: ts.Node, why: string): void {
+  if (isConfigInterface(node.getSourceFile().fileName)) return
+  const site = siteOf(node)
+  for (const child of configNodesByParent.get(anchorId) ?? []) {
+    for (const candidate of configNodeByPath.values()) {
+      if (
+        candidate.app === child.app &&
+        (candidate.path === child.path || candidate.path.startsWith(`${child.path}.`))
+      )
+        markUnsure(candidate, site, why)
+    }
+  }
+}
+
+const aliasOf = (sym: ts.Symbol | undefined): ts.Symbol | undefined =>
+  sym && sym.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(sym) : sym
+function appOfConfigSymbol(sym: ts.Symbol | undefined): string | undefined {
+  const decl = sym?.valueDeclaration ?? sym?.declarations?.[0]
+  return decl ? appConfigModules.get(decl.getSourceFile().fileName) : undefined
+}
+
+const valueBindings = new Map<ts.Symbol, Set<number>>()
+const propertyBindings = new Map<string, Set<number>>()
+const symbolIds = new Map<ts.Symbol, number>()
+function symbolId(sym: ts.Symbol | undefined): number {
+  if (!sym) return -1
+  const known = symbolIds.get(sym)
+  if (known !== undefined) return known
+  const id = symbolIds.size
+  symbolIds.set(sym, id)
+  return id
+}
+function bindValue(sym: ts.Symbol | undefined, anchors: Set<number>): boolean {
+  if (!sym || anchors.size === 0) return false
+  const current = valueBindings.get(sym) ?? new Set<number>()
+  const before = current.size
+  for (const a of anchors) current.add(a)
+  valueBindings.set(sym, current)
+  return current.size !== before
+}
+function bindProperty(symbol: ts.Symbol | undefined, name: string, anchors: Set<number>): boolean {
+  if (anchors.size === 0) return false
+  const key = `${symbolId(symbol)}.${name}`
+  const current = propertyBindings.get(key) ?? new Set<number>()
+  const before = current.size
+  for (const a of anchors) current.add(a)
+  propertyBindings.set(key, current)
+  return current.size !== before
+}
+
+/** One step off a node: every declared child named `seg` is a read, and its
+ *  node is where the walk continues. */
+function stepNode(anchorId: number, seg: string, site: string): Set<number> {
+  const out = new Set<number>()
+  const children = (configNodesByParent.get(anchorId) ?? []).filter((c) => c.seg === seg)
+  for (const child of children) {
+    markRead(child, site)
+    out.add(child.nodeId)
+  }
+  return out
+}
+
+/** The property-name set of a type, used only to recognise a value whose type
+ *  is a STRUCTURAL TWIN of a config node (a locally declared colour or geometry
+ *  interface restating the schema's shape). Type identity cannot tie such a
+ *  read to the key, so it is reported as cannot-tell. */
+const shapeNodes = new Map<string, Set<number>>()
+function shapeKey(t: ts.Type): string | undefined {
+  const nn = checker.getNonNullableType(t)
+  if (nn.isUnion()) return undefined
+  const props = checker.getPropertiesOfType(nn)
+  if (props.length === 0 || props.length > 8) return undefined
+  return props
+    .map((p) => p.getName())
+    .sort()
+    .join(",")
+}
+
+function callTarget(callee: ts.Expression): ts.FunctionLikeDeclaration | undefined {
+  let sym: ts.Symbol | undefined = ts.isIdentifier(callee)
+    ? checker.getSymbolAtLocation(callee)
+    : undefined
+  if (ts.isPropertyAccessExpression(callee)) sym = checker.getSymbolAtLocation(callee.name)
+  const target = aliasOf(sym)
+  const decl = target?.valueDeclaration ?? target?.declarations?.[0]
+  if (!decl) return undefined
+  if (ts.isVariableDeclaration(decl) && decl.initializer) {
+    const init = decl.initializer
+    if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) return init
+  }
+  if (
+    ts.isFunctionDeclaration(decl) ||
+    ts.isFunctionExpression(decl) ||
+    ts.isArrowFunction(decl) ||
+    ts.isMethodDeclaration(decl)
+  )
+    return decl
+  return undefined
+}
+
+const returnCache = new Map<ts.FunctionLikeDeclaration, Set<number>>()
+const inReturn = new Set<ts.FunctionLikeDeclaration>()
+
+/** Where a value read out of the config travels: the trace from a config value
+ *  or a config-typed node to every expression that carries it. */
+function anchorsOf(node: ts.Expression): Set<number> {
+  const out = new Set<number>()
+  const add = (s: Set<number>): void => {
+    for (const v of s) out.add(v)
+  }
+  const byType = (n: ts.Expression): void => {
+    const type = checker.getNonNullableType(checker.getTypeAtLocation(n))
+    for (const member of type.isUnion() ? type.types : [type]) {
+      if (configNodeTypes.has(nodeIdOf(member))) out.add(nodeIdOf(member))
+    }
+  }
+
+  if (
+    ts.isParenthesizedExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isTypeAssertionExpression(node) ||
+    ts.isNonNullExpression(node) ||
+    ts.isSatisfiesExpression(node)
+  )
+    return anchorsOf(node.expression)
+
+  if (ts.isIdentifier(node)) {
+    const parent = node.parent
+    const raw =
+      parent && ts.isShorthandPropertyAssignment(parent)
+        ? (checker.getShorthandAssignmentValueSymbol(parent) ?? checker.getSymbolAtLocation(node))
+        : checker.getSymbolAtLocation(node)
+    add(valueBindings.get(raw ?? ({} as ts.Symbol)) ?? new Set())
+    add(valueBindings.get(aliasOf(raw) ?? ({} as ts.Symbol)) ?? new Set())
+    const app = appOfConfigSymbol(aliasOf(raw) ?? raw)
+    if (app) {
+      const root = configAppRoots.get(app)
+      if (root !== undefined) out.add(root)
+    }
+    byType(node)
+    return out
+  }
+
+  if (ts.isPropertyAccessExpression(node)) {
+    const site = siteOf(node)
+    const name = node.name.text
+    if (ts.isIdentifier(node.expression)) {
+      const carried = propertyBindings.get(
+        `${symbolId(checker.getSymbolAtLocation(node.expression))}.${name}`,
+      )
+      if (carried) for (const v of carried) out.add(v)
+    }
+    const base = anchorsOf(node.expression)
+    for (const a of base) add(stepNode(a, name, site))
+    if (base.size === 0 && !isProbe(node)) {
+      // A value whose type merely restates a config node's shape: the checker
+      // cannot tie this read to a declared key.
+      const shape = shapeKey(checker.getTypeAtLocation(node.expression))
+      if (shape)
+        for (const id of shapeNodes.get(shape) ?? [])
+          if ((configNodesByParent.get(id) ?? []).some((c) => c.seg === name))
+            markUnsureUnder(id, node, `a value shaped like this config node reads '${name}'`)
+    }
+    if (out.size === 0) byType(node)
+    return out
+  }
+
+  if (ts.isElementAccessExpression(node)) {
+    const site = siteOf(node)
+    const base = anchorsOf(node.expression)
+    const arg = node.argumentExpression
+    const literal = arg && ts.isStringLiteralLike(arg) ? arg.text : undefined
+    if (literal !== undefined) for (const a of base) add(stepNode(a, literal, site))
+    else if (arg && !ts.isNumericLiteral(arg))
+      for (const a of base) markUnsureUnder(a, node, "a computed key indexes this config node")
+    if (out.size === 0) byType(node)
+    return out
+  }
+
+  if (ts.isCallExpression(node)) {
+    const callee = node.expression
+    let sym: ts.Symbol | undefined = ts.isIdentifier(callee)
+      ? checker.getSymbolAtLocation(callee)
+      : undefined
+    if (ts.isPropertyAccessExpression(callee)) sym = checker.getSymbolAtLocation(callee.name)
+    const target = aliasOf(sym) ?? sym
+    const path = node.arguments[0]
+    const fromConfigModule = appOfConfigSymbol(target)
+    const apps = new Set<string>()
+    if (fromConfigModule) apps.add(fromConfigModule)
+    if (ts.isPropertyAccessExpression(callee)) {
+      // `store.get("a.b")`: the store's own app comes from the receiver, whose
+      // type carries the store members (`onConfigChanged` names it).
+      const receiverType = checker.getNonNullableType(checker.getTypeAtLocation(callee.expression))
+      const receiverSym = ts.isIdentifier(callee.expression)
+        ? checker.getSymbolAtLocation(callee.expression)
+        : undefined
+      const receiverApp = appOfConfigSymbol(aliasOf(receiverSym) ?? receiverSym)
+      if (receiverApp && receiverType.getProperty("onConfigChanged")) apps.add(receiverApp)
+      if (!apps.size) add(anchorsOf(callee.expression))
+    }
+    if (target?.getName() === "get" && apps.size > 0) {
+      if (path && ts.isStringLiteralLike(path)) {
+        for (const app of apps) {
+          const node0 = configNodeByPath.get(nodeKey(app, path.text))
+          if (node0) {
+            markRead(node0, siteOf(node))
+            out.add(node0.nodeId)
+          }
+        }
+      } else if (!isProbe(node) && !isConfigInterface(rel(node.getSourceFile().fileName))) {
+        for (const app of apps) {
+          // A dotted path the program does not spell out: any key of the app
+          // could be the one this call names.
+          if (!unsureApps.has(app)) unsureApps.set(app, `${siteOf(node)} reads a computed path`)
+        }
+      }
+      return out
+    }
+    if (target?.getName() === "all" && apps.size > 0) {
+      for (const app of apps) {
+        const root = configAppRoots.get(app)
+        if (root !== undefined) out.add(root)
+      }
+      return out
+    }
+    const fn = callTarget(callee)
+    if (fn) {
+      const cached = returnCache.get(fn)
+      if (cached) add(cached)
+      else if (!inReturn.has(fn)) {
+        inReturn.add(fn)
+        const returns = new Set<number>()
+        const collectReturn = (e: ts.Expression | undefined): void => {
+          if (e) for (const v of anchorsOf(e)) returns.add(v)
+        }
+        if (ts.isArrowFunction(fn) && !ts.isBlock(fn.body)) collectReturn(fn.body)
+        else if (fn.body) {
+          const walk = (n: ts.Node): void => {
+            if (ts.isReturnStatement(n)) collectReturn(n.expression)
+            else if (
+              n !== fn &&
+              (ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n))
+            )
+              return
+            ts.forEachChild(n, walk)
+          }
+          walk(fn.body)
+        }
+        inReturn.delete(fn)
+        returnCache.set(fn, returns)
+        add(returns)
+      }
+    }
+    if (out.size === 0) byType(node)
+    return out
+  }
+
+  if (
+    ts.isBinaryExpression(node) &&
+    node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+  ) {
+    add(anchorsOf(node.left))
+    add(anchorsOf(node.right))
+    return out
+  }
+  if (ts.isConditionalExpression(node)) {
+    add(anchorsOf(node.whenTrue))
+    add(anchorsOf(node.whenFalse))
+    return out
+  }
+  byType(node)
+  return out
+}
+
+/** Bind config values to the names that carry them: declarations,
+ *  assignments, destructuring, and the parameters a call site feeds — iterate
+ *  until nothing new appears, because a wrapper's parameter is only known once
+ *  the value that reaches the wrapper is. */
+function collectValueFlow(): boolean {
+  let changed = false
+  for (const sf of projectFiles) {
+    const visit = (node: ts.Node): void => {
+      if (ts.isVariableDeclaration(node) && node.initializer) {
+        const anchors = anchorsOf(node.initializer)
+        if (ts.isIdentifier(node.name)) {
+          if (bindValue(checker.getSymbolAtLocation(node.name), anchors)) changed = true
+        } else if (ts.isObjectBindingPattern(node.name)) {
+          for (const element of node.name.elements) {
+            const from = element.propertyName ?? element.name
+            if (!ts.isIdentifier(from) || !ts.isIdentifier(element.name)) continue
+            const picked = new Set<number>()
+            // The source may carry the value as a property the call site fed it
+            // (an options bag), which its own variable cannot be stepped for.
+            if (ts.isIdentifier(node.initializer)) {
+              const carried = propertyBindings.get(
+                `${symbolId(checker.getSymbolAtLocation(node.initializer))}.${from.text}`,
+              )
+              if (carried) for (const v of carried) picked.add(v)
+            }
+            for (const a of anchors) {
+              for (const s of stepNode(a, from.text, siteOf(node))) picked.add(s)
+            }
+            if (bindValue(checker.getSymbolAtLocation(element.name), picked)) changed = true
+          }
+        }
+      } else if (
+        ts.isBinaryExpression(node) &&
+        node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+        ts.isIdentifier(node.left)
+      ) {
+        if (bindValue(checker.getSymbolAtLocation(node.left), anchorsOf(node.right))) changed = true
+      } else if (ts.isCallExpression(node)) {
+        const fn = callTarget(node.expression)
+        if (!fn) {
+          ts.forEachChild(node, visit)
+          return
+        }
+        fn.parameters.forEach((param, index) => {
+          if (!ts.isIdentifier(param.name)) return
+          const arg = node.arguments[index]
+          if (!arg) return
+          const paramSymbol = checker.getSymbolAtLocation(param.name)
+          if (bindValue(paramSymbol, anchorsOf(arg))) changed = true
+          if (!ts.isObjectLiteralExpression(arg)) return
+          for (const prop of arg.properties) {
+            let name: string | undefined
+            let init: ts.Expression | undefined
+            if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name)) {
+              name = prop.name.text
+              init = prop.initializer
+            } else if (ts.isShorthandPropertyAssignment(prop)) {
+              name = prop.name.text
+              init = prop.name
+            }
+            if (name === undefined || init === undefined) continue
+            if (bindProperty(paramSymbol, name, anchorsOf(init))) changed = true
+          }
+        })
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(sf)
+  }
+  return changed
+}
+
+for (const [id, type] of configNodeTypes) {
+  const shape = shapeKey(type)
+  if (!shape) continue
+  const ids = shapeNodes.get(shape) ?? new Set<number>()
+  ids.add(id)
+  shapeNodes.set(shape, ids)
+}
+for (let pass = 0; pass < 6; pass++) if (!collectValueFlow()) break
+for (const sf of projectFiles) {
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isPropertyAccessExpression(node) ||
+      ts.isElementAccessExpression(node) ||
+      ts.isCallExpression(node)
+    )
+      anchorsOf(node)
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+}
+
+for (const node of declaredLeaves) {
+  const key = nodeKey(node.app, node.path)
+  if (readKeys.has(key)) continue
+  const defsPath = join(APPS_DIR, node.app, "config.defaults.json")
+  const unsure = unsureKeys.get(key)
+  if (unsure) {
+    add(
+      "config-key-cannot-tell",
+      rel(defsPath),
+      1,
+      node.path,
+      "JUDGEMENT",
+      `cannot tell: ${unsure}`,
+    )
+    continue
+  }
+  const appUnsure = unsureApps.get(node.app)
+  if (appUnsure) {
+    add(
+      "config-key-cannot-tell",
+      rel(defsPath),
+      1,
+      node.path,
+      "JUDGEMENT",
+      `cannot tell: ${appUnsure}, which could name any key of ${node.app}`,
+    )
+    continue
+  }
+  add(
+    "config-key-unread",
+    rel(defsPath),
+    1,
+    node.path,
+    "CERTAIN",
+    `no read of '${node.path}' resolves to it: no property, dotted-path or wrapped access reaches this key in the program`,
+  )
 }
 
 // ── Command paths vs AGENTS.md ──
