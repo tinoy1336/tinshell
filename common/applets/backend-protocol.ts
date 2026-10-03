@@ -25,6 +25,10 @@
  * and never a bare `error: …` string. The client parses exactly one shape, so
  * a degraded answer can only come from the transport layer, never from a
  * payload that happens to look empty.
+ *
+ * The codec's two halves and the envelope kinds are pinned by
+ * `common/applets/backend-protocol.probe.ts` (bundled: this module imports
+ * `gi://GLib` for base64).
  */
 import GLib from "gi://GLib"
 
