@@ -1302,7 +1302,7 @@ for (const sf of projectFiles) {
     if (
       !p.startsWith(`${COMMON_DIR}/config/`) &&
       !/\.probe\.ts$/.test(p) &&
-      /createConfigStore|createConfigFacade|appSchemaDir|appConfigPath/.test(text)
+      /createConfigStore|appSchemaDir|appConfigPath/.test(text)
     ) {
       add(
         "convention-common-reads-config",

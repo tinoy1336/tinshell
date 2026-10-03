@@ -51,8 +51,8 @@ same shape as every other surface; TRUE on this machine, schema default false).
   `startTabletWatchdog()`.
 - `style.ts` — dynamic CSS (`refreshCss()` rebuilds the appearance.* tokens).
 - `commands.ts` — request handlers (prefixed `["keyboard", …]`).
-- `config.ts` — owns the app's config store + facade (`createConfigStore`
-  via `common/config/facade.ts`); `keyboardEnabled()` gate (the dock's
+- `config.ts` — owns the app's config store (`createConfigStore`);
+  `keyboardEnabled()` gate (the dock's
   Keyboard applet imports it from here as `@apps/keyboard/config`).
 - `Main.tsx` also owns the layout's state store (`createStateStore`, app id
   `keyboard`) — see §Runtime state.
@@ -106,7 +106,7 @@ All registered PREFIXED (`["keyboard", …]`):
 | `keyboard layout get/next/set` | layout switching — `get` reads the state store, not config |
 | `keyboard show-mode get/set` | show policy |
 | `keyboard tablet get/set` | tablet-mode override |
-| `keyboard config all/get/set/reload` | live config via facade |
+| `keyboard config all/get/set/reload` | live config via the store |
 | `keyboard debug css/tree` | introspection |
 
 ## Lifecycle

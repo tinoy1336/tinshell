@@ -4,7 +4,7 @@
  * Capture loop is config-gated (clipboard.capture, startup-read).
  *
  * Production runs inside the shell; this island is the DEV shape.
- * Config: the clipboard's OWN store + facade (./config).
+ * Config: the clipboard's OWN store (./config).
  */
 import "./commands"
 import "@common/log/debug-log" // sets the ONE sink (file /tmp/tinshell-debug.log)

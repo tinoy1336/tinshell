@@ -3,7 +3,7 @@
  *
  * Wraps `createConfigStore` (common/config/loader) with the boilerplate every
  * standalone app needs: the `apps/<name>` dir of this tree, the
- * `get`/`all`/`set`/`reloadConfig` facade, and a rejection sink for
+ * `get`/`all`/`set`/`reloadConfig` surface, and a rejection sink for
  * schema-rejected writes and failed reloads. The typed config shape stays
  * app-side (cast the `config` object to the app's interface).
  *
@@ -31,7 +31,7 @@ interface AppStore {
 }
 
 /**
- * Bind an app's config store + facade. `opts.onReject` receives schema
+ * Bind an app's config store. `opts.onReject` receives schema
  * rejections and reload failures (default: console.warn).
  */
 export function createAppStore(

@@ -126,7 +126,7 @@ function storedLayout(): string {
  * Drop the migrated `layout` key from the live config. The root schema is
  * closed, so a leftover key makes the next `keyboard config reload` refuse the
  * file ("additional property not allowed"); the prune is what keeps the live
- * file valid. Written through the facade's own two primitives — the in-place
+ * file valid. Written through the store's own two primitives — the in-place
  * live swap and the serialized write chain — so the file and the running tree
  * carry the same key set. Idempotent: a second mount finds no key to drop.
  */

@@ -3,7 +3,7 @@
  *
  * Every addressable app exposes the same four config subcommands over its
  * request API; this module is the one canonical implementation. Apps call
- * `registerConfigCommands(prefix, api, opts?)` with their own config facade
+ * `registerConfigCommands(prefix, api, opts?)` with their own config store
  * (per-app config.ts) instead of re-rolling handler blocks + a local
  * coerceValue.
  *
@@ -64,7 +64,7 @@ export function createArrayAwareCoerce(
   }
 }
 
-/** The app's config facade, as re-exported by its per-app config.ts. */
+/** The app's config store surface, as re-exported by its per-app config.ts. */
 interface ConfigCommandsApi {
   /** Dotted-path read (defaults guarantee every known path exists). */
   get: (path: string) => any

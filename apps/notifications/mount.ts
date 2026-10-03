@@ -6,9 +6,8 @@
  * notificationsMount() (the shell OR this island, not both).
  *
  * Production runs inside the shell; this island is the DEV shape.
- * Config: the notifications app's OWN store + facade (apps/notifications/
- * config.ts owns the createConfigStore instance; generic facade from
- * common/config/facade.ts).
+ * Config: the notifications app's OWN store (apps/notifications/config.ts owns
+ * the createConfigStore instance and the typed reads over it).
  *
  * The sheet is theme + this app's static style + the shared label-button row
  * rule (common/css/card-chrome) + the config-driven block: the popups'

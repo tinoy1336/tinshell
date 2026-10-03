@@ -130,8 +130,8 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   The host is a stub, so nothing is dispatched into the real registry and no
   media window is built:
   `ags bundle --gtk 4 apps/clipboard/preview.probe.ts /tmp/p.sh && bash /tmp/p.sh`.
-- `config.ts` — owns the app's config store + facade (`createConfigStore`
-  via `common/config/facade.ts`; no shared surface registry).
+- `config.ts` — owns the app's config store (`createConfigStore`; no shared
+  surface registry).
 - `style.ts` — dynamic CSS builder; `log.ts` — the `[clipboard]`-tagged logger.
 
 ## Config
@@ -161,7 +161,7 @@ contract below — METADATA only, payload behind one explicit opt-in.
 | `clipboard delete <id>` | delete one entry |
 | `clipboard pin` / `clipboard unpin` `<id>` | pin an entry (survives clearing) |
 | `clipboard debug` | capture-loop state + entry/pin COUNTS |
-| `clipboard config get/set/reload` | live config via facade |
+| `clipboard config get/set/reload` | live config via the store |
 
 There is NO command for the row preview: the preview button calls the MEDIA
 app's own request surface in process (`media new <path>` through

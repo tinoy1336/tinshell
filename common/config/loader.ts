@@ -31,6 +31,7 @@
 
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
+import { writeFileAsync } from "@common/fs/files"
 import { log } from "@common/log/logger"
 import { treeRoot } from "@common/path/tree-root"
 
@@ -62,15 +63,21 @@ interface ReloadResult {
 }
 
 export interface ConfigStore {
-  /** The live config object. Always read properties directly (do not cache). */
+  /** The live config object — the STABLE mirror: its identity never changes,
+   *  and every mutation (setLive, applyToLive, reload) is applied to it in
+   *  place, so a `const cfg = store.config` held for the process lifetime
+   *  keeps working (Cairo draw callbacks hold exactly that). Read properties
+   *  directly and never cache them: a subtree object may be replaced when the
+   *  config is re-seeded, so `cfg.appearance` is a fresh read, not a value to
+   *  keep. */
   config: any
   /** Dotted-path get. */
   get(path: string): any
   /** Dotted-path set on the live config (creates intermediates). Returns false
    *  if an intermediate resolves to a non-object. Does NOT validate or persist.
-   *  Fires the change listeners when the value at the path actually differs:
+   *  Fires the change listeners when the config's content actually changed:
    *  this is the ONE live-mutation primitive, so every set path built on it
-   *  (the facade's `set`/`setLive`, app-store's `set`, and therefore every
+   *  (the store's own `set`, app-store's `set`, and therefore every
    *  `<app> config set`) announces the change the same way `applyToLive` does. */
   setLive(path: string, value: any): boolean
   /** Validate a single {path, value} pair. null on success, error string otherwise. */
@@ -89,6 +96,11 @@ export interface ConfigStore {
   reload(): Promise<ReloadResult>
   /** Queue a serialized config.json write of `source`. */
   queueWrite(source: any): Promise<boolean>
+  /** Validate + mutate + persist. Returns {ok:false,error} on schema rejection
+   *  (the config set handler replies "error: …"), {ok:true} on success. */
+  set(path: string, value: any): { ok: boolean; error?: string }
+  /** The whole live config (the same object as `config`). */
+  all(): any
 }
 
 // ── Schema (draft-07 subset) validator ──
@@ -208,29 +220,6 @@ function readFileAsync(path: string): Promise<{ ok: boolean; contents: string }>
         resolve({ ok: false, contents: "" })
       }
     })
-  })
-}
-
-function writeFileAsync(path: string, data: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const file = Gio.File.new_for_path(path)
-    const bytes = new TextEncoder().encode(data)
-    file.replace_contents_async(
-      bytes,
-      null,
-      false,
-      Gio.FileCreateFlags.REPLACE_DESTINATION,
-      null,
-      (_f: any, res: any) => {
-        try {
-          file.replace_contents_finish(res)
-          resolve(true)
-        } catch (e) {
-          log(`config write failed ${path}: ${e}`)
-          resolve(false)
-        }
-      },
-    )
   })
 }
 
@@ -359,7 +348,17 @@ export function createConfigStore(dir: string, livePath?: string): ConfigStore {
 
   const listeners: (() => void)[] = []
 
+  // The listener filter: a change is announced only when the config's CONTENT
+  // changed. Every mutation path ends here, so a re-seed that produces the same
+  // tree, a write of a value already in place, and a reload that resolves to the
+  // current contents all stay silent — a listener that repaints or re-applies
+  // app state is never woken for nothing.
+  let snapshot = JSON.stringify(_config)
+
   function notify(): void {
+    const next = JSON.stringify(_config)
+    if (next === snapshot) return
+    snapshot = next
     for (const cb of listeners) cb()
   }
 
@@ -503,5 +502,17 @@ export function createConfigStore(dir: string, livePath?: string): ConfigStore {
     getDefaults: () => deepClone(seedFromDefaults()),
     reload,
     queueWrite,
+    set(path, value) {
+      const err = checkType(path, value)
+      if (err) return { ok: false, error: err }
+      // setLive announces the change (content-filtered), and the write is queued
+      // from the live config so the file always holds what the store holds.
+      setLive(path, value)
+      void queueWrite(_config)
+      return { ok: true }
+    },
+    all() {
+      return _config
+    },
   }
 }

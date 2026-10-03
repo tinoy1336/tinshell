@@ -1,28 +1,29 @@
 /**
- * Keyboard config — the keyboard app's OWN store + facade
+ * Keyboard config — the keyboard app's OWN store
  * (apps/keyboard/config.{defaults,schema,json}), same shape as launcher's.
  *
  * The keyboard is merged into the shell process (io.Astal.shell), gated
  * behind keyboard.enabled (startup-read only). This module owns its config
- * store (createConfigStore + generic facade from common/config/facade.ts —
- * no shared surface registry) and exports the app's API surface (`get`,
- * `set`, `reload()`, `all()`, `store`, `config`) plus `keyboardEnabled()`
- * (the cross-app startup gate the dock's Keyboard applet reads — import it
- * from here as `@apps/keyboard/config`, never a shared registry). Reads are
- * always direct property accesses on the live config object — never cache
- * (config set mutates it in place).
+ * store (createConfigStore — no shared surface registry) and exports the app's
+ * API surface (`get`, `set`, `reload()`, `all()`, `store`, `config`) plus
+ * `keyboardEnabled()` (the cross-app startup gate the dock's Keyboard applet
+ * reads — import it from here as `@apps/keyboard/config`, never a shared
+ * registry). Reads are always direct property accesses on the live config
+ * object — never cache (config set mutates it in place).
  */
-import { type ConfigFacade, createConfigFacade } from "@common/config/facade"
-import { appConfigPath, appSchemaDir, createConfigStore } from "@common/config/loader"
+import {
+  appConfigPath,
+  appSchemaDir,
+  type ConfigStore,
+  createConfigStore,
+} from "@common/config/loader"
 
-const keyboard = createConfigFacade(
-  createConfigStore(appSchemaDir("keyboard"), appConfigPath("keyboard")),
-)
+const keyboard = createConfigStore(appSchemaDir("keyboard"), appConfigPath("keyboard"))
 
-/** The facade (onConfigChanged fires only on keyboard changes). */
-export const store: ConfigFacade = keyboard
+/** The store (onConfigChanged fires only on keyboard changes). */
+export const store: ConfigStore = keyboard
 
-/** The live keyboard config (namespace subtree mirror; read directly). */
+/** The live keyboard config (the store's stable mirror; read directly). */
 export const config = keyboard.config
 
 /** Startup-read-only gate: keyboard.enabled (restart to apply). */
@@ -32,7 +33,8 @@ export function keyboardEnabled(): boolean {
 
 /** Read a value by dotted path, e.g. get("repeat.delayMs", 400). */
 export function get<T = any>(path: string, fallback?: T): T {
-  return keyboard.get(path, fallback) as T
+  const v = keyboard.get(path)
+  return (v === undefined ? fallback : v) as T
 }
 
 /**

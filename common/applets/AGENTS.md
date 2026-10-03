@@ -176,7 +176,7 @@ applet's slot; the icon is reparented into the panel and returns on close.
 ## Backends and config
 
 The applets never read a bound global: the host supplies `config` (its live
-config view), `store` (the `AppletConfigSource` — the host's facade) and
+config view), `store` (the `AppletConfigSource` — the host's store) and
 `backend` (`AppletBackend`, one domain namespace per service; `volume` is the
 one OPTIONAL domain, because it is session-bound). The dock BINDS the domains in
 process and also hosts the request surface and the greeter's socket; any other

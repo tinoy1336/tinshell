@@ -4,8 +4,8 @@
  * combiner, types, utils). Production runs inside the shell (universal entry); this
  * island is the DEV shape.
  *
- * Config: the launcher's OWN store + facade (apps/launcher/config.ts owns
- * the createConfigStore instance; generic facade from common/config/facade.ts).
+ * Config: the launcher's OWN store (apps/launcher/config.ts owns the
+ * createConfigStore instance and the typed reads over it).
  */
 import "./commands"
 import "@common/log/debug-log" // sets the ONE sink (file /tmp/tinshell-debug.log)

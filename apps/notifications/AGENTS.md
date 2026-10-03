@@ -114,8 +114,8 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   `vexpand`), because an expanding child turns slack handed down by a holder
   into a void under the text with the action row pushed to the far bottom.
 - `commands.ts` — request handlers (prefixed `["notifications", …]`).
-- `config.ts` — owns the app's config store + facade (`createConfigStore`
-  via `common/config/facade.ts`; no shared surface registry).
+- `config.ts` — owns the app's config store (`createConfigStore`; no shared
+  surface registry).
 - `style.ts` — dynamic CSS builder; `log.ts` — the `[notifications]`-tagged
   logger (`log` + the deliberate-ignore channel).
 
@@ -150,7 +150,7 @@ All registered PREFIXED (`["notifications", …]`):
 | `notifications debug dump` | state introspection |
 | `notifications debug centre` | centre geometry + list state (surface size, panel min/max/applied height, scroller adjustment and its cap, list allocation against its own natural height plus the first rows' heights, the SELECTED entry id, the visible entry ids, entry/live/VISIBLE/group counts) |
 | `notifications inhibitor add/remove/clear/get` | hold or drop app ids that suppress popups |
-| `notifications config get/set/reload` | live config via facade |
+| `notifications config get/set/reload` | live config via the store |
 
 ## Lifecycle
 

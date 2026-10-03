@@ -5,7 +5,7 @@
  * ever imported (the memory guarantee; esbuild defers the dynamic imports).
  *
  * Production runs inside the shell; this island is the DEV shape.
- * Config: the keyboard's OWN store + facade (./config — keyboardEnabled gate).
+ * Config: the keyboard's OWN store (./config — keyboardEnabled gate).
  */
 import "@common/log/debug-log" // sets the ONE sink (file /tmp/tinshell-debug.log)
 import { register } from "@common/commands/registry"
@@ -105,7 +105,7 @@ export function keyboardMount(): void {
   kbStartTabletWatchdog()
 
   // Live config changes: rebuild rows (layout/keyScale) and refresh the
-  // dynamic CSS (appearance.*). Facade-filtered — fires only on KEYBOARD
+  // dynamic CSS (appearance.*). Store-filtered — fires only on KEYBOARD
   // subtree changes.
   kbOnConfigChanged(() => {
     kbWin.rebuild()

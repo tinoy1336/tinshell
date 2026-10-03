@@ -134,23 +134,22 @@ cat >"$APP_DIR/config.json" <<'EOF'
 EOF
 cat >"$APP_DIR/config.ts" <<EOF
 /**
- * $NAME config — the app's OWN store + facade
+ * $NAME config — the app's OWN store
  * (apps/$NAME/config.{defaults,schema,json}; on-disk dir
  * apps/$NAME in this tree via appSchemaDir — root AGENTS.md convention).
- * The app owns its store: createConfigStore(appSchemaDir(name), appConfigPath(name)) wrapped in
- * the generic facade from \`../../common/config/facade.ts\` (stable mirror +
- * get/set/applyToLive/queueWrite/onConfigChanged) — see a surface app's
+ * The app owns its store: createConfigStore(appSchemaDir(name), appConfigPath(name)),
+ * which carries the stable-mirror guarantee and the change channel
+ * (get/set/applyToLive/queueWrite/onConfigChanged) — see a surface app's
  * config.ts (e.g. apps/keyboard/config.ts).
  */
-import { type ConfigFacade, createConfigFacade } from "../../common/config/facade"
-import { appConfigPath, appSchemaDir, createConfigStore } from "../../common/config/loader"
+import { appConfigPath, appSchemaDir, type ConfigStore, createConfigStore } from "../../common/config/loader"
 
-const $NAME = createConfigFacade(createConfigStore(appSchemaDir("$NAME"), appConfigPath("$NAME")))
+const $NAME = createConfigStore(appSchemaDir("$NAME"), appConfigPath("$NAME"))
 
-/** The facade (onConfigChanged fires only on $NAME changes). */
-export const store: ConfigFacade = $NAME
+/** The store (onConfigChanged fires only on $NAME changes). */
+export const store: ConfigStore = $NAME
 
-/** The live $NAME config (namespace subtree mirror; read directly — never
+/** The live $NAME config (the store's stable mirror; read directly — never
  *  cache: config set mutates it in place). */
 export const config = $NAME.config
 EOF

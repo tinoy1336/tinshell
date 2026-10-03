@@ -223,7 +223,7 @@ const [dndEnabled, setDndEnabledState] = createState<boolean>(storedDnd())
  * The key is then PRUNED from the live config, which is required rather than
  * cosmetic: the root schema is closed, so a leftover `dnd` group makes the next
  * `notifications config reload` refuse the file ("additional property not
- * allowed"). Written through the facade's own two primitives — the in-place
+ * allowed"). Written through the store's own two primitives — the in-place
  * live swap and the serialized write chain — so the file and the running tree
  * carry the same key set. Idempotent: a second mount finds nothing to drop.
  *

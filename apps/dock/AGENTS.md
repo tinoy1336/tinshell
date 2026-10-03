@@ -358,10 +358,10 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   over the shared shell in `common/menus/`.
 - `applet-hooks.ts` — the dock-side host policy over the DockRow
   (`common/applets/hooks`). The applet dependencies travel the other way:
-  `applets.ts` builds each `AppletContext` (its config mirror, the facade
+  `applets.ts` builds each `AppletContext` (its config mirror, the store
   itself as `store`, and the dock's OS-domain object).
 - `config.ts` / `config.schema.ts` / `config.defaults.json` / `config.json` —
-  the dock's config trio + its facade (see Config), and `style.css` for the
+  the dock's config trio + its store (see Config), and `style.css` for the
   dock-scoped CSS.
 - `config-clone.ts` — `safeClone`, the DETACHED copy a config write path stages
   before `dock.queueWrite` (clone → apply to the clone → write → apply to the
@@ -460,9 +460,8 @@ see Lifecycle) because its inputs and effects are host state.
 ## Config
 
 The dock's OWN config trio (`apps/dock/config.{defaults,schema,json}`);
-`dock/config.ts` owns the `createConfigStore` instance, wraps it in
-`common/config/facade.ts`, and exports that facade (`dock`) plus the typed
-`config` mirror — consumers call the facade's own vocabulary:
+`dock/config.ts` owns the `createConfigStore` instance and exports it as `dock`
+plus the typed `config` mirror — consumers call the store's own vocabulary:
 
 | Section | Purpose |
 | --- | --- |
@@ -474,7 +473,7 @@ The dock's OWN config trio (`apps/dock/config.{defaults,schema,json}`);
 | `screengrab` | dir, format, codec, quality, name template, audio/cursor, overlay, capture mode, hwEncode/vaapi |
 
 - `config` is the STABLE mirror of the dock config (identity never changes;
-  re-synced in place — see the contract in `common/config/facade.ts`).
+  mutations apply in place — see the contract in `common/config/loader.ts`).
 - Tiers: the schema marks paths `restart` vs live; the tier RESPONSE is
   dock-side (`commands/config.ts` `onConfigChanged` → rebuild/redraw) and
   fires only on DOCK subtree changes.

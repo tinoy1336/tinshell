@@ -1,24 +1,29 @@
 /**
- * Notifications config — the notifications app's OWN store + facade
+ * Notifications config — the notifications app's OWN store
  * (apps/notifications/config.{defaults,schema,json}).
  *
- * This module owns its config store (createConfigStore + generic facade
- * from common/config/facade.ts — no shared surface registry). Exposes the
- * app's API surface (`get`, `set`, `reloadConfig()`, `store`). Reads are
- * always direct property accesses on the live config object — never cache,
- * since `config set` mutates it in place.
+ * This module owns its config store (createConfigStore — no shared surface
+ * registry). Exposes the app's API surface (`get`, `set`, `reloadConfig()`,
+ * `store`). Reads are always direct property accesses on the live config
+ * object — never cache, since `config set` mutates it in place.
  */
-import { type ConfigFacade, createConfigFacade } from "@common/config/facade"
-import { appConfigPath, appSchemaDir, createConfigStore } from "@common/config/loader"
+import {
+  appConfigPath,
+  appSchemaDir,
+  type ConfigStore,
+  createConfigStore,
+} from "@common/config/loader"
 
-/** The facade (onConfigChanged fires only on notifications changes). */
-export const store: ConfigFacade = createConfigFacade(
-  createConfigStore(appSchemaDir("notifications"), appConfigPath("notifications")),
+/** The store (onConfigChanged fires only on notifications changes). */
+export const store: ConfigStore = createConfigStore(
+  appSchemaDir("notifications"),
+  appConfigPath("notifications"),
 )
 
 /** Read a value by dotted path, e.g. get("popup.timeout", 10). */
 export function get<T = any>(path: string, fallback?: T): T {
-  return store.get(path, fallback) as T
+  const v = store.get(path)
+  return (v === undefined ? fallback : v) as T
 }
 
 /**

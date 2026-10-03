@@ -63,7 +63,7 @@ export const dockBackend: AppletBackend = {
   screengrabNaming: ScreengrabNamingDomain,
 }
 
-/** The dock's live config view — the facade's own mirror (the same object the
+/** The dock's live config view — the store's own mirror (the same object the
  *  store exposes, never a copy). */
 const dockConfig = dock.config as AppletConfig
 

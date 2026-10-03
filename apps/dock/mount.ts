@@ -11,7 +11,7 @@
  * — one source, two hosts.
  *
  * Config: the dock's OWN store (apps/dock/config.ts owns the createConfigStore
- * instance and the app wrapper from common/config/facade.ts).
+ * instance and the stable config mirror behind it).
  */
 import "./applets"
 import "./commands/config"

@@ -1,23 +1,21 @@
 /**
- * Launcher config — the launcher's OWN store + facade
+ * Launcher config — the launcher's OWN store
  * (apps/launcher/config.{defaults,schema,json}).
  *
- * This module owns its config store: createConfigStore + a generic facade
- * (common/config/facade.ts), no shared surface registry. Exposes the
- * app's API (`get(path, fallback?)`, `set(path, value)`,
- * `reloadConfig()`). Reads are always direct property accesses on the live
- * config object — never cache, since `config set` mutates it in place.
+ * This module owns its config store (createConfigStore — no shared surface
+ * registry). Exposes the app's API (`get(path, fallback?)`,
+ * `set(path, value)`, `reloadConfig()`). Reads are always direct property
+ * accesses on the live config object — never cache, since `config set` mutates
+ * it in place.
  */
-import { createConfigFacade } from "@common/config/facade"
 import { appConfigPath, appSchemaDir, createConfigStore } from "@common/config/loader"
 
-const launcher = createConfigFacade(
-  createConfigStore(appSchemaDir("launcher"), appConfigPath("launcher")),
-)
+const launcher = createConfigStore(appSchemaDir("launcher"), appConfigPath("launcher"))
 
 /** Read a value by dotted path, e.g. get("calc.debounceMs", 150). */
 export function get<T = any>(path: string, fallback?: T): T {
-  return launcher.get(path, fallback) as T
+  const v = launcher.get(path)
+  return (v === undefined ? fallback : v) as T
 }
 
 /**

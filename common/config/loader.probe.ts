@@ -2,7 +2,7 @@
  * Live-set probe — the config store's set path announces what it mutates.
  *
  * Why it exists: `setLive` is the ONE live-mutation primitive, and every set
- * path above it — the facade's `set`/`setLive`, app-store's `set`, and therefore
+ * path above it — the store's own `set`, app-store's `set`, and therefore
  * every `<app> config set` — writes the live tree through it. A set that mutates
  * the tree and announces nothing leaves the app's `onConfigChanged` mirrors on
  * the old value until the process restarts, and no warm path shows it: the
@@ -16,9 +16,11 @@
  *    including an equal-but-freshly-built object or array,
  *  - a set the walk refuses (an intermediate that is not an object) reports
  *    false and fires nothing,
- *  - `applyToLive` keeps announcing,
- *  - through the facade, `set()` reaches the listeners with the value already
- *    visible on the stable mirror,
+ *  - `applyToLive` keeps announcing, and the stable mirror keeps its identity
+ *    across a set and an in-place re-seed,
+ *  - the store's own `set()` validates, mutates and persists, and reaches the
+ *    listeners with the value already visible on the mirror,
+ *  - an identical re-seed announces nothing (the content filter),
  *  - through app-store, `set()` reaches the store's own listeners.
  *
  * The probe reads and writes no live config of this machine and no file inside
@@ -40,7 +42,6 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { createAppStore } from "@common/config/app-store"
-import { createConfigFacade } from "@common/config/facade"
 import { createConfigStore } from "@common/config/loader"
 
 const checks: [string, unknown, unknown][] = []
@@ -148,34 +149,47 @@ check("applyToLive still announces", fired, 4)
 check("applyToLive replaced the tree", store.get("appearance.accent"), "#222")
 check("the channel saw the value at the time it fired", seen[seen.length - 1], "#222")
 
-// ── the facade: set() reaches its listeners with the mirror already updated ──
+// ── the store's own set path: validated, persisted, announced once ──
 
-const facade = createConfigFacade(store)
-check("the facade mirror starts in sync", facade.config.window.width, 1)
-
-let facadeFired = 0
-let facadeSeen: unknown
-let facadeMirror: unknown
-facade.onConfigChanged(() => {
-  facadeFired++
-  facadeSeen = facade.get("window.width")
-  facadeMirror = facade.config.window.width
+let setFired = 0
+let setSeen: unknown
+let setMirror: unknown
+store.onConfigChanged(() => {
+  setFired++
+  setSeen = store.get("window.width")
+  setMirror = store.config.window.width
 })
 
-check("facade set reports ok", facade.set("window.width", 810).ok, true)
-check("facade set fires its listeners", facadeFired, 1)
-check("with the new value readable through the facade", facadeSeen, 810)
-check("and already visible on the stable mirror", facadeMirror, 810)
+check("set reports ok", store.set("window.width", 810).ok, true)
+check("set fires the change channel", setFired, 1)
+check("with the new value readable", setSeen, 810)
+check("and already visible on the stable mirror", setMirror, 810)
 
-facade.set("window.width", 810)
-check("facade set of the value already there fires nothing", facadeFired, 1)
+store.set("window.width", 810)
+check("set of the value already there fires nothing", setFired, 1)
 
-check("facade set of an unknown path is rejected", facade.set("appearance.nope", "x").ok, false)
-check("and fires nothing", facadeFired, 1)
+check("set of an unknown path is rejected", store.set("appearance.nope", "x").ok, false)
+check("and fires nothing", setFired, 1)
 
-facade.setLive("window.width", 820)
-check("facade setLive routes through the same announcement", facadeFired, 2)
-check("the mirror follows", facade.config.window.width, 820)
+// ── the moved guarantees: identity and the content filter ──
+
+const held = store.config
+check("the mirror is the store's own config object", held, store.config)
+check("the whole-config read is the same object", store.all(), store.config)
+store.setLive("window.width", 820)
+check("the mirror identity survives a set", store.config, held)
+store.applyToLive({ appearance: { accent: "#333" }, window: { width: 12 } })
+check("the mirror identity survives applyToLive", store.config, held)
+check("and the mirror holds the new value", held.window.width, 12)
+
+let reFired = 0
+store.onConfigChanged(() => {
+  reFired++
+})
+store.applyToLive({ appearance: { accent: "#333" }, window: { width: 12 } })
+check("an identical re-seed fires nothing (the content filter)", reFired, 0)
+store.setLive("window.width", 13)
+check("a real change still fires", reFired, 1)
 
 // ── app-store: the other set path over the same store ──
 

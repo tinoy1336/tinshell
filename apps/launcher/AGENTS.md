@@ -108,8 +108,7 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 - `emoji-style.ts` — the emoji-mode dynamic tokens (glyph size, cell
   hover/selection, lead colour) from `config.grid.*` / `config.appearance.*`.
 - `commands.ts` — request handlers (prefixed `["launcher", …]`).
-- `config.ts` — owns the app's config store + facade (`createConfigStore`
-  via `common/config/facade.ts`).
+- `config.ts` — owns the app's config store (`createConfigStore`).
 - `types.ts` — shared `Result` types; every source returns `Result[]`
   (`emojiEntries` marks the emoji row for the grid).
 - `log.ts` — the `[launcher]`-tagged logger (`createLogger`).
@@ -174,7 +173,7 @@ All registered PREFIXED (`["launcher", …]`) — same paths in shell and island
 | `launcher debug scroll <wheel\|surface\|status> <delta> [list\|grid]` | drive or read one row surface's scroll: apply a decision, or report without moving. Neither surface has a tail to start — a released gesture's momentum is the scroller's own kinetic scrolling — so a `surface` delta answers `consumed:false`, the hand-over itself |
 | `launcher debug preview` | the bang previews' record: what each fetched, and the reason it produced no rows |
 | `launcher debug query <query>` | run one query through the live combiner with the card HIDDEN and answer the rows it settles on |
-| `launcher config get/set/reload` | live config via facade |
+| `launcher config get/set/reload` | live config via the store |
 
 The `debug` node carries NO handler of its own: a handler on a namespace node
 intercepts its own children (dispatch takes the first node it finds with a

@@ -29,7 +29,6 @@
 
 import GLib from "gi://GLib"
 import type { AppletConfig, AppletConfigSource } from "@common/applets/config"
-import { type ConfigFacade, createConfigFacade } from "@common/config/facade"
 import {
   appConfigPath,
   appSchemaDir,
@@ -54,7 +53,7 @@ const DEPLOYED_DOCK_CONFIG_DIR = "/etc/greetd/tinshell-greeter/dock"
 interface DockConfigView {
   /** The dock's config every hosted applet and the shared renderer read. */
   config: AppletConfig
-  /** The applet-facing config source: the facade's live mirror + change
+  /** The applet-facing config source: the store's live mirror + change
    *  channel, WITHOUT the writer members — a greeter-side applet must never
    *  write into a user's home (the applet contract makes the writers
    *  optional). */
@@ -102,14 +101,14 @@ export function dockConfigView(): DockConfigView | null {
   // The deployed dir carries its own root copy of the live values (install.sh); the tree
   // dir is paired with this machine's flat live file (~/.config/tinshell/dock.json).
   const livePath = dir === DEPLOYED_DOCK_CONFIG_DIR ? undefined : appConfigPath("dock")
-  const facade: ConfigFacade = createConfigFacade(createConfigStore(dir, livePath))
-  const config = facade.config as AppletConfig
+  const store: ConfigStore = createConfigStore(dir, livePath)
+  const config = store.config as AppletConfig
   log(`[greeter-dock] dock config: source=${dir} ${values(config)}`)
   cached = {
     config,
     source: {
-      config: facade.config,
-      onConfigChanged: (cb) => facade.onConfigChanged(cb),
+      config: store.config,
+      onConfigChanged: (cb) => store.onConfigChanged(cb),
     },
     dir,
   }
