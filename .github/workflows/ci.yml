@@ -75,15 +75,30 @@ jobs:
       GO_VERSION: "1.24.6"
     steps:
       - uses: actions/checkout@v7
-      # The runtime the probe modules import, from the distribution: on Arch each
-      # of these is a package, and gtk4-layer-shell is the preload path the AGS
-      # wrapper bakes into every probe it builds.
+      # Everything the job builds or runs needs, from the distribution: the
+      # package list is DERIVED, not extended one failure at a time, from the
+      # dependency() and find_program() calls in the three astal stages this job
+      # builds and from the namespaces the probe bundles import.
+      #
+      #   * lib/astal/io — glib-2.0, gobject-2.0, gio-2.0, gio-unix-2.0 (all four
+      #     come from `glib2`), and it runs python3 (g-ir) at build time;
+      #   * lib/astal/gtk4 — glib-2.0, gtk4, gtk4-layer-shell-0, plus valac for
+      #     the Vala sources, and the astal-io the stage before it installs;
+      #   * lib/wireplumber — gobject-2.0, gio-2.0 and `wireplumber-0.5`, which
+      #     only `libwireplumber` provides;
+      #   * the build tools themselves — meson, ninja, gobject-introspection (for
+      #     g-ir-compiler), python (for the python3 the gir targets call), git and
+      #     curl for the pinned fetches;
+      #   * at run time the probes' module graphs import Gtk, Gdk, GdkPixbuf,
+      #     Pango, Soup, GUdev, Gio, GLib and Astal, so gjs, gdk-pixbuf2, pango,
+      #     libsoup3 and libgudev join them, and node runs the plain tier.
       - name: Install the runtime
         run: |
           set -euo pipefail
           pacman -Syu --noconfirm --needed \
-            gjs gtk4 gtk4-layer-shell libgudev libsoup3 pango gdk-pixbuf2 \
-            gobject-introspection vala meson ninja nodejs npm git curl
+            gjs glib2 gtk4 gtk4-layer-shell libwireplumber libgudev libsoup3 \
+            pango gdk-pixbuf2 gobject-introspection vala meson ninja python \
+            nodejs npm git curl
       # Every prefix-relative location a later stage can consult, written once
       # here so that no stage has to discover a variable the way the first two
       # attempts did:
