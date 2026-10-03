@@ -32,12 +32,15 @@ npm run check:schemas    # the generated config.schema.json files match their so
 npm run check:palette    # the generated palette carriers match the palette revision this repo pins
 ```
 
-The palette gate reads the palette from a checkout of its own repository: it
-resolves `HOUSE_PALETTE` when that variable is set, and otherwise expects the
-checkout beside this tree at `../house-palette`. CI clones it at the revision
-`scripts/palette/pin.json` pins; a carrier that is not what that palette renders
-fails the check with the file named, and the fix is `node scripts/check-palette.mjs
---write` plus a commit of the re-rendered carriers and their records.
+The palette gate reads the palette file from the standard configuration location
+(`~/.config/colourway/palette.json`), and the renderer is the published
+`@tinoy/colourway` at the version `scripts/palette/pin.json` pins. CI fetches the
+pinned palette into `COLOURWAY_PALETTE`, which the renderer honours, and a
+different palette fails the check as `palette-mismatch`; a carrier that is not
+what that palette renders fails with the file named, and the fix is
+`node scripts/check-palette.mjs --write` plus a commit of the re-rendered
+carriers and their records. Set `COLOURWAY_BIN` to a local executable to render
+against a checkout of the renderer instead.
 
 Then the checks CI cannot run, because they resolve the Arch-only `ags` toolchain
 and the generated typings (see the header of `.github/workflows/ci.yml`):

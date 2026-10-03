@@ -1016,9 +1016,9 @@ replaced after its build is caught instead of trusted.
 ## Generated carriers and the palette gate
 
 The colours in this tree are not authored here. They come from the house palette —
-a palette source plus a renderer that knows nothing about any consumer — and they
-reach the tree as two generated files, each rendered from a template this
-repository owns:
+a palette file that belongs to the home repository, and a renderer published as a
+program that knows nothing about any consumer — and they reach the tree as two
+generated files, each rendered from a template this repository owns:
 
 | Carrier | Template | Record |
 |---|---|---|
@@ -1033,13 +1033,15 @@ repository owns:
   palette fragment could reach a widget only if every app assembled two
   stylesheets itself — which is why the stylesheet is rendered whole, with its
   own rules carried in the template beside the palette values they consume.
-- **The revision is pinned in `scripts/palette/pin.json`:** the palette
-  repository, the revision and the digest of its `palette.json` that this tree
-  was rendered against. The gate resolves a palette checkout from `HOUSE_PALETTE`,
-  else from `../house-palette` beside this tree, and stops with
-  `palette-mismatch` — before comparing any carrier — when that checkout is not
-  the pinned digest: an upstream move fails at the moment this repository chooses
-  to take it instead of re-theming silently.
+- **The pin is `scripts/palette/pin.json`:** the renderer package and version
+  this tree was rendered with, and the palette file's repository, path, revision
+  and digest. The gate runs the published renderer at that version; the renderer
+  resolves the palette file from `COLOURWAY_PALETTE` when it is set — CI fetches
+  the pinned file there — and from the standard configuration location otherwise,
+  and every render is held to the pinned digest with `--expect-palette`. A palette
+  that is not the pinned one stops the run with `palette-mismatch`: taking an
+  upstream palette move is this repository's deliberate act, not a silent
+  re-theme.
 - **The record is the other half of the pin.** Each record holds three content
   digests (template, palette, output) and no paths, so it is identical in every
   checkout; a template or palette edit with no re-render fails the gate with

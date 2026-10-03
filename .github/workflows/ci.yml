@@ -73,15 +73,16 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - name: Check out the pinned palette
+      - run: npm ci
+      - name: Fetch the palette this tree pins
         run: |
           set -euo pipefail
-          url=$(node -p "require('./scripts/palette/pin.json').repository")
-          revision=$(node -p "require('./scripts/palette/pin.json').revision")
-          git clone --quiet "$url" "$RUNNER_TEMP/house-palette"
-          git -C "$RUNNER_TEMP/house-palette" checkout --quiet "$revision"
+          repository=$(node -p "require('./scripts/palette/pin.json').palette.repository")
+          ref=$(node -p "require('./scripts/palette/pin.json').palette.ref")
+          path=$(node -p "require('./scripts/palette/pin.json').palette.path")
+          curl -fsSL "$repository/raw/$ref/$path" -o "$RUNNER_TEMP/palette.json"
       - name: Re-render every carrier and compare
-        run: HOUSE_PALETTE="$RUNNER_TEMP/house-palette" node scripts/check-palette.mjs
+        run: COLOURWAY_PALETTE="$RUNNER_TEMP/palette.json" node scripts/check-palette.mjs
 
   # Nothing here selects files by extension: this job reads prose and code
   # alike, because the gates that do select by extension never open a markdown

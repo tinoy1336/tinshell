@@ -1,5 +1,13 @@
 {
-  "repository": "https://github.com/tinoy1336/house-palette",
-  "revision": "04031d0df197d0e8d2ed80d01a8ee8c09d9abb1a",
-  "sha256": "15322952c371949710ae4648cc4e1feb64c5ff750451bc8f85113e1aa3b2127a"
+  "renderer": {
+    "package": "@tinoy/colourway",
+    "version": "0.1.0"
+  },
+  "palette": {
+    "repository": "https://github.com/tinoy1336/dotfiles",
+    "ref": "main",
+    "path": ".config/colourway/palette.json",
+    "revision": "2575377",
+    "sha256": "15322952c371949710ae4648cc4e1feb64c5ff750451bc8f85113e1aa3b2127a"
+  }
 }

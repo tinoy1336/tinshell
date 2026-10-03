@@ -4,35 +4,37 @@
  * the file committed in this tree.
  *
  * WHY THIS GATE EXISTS. The colours in this tree come from the house palette,
- * which lives in its own repository and moves on its own schedule. The carriers
- * (`common/shell/theme.css`, `common/css/tokens.ts`) are generated from it and
- * committed here, so nothing about the palette is visible in a diff of this
- * tree until something re-renders — and a carrier that quietly holds last
- * month's accent is a theme that no longer matches the palette it claims to
- * follow. This gate re-renders against the palette revision this repository
- * pins and fails when a committed carrier, or the record beside its template,
- * is not what that palette produces.
+ * whose file is configuration and lives in the home repository, and whose
+ * renderer is a published program. The carriers (`common/shell/theme.css`,
+ * `common/css/tokens.ts`) are generated from it and committed here, so nothing
+ * about the palette is visible in a diff of this tree until something re-renders
+ * — and a carrier that quietly holds last month's accent is a theme that no
+ * longer matches the palette it claims to follow. This gate re-renders against
+ * the palette revision this repository pins and fails when a committed carrier,
+ * or the record beside its template, is not what that palette produces.
  *
  *   node scripts/check-palette.mjs            compare (CI, and before a commit)
  *   node scripts/check-palette.mjs --write    re-render the carriers and write them
  *
- * The palette is resolved from the HOUSE_PALETTE environment variable, else from
- * a sibling checkout at `../house-palette` — the renderer is `bin/render` beside
- * that palette's `palette.json`, and nothing here clones anything. The revision
- * and the digest this repository adopts live in `scripts/palette/pin.json`: a
- * palette that does not carry that digest is a palette this tree has not been
- * rendered against, and the run stops before it compares any carrier.
+ * The renderer is the published program `scripts/palette/pin.json` names, run
+ * through npx at the pinned version, so a local run and the CI run are the same
+ * run; `COLOURWAY_BIN` names a local executable instead, for work on the
+ * renderer itself or for a machine with no network. The palette file is resolved
+ * by the renderer: from `COLOURWAY_PALETTE` when that variable is set — CI
+ * fetches the pinned file into it — and otherwise from the standard
+ * configuration location. The pin also carries the palette digest, passed to
+ * every render as `--expect-palette`, so a palette that is not the one this tree
+ * was rendered against stops the run.
  *
  * Exit codes, the renderer's own contract: 0 every carrier is current, 1 drift
  * (a carrier or a record differs, or the palette is not the pinned digest), 2
- * the render could not happen (no palette checkout, an unreadable pin, a
- * template that throws). A gate that reads 2 as "current" is broken, so the two
- * are never merged into one non-zero code.
+ * the render could not happen (no renderer, an unreadable pin, a template that
+ * throws). A gate that reads 2 as "current" is broken, so the two are never
+ * merged into one non-zero code.
  */
 import { spawnSync } from "node:child_process"
-import { createHash } from "node:crypto"
-import { existsSync, readFileSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
+import { readFileSync } from "node:fs"
+import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -66,7 +68,7 @@ if (args.includes("--help") || args.includes("-h")) {
   )
   process.exit(0)
 }
-const unknown = args.filter((a) => a !== "--write")
+const unknown = args.filter((argument) => argument !== "--write")
 if (unknown.length > 0) {
   console.error(`unknown argument: ${unknown[0]}`)
   console.error("usage: node scripts/check-palette.mjs [--write]")
@@ -82,75 +84,58 @@ function readPin() {
     console.error(`pin ${PIN_PATH} could not be read: ${error.message}`)
     process.exit(2)
   }
+  const renderer = pin?.renderer
+  const palette = pin?.palette
   const shaped =
-    typeof pin === "object" &&
-    pin !== null &&
-    typeof pin.revision === "string" &&
-    pin.revision.length > 0 &&
-    typeof pin.sha256 === "string" &&
-    /^[0-9a-f]{64}$/.test(pin.sha256)
+    typeof renderer?.package === "string" &&
+    renderer.package.length > 0 &&
+    typeof renderer?.version === "string" &&
+    renderer.version.length > 0 &&
+    typeof palette?.revision === "string" &&
+    palette.revision.length > 0 &&
+    typeof palette?.sha256 === "string" &&
+    /^[0-9a-f]{64}$/.test(palette.sha256)
   if (!shaped) {
-    console.error(`pin ${PIN_PATH} names no revision and no sha256 digest`)
+    console.error(`pin ${PIN_PATH} names no renderer version, no palette revision and no digest`)
     process.exit(2)
   }
   return pin
 }
 
 const pin = readPin()
-const paletteDir = resolve(ROOT, process.env.HOUSE_PALETTE ?? "../house-palette")
-const palettePath = join(paletteDir, "palette.json")
-const renderer = join(paletteDir, "bin", "render")
 
-for (const [path, what] of [
-  [renderer, "the palette renderer"],
-  [palettePath, "the palette source"],
-]) {
-  if (existsSync(path)) continue
-  console.error(`no ${what} at ${path}`)
-  console.error(
-    "a palette checkout is required: point HOUSE_PALETTE at one, or place it beside this tree as house-palette",
-  )
-  process.exit(2)
+/** The renderer a run uses: a local executable when one is named, the pinned package otherwise. */
+function renderer() {
+  const local = process.env.COLOURWAY_BIN
+  if (local !== undefined && local !== "") return { command: local, prefix: [] }
+  return { command: "npx", prefix: ["--yes", `${pin.renderer.package}@${pin.renderer.version}`] }
 }
 
-// The pinned digest is checked BEFORE any carrier is compared: a palette that is
-// not the one this tree was rendered against would fail every carrier with a
-// message about a file rather than about the palette.
-const found = createHash("sha256").update(readFileSync(palettePath)).digest("hex")
-if (found !== pin.sha256) {
-  console.log(`palette-mismatch ${palettePath}: pinned ${pin.sha256}, found ${found}`)
-  console.log(
-    `the palette moved: render deliberately with --write, then commit the carriers and their records`,
-  )
-  process.exit(1)
-}
-
+const program = renderer()
 let drifted = 0
 let failed = 0
 for (const carrier of CARRIERS) {
   const argv = [
-    renderer,
+    ...program.prefix,
     "--template",
     join(ROOT, carrier.template),
     "--out",
     join(ROOT, carrier.out),
     "--record",
     join(ROOT, carrier.record),
-    "--palette",
-    palettePath,
     "--revision",
-    pin.revision,
+    pin.palette.revision,
     "--expect-palette",
-    pin.sha256,
+    pin.palette.sha256,
   ]
   if (!write) argv.push("--check")
-  const run = spawnSync(process.execPath, argv, { stdio: "inherit", timeout: 60000 })
+  const run = spawnSync(program.command, argv, { stdio: "inherit", timeout: 120000 })
   if (run.status === 0) continue
   if (run.status === 1) {
     drifted += 1
     continue
   }
-  console.error(`render-failed ${carrier.name}: the render could not happen (exit ${run.status})`)
+  console.error(`render-failed ${carrier.name}: the render could not happen (exit ${run.status ?? "signal"})`)
   failed += 1
 }
 
@@ -162,8 +147,8 @@ if (drifted > 0) {
   process.exit(1)
 }
 if (write) {
-  console.log(`wrote ${CARRIERS.length} palette carrier(s) from revision ${pin.revision}`)
+  console.log(`wrote ${CARRIERS.length} palette carrier(s) from revision ${pin.palette.revision}`)
 } else {
-  console.log(`${CARRIERS.length} palette carrier(s) current at revision ${pin.revision}`)
+  console.log(`${CARRIERS.length} palette carrier(s) current at revision ${pin.palette.revision}`)
 }
 process.exit(0)

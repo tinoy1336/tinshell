@@ -3,7 +3,7 @@
  *
  * Generated from the house palette — edit the template, not this file.
  * Template: scripts/palette/tokens.template.ts
- * Palette revision: 04031d0df197d0e8d2ed80d01a8ee8c09d9abb1a
+ * Palette revision: 2575377
  *
  * A token has two carriers, and this module holds the SECOND one — the runtime
  * string — for consumers CSS cannot reach: a Cairo painter or a
