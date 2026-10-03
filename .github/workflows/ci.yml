@@ -12,16 +12,18 @@
 #
 # None of that exists on a stock ubuntu runner, so a job pretending to build or
 # typecheck here would be a green badge over nothing. The route to a build job is
-# an Arch container (archlinux:base-devel) that installs the AUR package and runs
-# `./setup.sh`; that is a much heavier job than this repo's checks justify today.
-# Until then the build is verified where it can be: on the machine it targets,
-# with `npm run check` and `npm run check:builds`.
+# an Arch container that installs the AUR package and runs `./setup.sh`; that is a
+# much heavier job than this repo's checks justify today. Until then the build is
+# verified where it can be: on the machine it targets, with `npm run check` and
+# `npm run check:builds`.
 #
-# The probe tier splits along the same line: the probes whose module is gi-free
-# run here under plain Node 22, and the ones whose module imports `gi://`/`ags/*`
-# build through the ags toolchain, so the runner executes what it can and names
-# every probe it skips in its own output (a skip is never counted as a pass).
-# Landing the full tier means an Arch container job with the toolchain installed.
+# The probe tier does run in full, in the `probes` job below: every probe's
+# modules import `gi://` namespaces (GLib, Gio, GObject, Gtk, Gdk, GdkPixbuf,
+# Pango, cairo, Soup, GUdev) and three of them import the Astal libraries on top,
+# so that job runs in an Arch container, builds the AGS CLI from a pinned release
+# asset and the Astal libraries from a pinned commit, and then demands the whole
+# set — a missing, stale or mismatched toolchain fails the run rather than
+# skipping the bundled tier (PROBE_REQUIRE_FULL).
 name: CI
 
 on:
@@ -48,12 +50,97 @@ jobs:
         run: npx biome check .
       - name: Config schemas match their sources
         run: npm run check:schemas
-      # Every check surface that lives beside a module, each under its own
-      # timeout, exiting non-zero on any failure or timeout. The bundled tier
-      # needs the ags toolchain (see the note at the top of this file), so on this
-      # runner the job executes the plain-Node probes and the runner prints the
-      # bundled ones it skipped, by name.
+      # The probes live in their own job: the full set needs the AGS toolchain
+      # and the Astal libraries, so it runs in the Arch container below.
+
+  # The whole probe set on the toolchain its bundled half builds through.
+  #
+  # WHAT THIS JOB OWNS. The container carries the runtime the probe modules
+  # import (gjs, GTK4, gtk4-layer-shell, libgudev, libsoup3, Pango, GdkPixbuf);
+  # the toolchain step pins everything it fetches — the AGS release asset, the Go
+  # toolchain that compiles its CLI, and the astal commit its libraries are built
+  # from — and the cache is keyed on those pins. Nothing here fetches a moving
+  # target; the gate that would catch a stale pin is the probe run itself.
+  probes:
+    name: probes
+    runs-on: ubuntu-latest
+    container: archlinux/archlinux:base-devel
+    env:
+      # Bump these together; they are the only place the toolchain moves.
+      AGS_VERSION: "3.1.2"
+      ASTAL_COMMIT: "67ddc83e0bdbda6de7f6f15e4fbc5d6b9d2d1b18"
+      GO_VERSION: "1.24.6"
+    steps:
+      - uses: actions/checkout@v7
+      # The runtime the probe modules import, from the distribution: on Arch each
+      # of these is a package, and gtk4-layer-shell is the preload path the AGS
+      # wrapper bakes into every probe it builds.
+      - name: Install the runtime
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm --needed \
+            gjs gtk4 gtk4-layer-shell libgudev libsoup3 pango gdk-pixbuf2 \
+            gobject-introspection vala meson ninja nodejs npm git curl
+      - name: Cache the toolchain
+        id: toolchain
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/toolchain
+          key: ags-${{ env.AGS_VERSION }}-astal-${{ env.ASTAL_COMMIT }}-go-${{ env.GO_VERSION }}
+      # Go, the AGS release asset and the astal libraries: all pinned above, all
+      # built into $RUNNER_TEMP/toolchain rather than installed into the system,
+      # so the cache holds exactly what the probes need.
+      - name: Build the toolchain
+        if: steps.toolchain.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/toolchain"
+          mkdir -p "$root/bin"
+          curl -sSfL -o "$RUNNER_TEMP/go.tar.gz" "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
+          tar xzf "$RUNNER_TEMP/go.tar.gz" -C "$root"
+          # astal-4 links astal-io, so the order matters: io, then gtk4, then the
+          # wireplumber typelib (AstalWp) the host transport probe imports.
+          git clone --quiet --filter=blob:none https://github.com/Aylur/astal "$RUNNER_TEMP/astal-src"
+          git -C "$RUNNER_TEMP/astal-src" checkout --quiet "$ASTAL_COMMIT"
+          for lib in lib/astal/io lib/astal/gtk4 lib/wireplumber; do
+            name="$(basename "$lib")"
+            meson setup --prefix="$root/astal" --buildtype=release \
+              "$RUNNER_TEMP/astal-build/$name" "$RUNNER_TEMP/astal-src/$lib"
+            ninja -C "$RUNNER_TEMP/astal-build/$name" install
+          done
+          curl -sSfL -o "$RUNNER_TEMP/ags.tar.gz" \
+            "https://github.com/Aylur/ags/releases/download/v${AGS_VERSION}/ags-v${AGS_VERSION}.tar.gz"
+          mkdir -p "$root/ags"
+          tar xzf "$RUNNER_TEMP/ags.tar.gz" --strip-components=1 -C "$root/ags"
+          # The wrapper `ags bundle` writes runs gjs under a fixed preload path,
+          # so every path the CLI bakes into it is decided here.
+          "$root/go/bin/go" build -C "$root/ags/cli" -mod=vendor -o "$root/bin/ags" \
+            -ldflags "-X main.gtk4LayerShell=/usr/lib/libgtk4-layer-shell.so -X main.agsJsPackage=$root/ags -X main.gjs=/usr/bin/gjs -X main.bash=/usr/bin/bash" .
+      # On both the built and the cached path: PATH, the astal prefix the typelibs
+      # load from, and the version the probes are written against — read from the
+      # pinned source, so a bump above cannot leave a stale expectation behind.
+      # Upstream's v3.1.2 asset carries `cli/version` at 3.1.0, which is why the
+      # number is read rather than typed.
+      - name: Put the toolchain on PATH
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/toolchain"
+          echo "$root/bin" >> "$GITHUB_PATH"
+          echo "GI_TYPELIB_PATH=$root/astal/lib/girepository-1.0" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$root/astal/lib" >> "$GITHUB_ENV"
+          echo "PROBE_AGS_VERSION=$(cat "$root/ags/cli/version")" >> "$GITHUB_ENV"
+      - name: Toolchain versions
+        run: |
+          set -euo pipefail
+          ags --version
+          gjs --version
+          node --version
+      # Every probe, each under its own timeout, and a run that does not execute
+      # all of them fails: PROBE_REQUIRE_FULL=1 turns a skipped tier, a missing
+      # toolchain and a mismatched ags version into a non-zero exit.
       - name: Probes
+        env:
+          PROBE_REQUIRE_FULL: "1"
         run: npm run check:probes
 
   # The generated palette carriers are checked against the palette that produced

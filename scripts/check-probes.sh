@@ -21,11 +21,18 @@
 # Two shapes, because the modules differ: `*.probe.ts` beside a gi-free module
 # runs under plain node (`node --experimental-strip-types`), while a probe whose
 # module imports `gi://` or `ags/*` is built with the repository's own bundler
-# and the wrapper run under gjs. The bundler IS the `ags` toolchain, which exists
-# on an Arch machine and not on a stock CI runner: when `ags` is not on PATH the
+# and the wrapper run under gjs. The bundler IS the `ags` toolchain, which CI
+# installs for the whole set (see .github/workflows/ci.yml): without it the
 # bundled tier is SKIPPED and every skipped probe is named in the run's own
-# output, so a job on a plain runner still executes the tier it can and a skip is
-# never read as coverage.
+# output, so a machine that only has node still executes the tier it can.
+#
+# A SKIP IS NEVER COVERAGE, so the count is always printed and the caller can
+# demand the full set:
+#   PROBE_REQUIRE_FULL=1   a missing `ags` is a precondition failure, and a run
+#                          that does not execute every declared probe fails.
+#   PROBE_AGS_VERSION=X    the `ags` on PATH must report X (the version the
+#                          bundled tier is written against); a different
+#                          toolchain fails instead of running anyway.
 #
 # Every probe runs with its own scratch XDG tree (including `XDG_CONFIG_HOME`,
 # which a probe cannot repoint for itself because GLib resolves the user config
@@ -53,6 +60,11 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BOUND="${PROBE_TIMEOUT:-120}"
+# 1: every declared probe must run. The workflow sets it, because a job that
+# reports a green tick over a third of its checks is the failure this guards.
+REQUIRE_FULL="${PROBE_REQUIRE_FULL:-0}"
+# The `ags` version the bundled tier is written against; empty = accept any.
+REQUIRED_AGS_VERSION="${PROBE_AGS_VERSION:-}"
 
 abort() {
   printf 'PROBE RUNNER PRECONDITION FAILURE: %s\n' "$1" >&2
@@ -62,10 +74,23 @@ abort() {
 command -v node >/dev/null 2>&1 ||
   abort "node is not on PATH; the probes need node --experimental-strip-types (node >= 22.6)."
 command -v timeout >/dev/null 2>&1 || abort "timeout is not on PATH (coreutils)."
-# `ags` is the only optional tool: it builds the bundled tier, and its absence
-# skips that tier by name instead of failing the run.
+# `ags` builds the bundled tier. Its absence skips that tier by name, unless
+# the caller requires the full set — then it is a precondition failure, not a
+# shorter run.
 HAVE_AGS=0
-command -v ags >/dev/null 2>&1 && HAVE_AGS=1
+AGS_VERSION=""
+if command -v ags >/dev/null 2>&1; then
+  HAVE_AGS=1
+  AGS_VERSION="$(ags --version 2>/dev/null | awk '{print $NF}')"
+fi
+if [ "${REQUIRE_FULL}" -eq 1 ]; then
+  [ "${HAVE_AGS}" -eq 1 ] || abort \
+    "PROBE_REQUIRE_FULL=1 and ags is not on PATH: the bundled tier would be skipped, and a skip is not a pass."
+  if [ -n "${REQUIRED_AGS_VERSION}" ] && [ "${AGS_VERSION}" != "${REQUIRED_AGS_VERSION}" ]; then
+    abort \
+      "ags on PATH reports '${AGS_VERSION:-unknown}', this tree's bundled tier is pinned to '${REQUIRED_AGS_VERSION}' (PROBE_AGS_VERSION)."
+  fi
+fi
 node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 6) ? 0 : 1)' ||
   abort "node $(node -v) is too old for --experimental-strip-types (needs node >= 22.6)."
 
@@ -174,6 +199,13 @@ else
 fi
 
 printf '\n'
+TOTAL=$(( ${#PLAIN[@]} + ${#BUNDLED[@]} ))
+printf 'PROBE COVERAGE: %s of %s probes ran, %s skipped.\n' "${ran}" "${TOTAL}" "${skipped}"
+if [ "${REQUIRE_FULL}" -eq 1 ] && [ "${ran}" -ne "${TOTAL}" ]; then
+  printf 'PROBE RUN FAILURE: the full set is required (PROBE_REQUIRE_FULL=1) and %s of %s ran.\n' \
+    "${ran}" "${TOTAL}" >&2
+  exit 1
+fi
 if [ "${failed}" -gt 0 ]; then
   printf 'PROBE RUN FAILURE: %s of %s probes failed\n' "${failed}" "${ran}" >&2
   exit 1
