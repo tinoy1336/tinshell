@@ -452,7 +452,7 @@ and does not touch this one. Rationale: AstalNotifd gir
 0.1 exposes **no** `notify()` on the daemon, and a shelled-out notification
 dies with the sending process, so a notification action could never invoke.
 Popup lifetime note: the popup auto-hides after `popup.timeout` (10s) while
-the notification persists in the CENTER — a slow user finds "Annotate"
+the notification persists in the CENTRE — a slow user finds "Annotate"
 there. `config.screengrab.notify` still gates the notification.
 
 ## GOTCHAS

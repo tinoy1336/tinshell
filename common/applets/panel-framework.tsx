@@ -504,7 +504,7 @@ function createPill(opts: PillConfig): PillCore {
 
   // ── Pill DrawingArea — grow-axis align pins to dock edge: END for
   //  growDir=-1 (bottom/right), START for growDir=+1 (top/left).
-  //  Cross-axis is always CENTER.
+  //  Cross-axis is always CENTRE.
   const growAlign = dg.growDir < 0 ? Gtk.Align.END : Gtk.Align.START
   const crossAlign = Gtk.Align.CENTER
   const pillValign = dg.growAxis === "y" ? growAlign : crossAlign

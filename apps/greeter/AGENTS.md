@@ -27,7 +27,7 @@ compositor's frost, and each field carries its own scrim well
 fields, a session picker row
 (Hyprland / Plasma (Wayland) / Plasma (X11), hyprland-uwsm hidden because
 uwsm is not installed), and a submit glyph in the password field (no separate
-sign-in button). A dock strip rides BOTTOM-CENTER on the same
+sign-in button). A dock strip rides BOTTOM-CENTRE on the same
 surface (login AND lock — see "Greeter dock subset" below). Styling mirrors
 the desktop (same `common/shell/theme.css` base, same blur/frost parameters).
 

@@ -1301,7 +1301,7 @@ export default function Launcher() {
         // layer surface does not reliably shrink — the compositor keeps the
         // grown box while the content re-measures — so a START-aligned card
         // paints above the box centre as soon as the results shrink (the
-        // upward drift). CENTER keeps the card on the monitor centre through
+        // upward drift). CENTRE keeps the card on the monitor centre through
         // growth, shrink and the emoji row's expansion.
         valign={Gtk.Align.CENTER}
         orientation={Gtk.Orientation.VERTICAL}

@@ -273,7 +273,7 @@ export function drawOverlapRings(
  * centring formula from text extents (width/2 + xBearing, height/2 + yBearing)
  * — this is pixel-accurate where naive width/2 centring is not.
  *
- * `shadowAlpha`: when > 0, draw a config-colored offset copy first (same style
+ * `shadowAlpha`: when > 0, draw a config-coloured offset copy first (same style
  * as the inline shadows in Performance/Battery/Power) for legibility against the
  * translucent disc + blurred background. Defaults to 0 (no shadow); pass a value
  * > 0 to enable.

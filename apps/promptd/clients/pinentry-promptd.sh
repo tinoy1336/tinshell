@@ -6,8 +6,8 @@
 #   SETDESC <text>   description shown above the prompt
 #   SETPROMPT <txt>  prompt label (default "PIN:")
 #   SETTITLE <text>  window title
-#   GETPIN           ask for a secret -> D <percent-encoded> | ERR ... canceled
-#   CONFIRM          yes/no question  -> OK | ERR ... canceled
+#   GETPIN           ask for a secret -> D <percent-encoded> | ERR ... cancelled
+#   CONFIRM          yes/no question  -> OK | ERR ... cancelled
 #   MESSAGE          info box         -> OK
 #   BYE              quit
 # Unknown SET*/OPTION* lines are answered OK (lenient, like other pinentries).
