@@ -19,7 +19,7 @@ import { isShell } from "@common/app/mode"
 import { createApp } from "@common/app/start"
 import app from "ags/gtk4/app"
 import { filesCss, mountFiles } from "./mount"
-import { destroyBrowser, openPath } from "./window"
+import { openPath, unmount } from "./window"
 
 createApp({
   instanceName: "files",
@@ -35,7 +35,7 @@ createApp({
     openPath(path)
   },
   onQuit() {
-    destroyBrowser() // every open browser window (multi-window app)
+    unmount() // every open browser window (multi-window app)
   },
 })
 

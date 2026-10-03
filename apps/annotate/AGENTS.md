@@ -32,7 +32,7 @@ systemd unit, no layerrule — the notes/files pattern.
 | Window rule    | `annotate-float` in `hypr-rules.ts` → `~/.config/hypr/rules/120-annotate.lua` — float, rounding 14, `decorate = true`, `border_size = 1`, `size` read from config `window.defaultWidth/defaultHeight` (630×450, mirroring notes-float) — the startup-race fix that pins the map size (and the window really maps at it: the header row's minimum is 477px, §Layout); it pins NO position. Position is annotate's own CASCADE, applied by a per-open runtime rule registered from `window.tsx` (see §Behaviour → Window) |
 | Keybind        | **NONE** — opened from the screenshot notification action (the dock's "Annotate" button) via `annotate/ensure-open.sh`, or from the launcher's `!a <path>` bang (same script)       |
 | Layerrule      | **NONE** — XDG window, not a layer surface. Frost = GLOBAL blur + translucent card (files/notes pattern).                                                               |
-| Unit           | **NONE — by design.** Interactive desktop app; the ISLAND quits when the LAST window closes (its `window-removed → app.quit()` is gated on `!isShell` — in the shell the editor must never kill the shared instance). In SHELL the app is LAZY: loaded on the first `annotate …` request, unloaded ~60s after the last editor window closes (`scheduleUnload("annotate")`; `unmountAnnotate` as unmount, which tears down every window). Do NOT add `tinshell-annotate.service` to setup.sh's unit loop (same exception as notes/files). |
+| Unit           | **NONE — by design.** Interactive desktop app; the ISLAND quits when the LAST window closes (its `window-removed → app.quit()` is gated on `!isShell` — in the shell the editor must never kill the shared instance). In SHELL the app is LAZY: loaded on the first `annotate …` request, unloaded ~60s after the last editor window closes (`scheduleUnload("annotate")`; `unmount`, which tears down every window). Do NOT add `tinshell-annotate.service` to setup.sh's unit loop (same exception as notes/files). |
 | Log            | fileSink → `/tmp/tinshell-annotate-debug.log` (launched from a notification action — stdout/stderr are lost)                                                                 |
 
 ## Launch path & lifecycle
@@ -102,7 +102,7 @@ limitation). Config `set` coerces the CLI string to the existing field's type
   image file (a named path that does not is refused, logged, and mounts
   nothing — `resolveTarget`); `getEditor()` answers the
   most recently opened one for the request surface (`save`), and
-  `closeEditors()`/`unmountAnnotate()` walk the whole registry.
+  `closeEditors()`/`unmount()` walk the whole registry.
 - Initial size from config `window.defaultWidth/defaultHeight` (630×450),
   min 520×360. Resizable via the generic Hyprland binds (SUPER+RMB drag,
   SUPER+CTRL+arrows — hyprland.lua, every window). The config is a **floored
@@ -471,7 +471,7 @@ there. `config.screengrab.notify` still gates the notification.
    close can remove (files/AGENTS.md GOTCHA 15 carries the full failure shape).
    Contract: `win.connect("close-request", () => { teardown(); win.destroy();
    return true })`; `handle.close()`, `closeEditors()` (the `close` request) and
-   the shell unmount (`unmountAnnotate`, which walks every open window) run
+   the shell unmount (`unmount`, which walks every open window) run
    `teardown()` BEFORE `destroy()`. `teardown()` is idempotent and — in the
    multi-window registry — removes ONLY ITS OWN handle from `editors`, arming
    `scheduleUnload` when that was the last one (teardown also releases that window's image and strokes and arms the collection — GOTCHA 14). Never defer to the default

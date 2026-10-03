@@ -88,4 +88,4 @@ export function mountFiles(): void {
 /** Shell lazy-unload hook (islands never call it). Closes EVERY open browser
  *  window; each close runs that window's own teardown and only then destroys
  *  it. */
-export { destroyBrowser as unmount } from "./window"
+export { unmount } from "./window"

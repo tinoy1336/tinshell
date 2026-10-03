@@ -94,4 +94,4 @@ export function mountAnnotate(): void {
 }
 
 /** Shell lazy-unload hook (islands never call it). */
-export { unmountAnnotate as unmount } from "./window"
+export { unmount } from "./window"

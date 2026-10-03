@@ -4,16 +4,17 @@
  * The app is on-demand: it quits when the last note window closes (there is
  * no systemd unit — a desktop app that exits with its windows). Every note
  * flushes synchronously on close; `<instance> quit` flushes through the
- * teardown of that instance's quit path (unmountNotes).
+ * teardown of that instance's quit path (unmount).
  *
  * EVERY close path funnels through `closeWindow` — teardown (flush) → registry
- * drop → destroy — and `unmountNotes` leaves no window handle behind, so a note
+ * drop → destroy — and `unmount` leaves no window handle behind, so a note
  * that was unloaded can never be re-presented or written to again.
  */
 import GLib from "gi://GLib"
 import { scheduleUnload } from "@common/app/lazy"
 import { isShell } from "@common/app/mode"
 import { ignore, log } from "@common/log/logger"
+import { expandTilde } from "@common/path/complete"
 import app from "ags/gtk4/app"
 import { pruneHistoryFiles } from "./history-store"
 import { createNote, type Note } from "./Note"
@@ -27,7 +28,7 @@ import {
   track,
   untrack,
 } from "./session"
-import { listNotes, newNoteName, readNote, resolvePath, storageDir } from "./store"
+import { listNotes, newNoteName, readNote, storageDir } from "./store"
 
 const open: Note[] = []
 
@@ -136,7 +137,7 @@ function resolveNotePath(nameOrPath: string): string | null {
     if (!path.endsWith(".md")) path += ".md"
     path = GLib.build_filenamev([storageDir(), path])
   }
-  return resolvePath(path)
+  return expandTilde(path)
 }
 
 /** Close an OPEN note by file name (within the storage dir) or by path —
@@ -294,7 +295,7 @@ function openNoteSilent(nameOrPath: string): void {
  * dead window from being re-presented (or writing its file) after a remount.
  * Idempotent.
  */
-export function unmountNotes(): void {
+export function unmount(): void {
   for (const note of [...open]) closeWindow(note, "unmount")
   open.length = 0 // belt: the unload leaves no window handle behind
   // Module scope survives a lazy unload (esbuild caches the module): stop a

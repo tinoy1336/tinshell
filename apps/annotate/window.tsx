@@ -1262,7 +1262,7 @@ export function closeEditors(): void {
 }
 
 /** Shell unmount: tear down EVERY open editor window. */
-export function unmountAnnotate(): void {
+export function unmount(): void {
   cascadeSlot = 0 // module scope survives a lazy unload — re-arm the cascade origin
   for (const e of [...editors]) {
     e.teardown()

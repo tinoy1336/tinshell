@@ -24,7 +24,7 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
 | | |
 | --- | --- |
 | Instance / bus | `notes` (`io.Astal.notes`) |
-| Unit | **NONE — by design.** On-demand desktop app: SUPER+N (fresh note) / SUPER+SHIFT+N (reopen a closed note) launch it; the ISLAND quits when the last note closes. In SHELL the app is LAZY: not loaded until the first `notes …` request, unloaded ~60s after the last note closes (`scheduleUnload("notes")` in notes.ts; `unmountNotes()` tears each window down through the one close path — flush → registry drop → destroy — and resets module state). No long-running surface, no crash-restart needed. |
+| Unit | **NONE — by design.** On-demand desktop app: SUPER+N (fresh note) / SUPER+SHIFT+N (reopen a closed note) launch it; the ISLAND quits when the last note closes. In SHELL the app is LAZY: not loaded until the first `notes …` request, unloaded ~60s after the last note closes (`scheduleUnload("notes")` in notes.ts; `unmount()` tears each window down through the one close path — flush → registry drop → destroy — and resets module state). No long-running surface, no crash-restart needed. |
 | Window class | `io.Astal.notes` — set per-window via `common/window/app-id` `setAppId` from the `identity.ts` constant `NOTES_APP_ID` (the GTK4 app_id defaults to the shell's `io.Astal.shell` in the merged instance, which would miss the `notes-float` rule); matched by the generated rule in `hypr-rules.ts` |
 | Launch path | `run.sh` → shared bundler (per-app hashed outfile). Cold start (no argv) opens one fresh note after a short grace (§Launch path); warm presses go through the bus. |
 
@@ -376,7 +376,7 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
   through — `openNoteByName`, the session-restore opener and the Mod+SHIFT+N
   reopen) and written on the auto-save throttle (after the content write), on
   focus-out (plus the re-anchor re-check), in the close-request handler via
-  `note.flush()` before `win.destroy()`, and in `unmountNotes` before each
+  `note.flush()` before `win.destroy()`, and in `unmount` before each
   destroy. Module scope holds no chain: it belongs to the window.
 - **Two processes**: a chain records its `owner` (`{instance, pid}`). A window
   that loads a chain owned by another LIVE instance marks it read-only (undo
@@ -460,7 +460,7 @@ restart.
   holds the note-opening actions: `openFreshNote` = fresh empty note (Mod+N),
   `reopenOrBlankNote` = reopen-or-blank (Mod+SHIFT+N), `openNewNote` = the
   deferred cold-start default window). Its `closeWindow` is the ONE close path
-  (teardown → registry drop → destroy), and `unmountNotes` runs it for every
+  (teardown → registry drop → destroy), and `unmount` runs it for every
   open note and then resets module state (registry, cold-start timer/flag,
   session maps) so no handle outlives a lazy unload.
 - `commands.ts` — request handlers (ping/fresh/new/open/close/list/session/config).
@@ -565,7 +565,7 @@ restart.
     `gtk_window_destroy()` already ran (GTK logs "shown after destroyed"), it
     writes its stale buffer to the `.md` on the next close, and neither the
     app's close nor SUPER+Q can remove it — only a shell restart clears the
-    surface. That is why `unmountNotes` also empties `open` and re-arms the
+    surface. That is why `unmount` also empties `open` and re-arms the
     cold-start state, and why every `open`/`close` lookup skips a torn note
     (`isTorn()`).
 15. **Title matching fallback:** restored windows are

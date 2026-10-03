@@ -166,7 +166,7 @@ export function closeActiveBrowser(): boolean {
  *  and the island's onQuit. Each close runs that window's own teardown (drops
  *  its handle, arms the unload grace once the last one is gone) and only then
  *  destroys the window (see the teardown note in createBrowserWindow). */
-export function destroyBrowser(): void {
+export function unmount(): void {
   for (const b of [...browsers]) b.frame.close()
 }
 

@@ -284,7 +284,7 @@ export function untrack(path: string): SessionEntry | undefined {
 }
 
 /** Sync-flush (unmount / shutdown). Samples final geometry first (runs
- *  BEFORE windows are destroyed — see unmountNotes ordering). */
+ *  BEFORE windows are destroyed — see unmount ordering). */
 export function flush(): void {
   stopPoll()
   if (writeTimer !== null) {

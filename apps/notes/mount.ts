@@ -94,4 +94,4 @@ export function mountNotes(): void {
 }
 
 /** Shell lazy-unload hook (islands never call it). */
-export { unmountNotes as unmount } from "./notes"
+export { unmount } from "./notes"

@@ -62,16 +62,10 @@ export function mountMedia(): void {
 
 /** Quit / shell-unload → release MPRIS, destroy every window (each window's
  *  close handler shuts down its own media instance), drop the decoded-still
- *  cache. Idempotent. */
-export function unmountMedia(): void {
+ *  cache. Idempotent: the media app.ts `onQuit` path and the shell's lazy
+ *  unload hook both call it. */
+export function unmount(): void {
   stopMpris()
   destroyWindow()
   clearStillCache()
 }
-
-/** Quit-path teardown (media app.ts `onQuit` and the entry's quit path):
- *  same teardown as unmountMedia. */
-export const mediaShutdown = unmountMedia
-
-/** Shell lazy-unload hook (islands never call it). */
-export { unmountMedia as unmount }

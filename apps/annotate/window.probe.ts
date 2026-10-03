@@ -24,7 +24,7 @@
 import Gdk from "gi://Gdk?version=4.0"
 import GLib from "gi://GLib"
 import app from "ags/gtk4/app"
-import { closeEditors, getEditor, openEditor, unmountAnnotate } from "./window"
+import { closeEditors, getEditor, openEditor, unmount } from "./window"
 
 const FIXTURE = "/tmp/annotate-probe/fixture.png"
 
@@ -97,7 +97,7 @@ check("a rapid open/close presents no window", app.windows.length, before)
 // ── the shell unmount path leaves nothing behind either ──
 openEditor(FIXTURE)
 pump(1500)
-unmountAnnotate()
+unmount()
 pump(1500)
 check("unmount leaves no editor", getEditor(), null)
 check("unmount leaves no window", app.windows.length, before)

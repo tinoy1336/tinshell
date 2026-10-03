@@ -273,10 +273,9 @@ media keys work before any file is opened.
   the unloadPromises map; `media debug-unload` forces an unload cycle on
   demand). Each window's close handler shuts down ITS pipeline
   (`pipeline.shutdown()` on its `common/media/pipeline.ts` instance);
-  `unmountMedia` = stopMpris + destroy all surfaces + drop the decoded-still
-  cache (the lazy-unload AND instance-quit teardown); `mediaShutdown` is the
-  same function, passed to `createApp` as the island's `onQuit` (the
-  `<instance> quit` request path).
+  `unmount` = stopMpris + destroy all surfaces + drop the decoded-still
+  cache (the lazy-unload AND instance-quit teardown: the island's `onQuit`
+  passes the same function to `createApp`).
 - **No bare `ags run`** — never. `run.sh` is the 1-line shim to the shared
   bundler (per-app hashed outfile; bundle cache at
   `~/.cache/tinshell-bundle/media/`).
@@ -468,7 +467,7 @@ loaded by the shared schema-driven loader. Schema uses draft-07 + custom
 
 ## Files
 
-- `app.ts` — entry: `createApp`, quit-on-close, `mediaShutdown()` on `onQuit`.
+- `app.ts` — entry: `createApp`, quit-on-close, `unmount()` on `onQuit`.
 - `run.sh` — the 1-line shim to `common/shell/run.sh media`.
 - `ensure-open.sh` — the router wrapper every trigger goes through: `open
   [path]` by default (the launcher `!p` bang), `--new [path]` for the

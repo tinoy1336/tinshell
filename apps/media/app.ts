@@ -19,7 +19,7 @@
 import { isShell } from "@common/app/mode"
 import { createApp } from "@common/app/start"
 import app from "ags/gtk4/app"
-import { mediaCss, mediaShutdown, mountMedia } from "./mount"
+import { mediaCss, mountMedia, unmount } from "./mount"
 import { newSurface, openPath } from "./window"
 
 createApp({
@@ -39,7 +39,7 @@ createApp({
     else openPath(path)
   },
   onQuit() {
-    mediaShutdown()
+    unmount()
   },
 })
 

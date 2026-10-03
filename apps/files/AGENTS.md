@@ -32,7 +32,7 @@ pattern.
 | Window rule | `files-float` in `hypr-rules.ts` → `~/.config/hypr/rules/090-files.lua` — float, rounding 14, `decorate = true`, `border_size = 1`, `size` read from config `window.width`/`window.height` (620×390) — the startup-race fix, mirroring notes-float |
 | Keybind | **NONE** — the browser is opened through the desktop entry (`tinshell-files.desktop`, `Exec = files/ensure-open.sh %f`), so anything that calls `xdg-open` on a folder lands here |
 | Layer rule | **NONE** — XDG window, not a layer surface. Frost = GLOBAL blur + translucent card, exactly like notes. |
-| Unit | **NONE — by design.** Interactive desktop app; the ISLAND quits when its LAST window closes. In SHELL the app is LAZY: loaded on the first `files …` request, unloaded ~60s after the last browser window closes (`scheduleUnload("files")` in window.tsx, armed only when the window registry is empty; `destroyBrowser` as unmount closes every window). Do NOT add `tinshell-files.service` to setup.sh's unit loop (same exception as notes). |
+| Unit | **NONE — by design.** Interactive desktop app; the ISLAND quits when its LAST window closes. In SHELL the app is LAZY: loaded on the first `files …` request, unloaded ~60s after the last browser window closes (`scheduleUnload("files")` in window.tsx, armed only when the window registry is empty; `unmount` closes every window). Do NOT add `tinshell-files.service` to setup.sh's unit loop (same exception as notes). |
 | Log | fileSink → `/tmp/tinshell-files-debug.log` (launched from a desktop entry — stdout/stderr are lost) |
 
 ## Launch path & lifecycle
@@ -490,7 +490,7 @@ pane is likewise NOT configured here: its switch and geometry live in the shared
   bar, the body row that pairs the listing's list area with the preview pane) +
   the window REGISTRY: `openPath` (surface/create),
   `newBrowserWindow` (always another), `closeActiveBrowser`, `getBrowser`
-  (the active window), `destroyBrowser` (every window — the unmount/onQuit
+  (the active window), `unmount` (every window — the unmount/onQuit
   path), `refreshBrowsers`, all exported.
 - `preview.tsx` — the preview controller: reads the shared preview preference
   (`common/media/preview`), owns the pane slot and its mode/width/visibility,
@@ -589,7 +589,7 @@ pane is likewise NOT configured here: its switch and geometry live in the shared
     mounts a SECOND window beside it. Only a shell restart clears one.
     Contract: `win.connect("close-request", () => { teardown(); win.destroy();
     return true })`; the frame's `close()` (what `closeActiveBrowser()` and
-    `destroyBrowser()` call) is
+    `unmount()` call) is
     just that path — it never destroys the window behind the handler's back;
     `teardown()` is idempotent and removes THIS window from `browsers` +
     `scheduleUnload` once it was the last one + cancels
