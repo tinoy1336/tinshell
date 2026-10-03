@@ -21,7 +21,16 @@
 # Two shapes, because the modules differ: `*.probe.ts` beside a gi-free module
 # runs under plain node (`node --experimental-strip-types`), while a probe whose
 # module imports `gi://` or `ags/*` is built with the repository's own bundler
-# and the wrapper run under gjs. Bundling is a build, never a launch.
+# and the wrapper run under gjs. The bundler IS the `ags` toolchain, which exists
+# on an Arch machine and not on a stock CI runner: when `ags` is not on PATH the
+# bundled tier is SKIPPED and every skipped probe is named in the run's own
+# output, so a job on a plain runner still executes the tier it can and a skip is
+# never read as coverage.
+#
+# Every probe runs with its own scratch XDG tree (including `XDG_CONFIG_HOME`,
+# which a probe cannot repoint for itself because GLib resolves the user config
+# directory once per process) and `TINSHELL_HOME` at the repository root; the
+# scratch tree is removed on exit. No probe writes inside the repository.
 #
 # NOT RUN HERE, each with what it needs (a probe for one of these would have to
 # be skipped here as well, so it is named rather than silently absent):
@@ -53,7 +62,10 @@ abort() {
 command -v node >/dev/null 2>&1 ||
   abort "node is not on PATH; the probes need node --experimental-strip-types (node >= 22.6)."
 command -v timeout >/dev/null 2>&1 || abort "timeout is not on PATH (coreutils)."
-command -v ags >/dev/null 2>&1 || abort "ags is not on PATH; the bundled probes build through it."
+# `ags` is the only optional tool: it builds the bundled tier, and its absence
+# skips that tier by name instead of failing the run.
+HAVE_AGS=0
+command -v ags >/dev/null 2>&1 && HAVE_AGS=1
 node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 6) ? 0 : 1)' ||
   abort "node $(node -v) is too old for --experimental-strip-types (needs node >= 22.6)."
 
@@ -114,6 +126,7 @@ mkdir -p "${XDG_CONFIG_HOME}" "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACH
 
 failed=0
 ran=0
+skipped=0
 
 for probe in "${PLAIN[@]}"; do
   [ -f "${ROOT}/${probe}" ] || abort "missing probe ${probe} — the list and the tree disagree."
@@ -130,31 +143,42 @@ for probe in "${PLAIN[@]}"; do
   fi
 done
 
-for probe in "${BUNDLED[@]}"; do
-  [ -f "${ROOT}/${probe}" ] || abort "missing probe ${probe} — the list and the tree disagree."
-  printf '\n==== %s (bundled)\n' "${probe}"
-  ran=$((ran + 1))
-  wrapper="${scratch}/$(printf '%s' "${probe}" | tr '/' '_').sh"
-  timeout "${BOUND}" ags bundle --gtk 4 "${ROOT}/${probe}" "${wrapper}" >/dev/null 2>&1
-  if [ $? -ne 0 ]; then
-    printf 'PROBE BUILD FAILED: %s\n' "${probe}" >&2
-    failed=$((failed + 1))
-    continue
-  fi
-  timeout "${BOUND}" bash "${wrapper}"
-  status=$?
-  if [ "${status}" -eq 124 ] || [ "${status}" -eq 137 ]; then
-    printf 'PROBE TIMED OUT after %ss: %s\n' "${BOUND}" "${probe}" >&2
-    failed=$((failed + 1))
-  elif [ "${status}" -ne 0 ]; then
-    printf 'PROBE FAILED (exit %s): %s\n' "${status}" "${probe}" >&2
-    failed=$((failed + 1))
-  fi
-done
+if [ "${HAVE_AGS}" -eq 0 ]; then
+  skipped=${#BUNDLED[@]}
+  printf '\nSKIPPED %s bundled probes: ags is not on PATH, and they build through it.\n' "${skipped}"
+  printf 'A machine with the ags toolchain runs them; every skipped probe is named here:\n'
+  printf '  %s\n' "${BUNDLED[@]}"
+else
+  for probe in "${BUNDLED[@]}"; do
+    [ -f "${ROOT}/${probe}" ] || abort "missing probe ${probe} — the list and the tree disagree."
+    printf '\n==== %s (bundled)\n' "${probe}"
+    ran=$((ran + 1))
+    wrapper="${scratch}/$(printf '%s' "${probe}" | tr '/' '_').sh"
+    timeout "${BOUND}" ags bundle --gtk 4 "${ROOT}/${probe}" "${wrapper}" >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+      printf 'PROBE BUILD FAILED: %s\n' "${probe}" >&2
+      failed=$((failed + 1))
+      continue
+    fi
+    timeout "${BOUND}" bash "${wrapper}"
+    status=$?
+    if [ "${status}" -eq 124 ] || [ "${status}" -eq 137 ]; then
+      printf 'PROBE TIMED OUT after %ss: %s\n' "${BOUND}" "${probe}" >&2
+      failed=$((failed + 1))
+    elif [ "${status}" -ne 0 ]; then
+      printf 'PROBE FAILED (exit %s): %s\n' "${status}" "${probe}" >&2
+      failed=$((failed + 1))
+    fi
+  done
+fi
 
 printf '\n'
 if [ "${failed}" -gt 0 ]; then
   printf 'PROBE RUN FAILURE: %s of %s probes failed\n' "${failed}" "${ran}" >&2
   exit 1
 fi
-printf 'ALL %s PROBES PASSED\n' "${ran}"
+if [ "${skipped}" -gt 0 ]; then
+  printf 'ALL %s PROBES PASSED (%s SKIPPED: no ags toolchain — named above)\n' "${ran}" "${skipped}"
+else
+  printf 'ALL %s PROBES PASSED\n' "${ran}"
+fi

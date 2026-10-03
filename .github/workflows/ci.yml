@@ -16,6 +16,12 @@
 # `./setup.sh`; that is a much heavier job than this repo's checks justify today.
 # Until then the build is verified where it can be: on the machine it targets,
 # with `npm run check` and `npm run check:builds`.
+#
+# The probe tier splits along the same line: the probes whose module is gi-free
+# run here under plain Node 22, and the ones whose module imports `gi://`/`ags/*`
+# build through the ags toolchain, so the runner executes what it can and names
+# every probe it skips in its own output (a skip is never counted as a pass).
+# Landing the full tier means an Arch container job with the toolchain installed.
 name: CI
 
 on:
@@ -42,6 +48,13 @@ jobs:
         run: npx biome check .
       - name: Config schemas match their sources
         run: npm run check:schemas
+      # Every check surface that lives beside a module, each under its own
+      # timeout, exiting non-zero on any failure or timeout. The bundled tier
+      # needs the ags toolchain (see the note at the top of this file), so on this
+      # runner the job executes the plain-Node probes and the runner prints the
+      # bundled ones it skipped, by name.
+      - name: Probes
+        run: npm run check:probes
 
   # The generated palette carriers are checked against the palette that produced
   # them. The palette is another repository, so this job checks it out at the
