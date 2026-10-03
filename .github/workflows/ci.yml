@@ -94,6 +94,11 @@ jobs:
       #     tools walk for `<datadir>/vala/vapi` and `<datadir>/gir-1.0`, which is
       #     how the gtk4 stage finds the Vala binding and GIR the io stage
       #     installed (a `--vapidir` pointing at the source tree does not help);
+      #   * C_INCLUDE_PATH — the C compiler's search path, because the installed
+      #     `astal-io-0.1.pc` advertises `<includedir>/astal-io` while the io
+      #     stage installs `astal-io.h` into `<includedir>`, so the flag the gtk4
+      #     stage inherits names a directory the header is not in and a prefix
+      #     outside the compiler's default path has nothing else to fall back on;
       #   * LIBRARY_PATH and LD_LIBRARY_PATH — link-time and run-time resolution
       #     of the installed shared objects;
       #   * GI_TYPELIB_PATH — run-time typelib resolution for gjs;
@@ -112,6 +117,7 @@ jobs:
             echo "GI_TYPELIB_PATH=$astal/lib/girepository-1.0"
             echo "LD_LIBRARY_PATH=$astal/lib"
             echo "LIBRARY_PATH=$astal/lib"
+            echo "C_INCLUDE_PATH=$astal/include"
             echo "XDG_DATA_DIRS=$astal/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
           } >> "$GITHUB_ENV"
           echo "$RUNNER_TEMP/toolchain/bin" >> "$GITHUB_PATH"
