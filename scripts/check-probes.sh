@@ -33,10 +33,6 @@
 #   common/applets/battery/threshold-store.probe.ts    the live applet store
 #   common/applets/wifi/menu.probe.ts                  nmcli + the menu window
 #   common/applets/domains/volume.probe.ts             a session default sink
-#   common/config/loader.probe.ts                      its documented run writes a
-#                                                      fixture app dir under apps/;
-#                                                      run it with a scratch
-#                                                      TINSHELL_HOME by hand
 #   common/applets/host/socket-server.ts               NO PROBE EXISTS: its read
 #                                                      loop resumes through a
 #                                                      promise, and outside the
@@ -83,6 +79,7 @@ BUNDLED=(
   common/applets/backend-protocol.probe.ts
   common/applets/host/transport.probe.ts
   common/path/complete.probe.ts
+  common/config/loader.probe.ts
   common/applets/shared/value-tick.probe.ts
   common/applets/utils/row-region.probe.ts
   common/applets/battery/charge-counter.probe.ts
