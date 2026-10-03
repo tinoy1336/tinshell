@@ -26,6 +26,9 @@
  * The `*Line()` helpers return a COMPLETE frame — newline included — so a
  * writer can never forget the delimiter; the parse helpers take a line as read
  * (newline already stripped by the reader).
+ *
+ * Its framing rules are pinned by `common/applets/socket-protocol.probe.ts`,
+ * which runs through the bundler because this module imports `gi://GLib`.
  */
 import GLib from "gi://GLib"
 import { requestLine } from "./backend-protocol"
