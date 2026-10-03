@@ -21,16 +21,23 @@
  *    visible on the stable mirror,
  *  - through app-store, `set()` reaches the store's own listeners.
  *
- * The probe reads and writes no live config of this machine: its schema,
- * defaults and live file all live under a scratch dir in the temp dir, and the
- * app-store section is pointed at a scratch tree and config home through
- * TINSHELL_HOME / XDG_CONFIG_HOME.
+ * The probe reads and writes no live config of this machine and no file inside
+ * the repository: its schema, defaults and fixture app directory all live under
+ * a scratch root it creates in the temp dir and removes at the end of the run,
+ * and it repoints `TINSHELL_HOME` at that root before building the app store,
+ * so the fixture app directory is never the repository's own `apps/`.
  *
- * Run:
+ * `XDG_CONFIG_HOME` must name a scratch directory as well — GLib resolves the
+ * user config dir once per process, before any probe code runs, so a probe
+ * cannot repoint it from inside; the probe RUNNER sets it, and a hand run
+ * without it fails its "under a scratch root" check instead of writing into
+ * `~/.config`.
+ *
+ * Run (bundled — this module imports GI):
  *   ags bundle --gtk 4 common/config/loader.probe.ts /tmp/loader-probe.sh
- *   TINSHELL_HOME=/tmp/loader-probe/tree XDG_CONFIG_HOME=/tmp/loader-probe/config \
- *     bash /tmp/loader-probe.sh          # exit 1 on any violated invariant
+ *   XDG_CONFIG_HOME=$(mktemp -d) timeout 90 bash /tmp/loader-probe.sh
  */
+import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { createAppStore } from "@common/config/app-store"
 import { createConfigFacade } from "@common/config/facade"
@@ -45,6 +52,22 @@ const join = (...parts: string[]): string => GLib.build_filenamev(parts)
 function write(path: string, text: string): void {
   GLib.mkdir_with_parents(GLib.path_get_dirname(path), 0o755)
   if (!GLib.file_set_contents(path, text)) throw new Error(`cannot write ${path}`)
+}
+function removeTree(path: string): void {
+  const file = Gio.File.new_for_path(path)
+  if (!file.query_exists(null)) return
+  if (file.query_file_type(Gio.FileQueryInfoFlags.NONE, null) === Gio.FileType.DIRECTORY) {
+    const children = file.enumerate_children("standard::name", Gio.FileQueryInfoFlags.NONE, null)
+    for (;;) {
+      const info = children.next_file(null)
+      if (!info) break
+      removeTree(join(path, info.get_name()))
+    }
+    children.close(null)
+    GLib.rmdir(path)
+    return
+  }
+  GLib.unlink(path)
 }
 
 const SCHEMA = {
@@ -63,7 +86,12 @@ const DEFAULTS = {
   list: [1, 2],
 }
 
-const ROOT = join(GLib.get_tmp_dir(), "loader-probe")
+const ROOT = join(GLib.get_tmp_dir(), `loader-probe-${GLib.get_monotonic_time()}`)
+/** The tree the runner started this process in — captured before the probe
+ *  redirects `TINSHELL_HOME`, so the run can assert it wrote nothing there. */
+const REPO_ROOT = GLib.getenv("TINSHELL_HOME") ?? ""
+GLib.setenv("TINSHELL_HOME", join(ROOT, "tree"), true)
+GLib.setenv("XDG_CONFIG_HOME", join(ROOT, "config"), true)
 
 // ── the loader: setLive announces a real change, and only a real change ──
 
@@ -151,11 +179,7 @@ check("the mirror follows", facade.config.window.width, 820)
 
 // ── app-store: the other set path over the same store ──
 
-const tree = GLib.getenv("TINSHELL_HOME")
-const configHome = GLib.getenv("XDG_CONFIG_HOME")
-if (!tree || !configHome) {
-  throw new Error("run with TINSHELL_HOME and XDG_CONFIG_HOME pointed at scratch dirs")
-}
+const tree = GLib.getenv("TINSHELL_HOME") as string
 const appDir = join(tree, "apps", "probeapp")
 write(join(appDir, "config.schema.json"), JSON.stringify(SCHEMA, null, 2))
 write(join(appDir, "config.defaults.json"), JSON.stringify(DEFAULTS, null, 2))
@@ -180,6 +204,22 @@ check("app-store set of the value already there fires nothing", appFired, 1)
 
 check("app-store set of an unknown path is rejected", app.set("appearance.nope", "x").ok, false)
 check("and fires nothing", appFired, 1)
+
+// ── the scratch tree is the only thing this probe touched ──
+
+const livePath = join(GLib.get_user_config_dir(), "tinshell", "probeapp.json")
+check(
+  "the app store's live path is under a scratch root, not the repository",
+  livePath.startsWith(GLib.get_tmp_dir()) && (REPO_ROOT === "" || !livePath.startsWith(REPO_ROOT)),
+  true,
+)
+check(
+  "the repository gained no fixture app directory",
+  REPO_ROOT === "" || !GLib.file_test(join(REPO_ROOT, "apps", "probeapp"), GLib.FileTest.EXISTS),
+  true,
+)
+removeTree(ROOT)
+check("the scratch root is removed by the run", GLib.file_test(ROOT, GLib.FileTest.EXISTS), false)
 
 // ── verdict ──
 
