@@ -84,27 +84,37 @@ jobs:
           pacman -Syu --noconfirm --needed \
             gjs gtk4 gtk4-layer-shell libgudev libsoup3 pango gdk-pixbuf2 \
             gobject-introspection vala meson ninja nodejs npm git curl
-      # The toolchain prefix is known before the first byte is built into it, and
-      # the astal stages install into it in sequence: gtk4's configure resolves
-      # `astal-io-0.1` from the `.pc` the io stage just wrote, and the probes
-      # resolve the typelibs and the shared objects. Both cases want the same
-      # three search paths in every step that follows, so they are written once
-      # into the job's environment here — a step-level write, which is where the
-      # runner's own temporary directory may be read, and one source of truth for
-      # the stages that build and the step that runs. Each path is additive:
-      # pkg-config keeps its built-in directories alongside PKG_CONFIG_PATH, and
-      # gjs and the loader keep theirs alongside GI_TYPELIB_PATH /
-      # LD_LIBRARY_PATH, so the distribution's GTK4, gtk4-layer-shell and gjs
-      # bindings still resolve.
+      # Every prefix-relative location a later stage can consult, written once
+      # here so that no stage has to discover a variable the way the first two
+      # attempts did:
+      #
+      #   * PKG_CONFIG_PATH — the installed `.pc` files, which gtk4's configure
+      #     resolves the io stage's `astal-io-0.1` from;
+      #   * XDG_DATA_DIRS — the data directories valac and the introspection
+      #     tools walk for `<datadir>/vala/vapi` and `<datadir>/gir-1.0`, which is
+      #     how the gtk4 stage finds the Vala binding and GIR the io stage
+      #     installed (a `--vapidir` pointing at the source tree does not help);
+      #   * LIBRARY_PATH and LD_LIBRARY_PATH — link-time and run-time resolution
+      #     of the installed shared objects;
+      #   * GI_TYPELIB_PATH — run-time typelib resolution for gjs;
+      #   * PATH — the toolchain's own `bin`, whose binary the build step creates.
+      #
+      # Every value is additive: the distribution's directories stay on each
+      # search path, so GTK4, gtk4-layer-shell, Pango and the gjs bindings still
+      # resolve. A step-level write is where the runner's temporary directory may
+      # be read, which is why this is a step and not the job-level env block.
       - name: Export the toolchain search paths
         run: |
           set -euo pipefail
-          root="$RUNNER_TEMP/toolchain/astal"
+          astal="$RUNNER_TEMP/toolchain/astal"
           {
-            echo "PKG_CONFIG_PATH=$root/lib/pkgconfig"
-            echo "GI_TYPELIB_PATH=$root/lib/girepository-1.0"
-            echo "LD_LIBRARY_PATH=$root/lib"
+            echo "PKG_CONFIG_PATH=$astal/lib/pkgconfig"
+            echo "GI_TYPELIB_PATH=$astal/lib/girepository-1.0"
+            echo "LD_LIBRARY_PATH=$astal/lib"
+            echo "LIBRARY_PATH=$astal/lib"
+            echo "XDG_DATA_DIRS=$astal/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
           } >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/toolchain/bin" >> "$GITHUB_PATH"
       - name: Cache the toolchain
         id: toolchain
         uses: actions/cache@v4
@@ -140,18 +150,15 @@ jobs:
           # so every path the CLI bakes into it is decided here.
           "$root/go/bin/go" build -C "$root/ags/cli" -mod=vendor -o "$root/bin/ags" \
             -ldflags "-X main.gtk4LayerShell=/usr/lib/libgtk4-layer-shell.so -X main.agsJsPackage=$root/ags -X main.gjs=/usr/bin/gjs -X main.bash=/usr/bin/bash" .
-      # On both the built and the cached path: the CLI on PATH, and the version
-      # the probes are written against — read from the pinned source, so a bump
-      # above cannot leave a stale expectation behind. Upstream's v3.1.2 asset
-      # carries `cli/version` at 3.1.0, which is why the number is read rather
-      # than typed. The library search paths are already on the job (see the env
-      # block above), so nothing is exported here but the binary's directory.
-      - name: Put the toolchain's CLI on PATH
+      # On both the built and the cached path: the version the probes are
+      # written against, read from the pinned source so a bump above cannot leave
+      # a stale expectation behind. Upstream's v3.1.2 asset carries `cli/version`
+      # at 3.1.0, which is why the number is read rather than typed. The search
+      # paths and `bin` are already on the job (see the export step above).
+      - name: Read the pinned toolchain version
         run: |
           set -euo pipefail
-          root="$RUNNER_TEMP/toolchain"
-          echo "$root/bin" >> "$GITHUB_PATH"
-          echo "PROBE_AGS_VERSION=$(cat "$root/ags/cli/version")" >> "$GITHUB_ENV"
+          echo "PROBE_AGS_VERSION=$(cat "$RUNNER_TEMP/toolchain/ags/cli/version")" >> "$GITHUB_ENV"
       - name: Toolchain versions
         run: |
           set -euo pipefail
