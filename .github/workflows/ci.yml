@@ -66,23 +66,13 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux/archlinux:base-devel
     env:
-      # Bump these together; they are the only place the toolchain moves.
+      # Bump these together; they are the only place the toolchain moves. Only
+      # literals may sit in this block: the `runner` context is not available to
+      # a job-level `env`, so the three search paths below it are exported by the
+      # step that follows the runtime install instead.
       AGS_VERSION: "3.1.2"
       ASTAL_COMMIT: "67ddc83e0bdbda6de7f6f15e4fbc5d6b9d2d1b18"
       GO_VERSION: "1.24.6"
-      # The toolchain prefix is known before the first byte is built into it, and
-      # the astal stages install into it in sequence: gtk4's configure resolves
-      # `astal-io-0.1` from the `.pc` the io stage just wrote, and the probes
-      # resolve the typelibs and the shared objects. So the three search paths
-      # belong to the JOB's environment, not to one step — every stage that
-      # builds or runs inherits them, and no stage has to repair the environment
-      # the previous one needed. Each of the three is additive: pkg-config keeps
-      # its built-in directories alongside PKG_CONFIG_PATH, and gjs and the
-      # loader keep theirs alongside GI_TYPELIB_PATH / LD_LIBRARY_PATH, so the
-      # distribution's GTK4, gtk4-layer-shell and gjs bindings still resolve.
-      PKG_CONFIG_PATH: ${{ runner.temp }}/toolchain/astal/lib/pkgconfig
-      GI_TYPELIB_PATH: ${{ runner.temp }}/toolchain/astal/lib/girepository-1.0
-      LD_LIBRARY_PATH: ${{ runner.temp }}/toolchain/astal/lib
     steps:
       - uses: actions/checkout@v7
       # The runtime the probe modules import, from the distribution: on Arch each
@@ -94,6 +84,27 @@ jobs:
           pacman -Syu --noconfirm --needed \
             gjs gtk4 gtk4-layer-shell libgudev libsoup3 pango gdk-pixbuf2 \
             gobject-introspection vala meson ninja nodejs npm git curl
+      # The toolchain prefix is known before the first byte is built into it, and
+      # the astal stages install into it in sequence: gtk4's configure resolves
+      # `astal-io-0.1` from the `.pc` the io stage just wrote, and the probes
+      # resolve the typelibs and the shared objects. Both cases want the same
+      # three search paths in every step that follows, so they are written once
+      # into the job's environment here — a step-level write, which is where the
+      # runner's own temporary directory may be read, and one source of truth for
+      # the stages that build and the step that runs. Each path is additive:
+      # pkg-config keeps its built-in directories alongside PKG_CONFIG_PATH, and
+      # gjs and the loader keep theirs alongside GI_TYPELIB_PATH /
+      # LD_LIBRARY_PATH, so the distribution's GTK4, gtk4-layer-shell and gjs
+      # bindings still resolve.
+      - name: Export the toolchain search paths
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/toolchain/astal"
+          {
+            echo "PKG_CONFIG_PATH=$root/lib/pkgconfig"
+            echo "GI_TYPELIB_PATH=$root/lib/girepository-1.0"
+            echo "LD_LIBRARY_PATH=$root/lib"
+          } >> "$GITHUB_ENV"
       - name: Cache the toolchain
         id: toolchain
         uses: actions/cache@v4
