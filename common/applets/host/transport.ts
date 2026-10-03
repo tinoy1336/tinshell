@@ -1,6 +1,9 @@
 /**
  * common/applets/host/transport — the applets backend's request table.
  *
+ * The member table and its fail-closed resolution are pinned by
+ * `common/applets/host/transport.probe.ts` (bundled).
+ *
  * The table is DERIVED from the domain modules themselves: every exported
  * function of `common/applets/domains/*` becomes a request path `<domain> <fn>`
  * (plus `<domain> <store>.<accessor>` for an exported object's functions), so
