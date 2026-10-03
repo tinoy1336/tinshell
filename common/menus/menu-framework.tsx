@@ -62,7 +62,7 @@ export const ROW_L = 14
 /** Row content RIGHT inset — the user's "more padding on the right"; every
  *  row type (menuRow/menuEntryRow/menuInfoRow/menuSpinnerRow) shares it. */
 export const ROW_R = 18
-/** The action-glyph (trash) box: fits exactly on the right cap so its CENTER
+/** The action-glyph (trash) box: fits exactly on the right cap so its CENTRE
  *  is the cap (a 40px box overflows the 12px cap inset — its margin clamps and
  *  the emoji lands 8px off-column, the "trash misaligned with the emojis
  *  below" bug). 2·(2 + capRadius) = 24. */
@@ -953,6 +953,10 @@ let panelX = 0
 const contentHeight = (rowCount: number, config: AppletConfig) =>
   2 * MENU_PAD + listHeightFor(rowCount, config)
 
+/** The framework's own record of a row's width closure, keyed by the row it
+ *  was attached to. The closure belongs to the framework, not the widget. */
+const rowWidths = new WeakMap<Gtk.Widget, () => number>()
+
 /** Attach the panelWidthFor width closure to a row: `measured`'s natural width
  *  plus the row's own horizontal insets. Rows build their content at natural
  *  size, so the builder is the only place that knows both — a generic measure
@@ -964,22 +968,22 @@ export function attachRowWidth(
   insetStart: number,
   insetEnd = 0,
 ): void {
-  ;(row as any)._rowWidth = (): number => {
+  rowWidths.set(row, (): number => {
     try {
       const [, nat] = measured.measure(Gtk.Orientation.HORIZONTAL, -1)
       return Number.isFinite(nat) ? Math.round(nat) + insetStart + insetEnd : 0
     } catch (_) {
       return 0
     }
-  }
+  })
 }
 
-/** Natural width of one row. Rows attach a `_rowWidth` closure at build time
+/** Natural width of one row. Rows attach a width closure at build time
  *  (their builder knows the real content + margins); GtkOverlay.measure only
  *  measures the MAIN child (the highlight DA → 1), and widget measure()
  *  excludes the widget's own margins, so a generic measure can't work here. */
 function rowNaturalWidth(r: Gtk.Widget): number {
-  const fn = (r as any)._rowWidth
+  const fn = rowWidths.get(r)
   if (typeof fn === "function") {
     try {
       return fn()

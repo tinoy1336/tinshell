@@ -211,12 +211,12 @@ export function openScreenGrabCaptureMenu(opts: {
           })
         }}
       />
-    ) as any
+    ) as unknown as Astal.Window
 
     const fadeTo = (to: number, onDone: () => void): void => {
-      const from = (win as any).opacity
+      const from = win.opacity
       if (from === to || fadeMs <= 0) {
-        ;(win as any).opacity = to
+        win.opacity = to
         onDone()
         return
       }
@@ -227,9 +227,9 @@ export function openScreenGrabCaptureMenu(opts: {
         () => {
           const t = Math.min(1, (GLib.get_monotonic_time() - t0) / durUs)
           const e = easeQuadInOut(t)
-          ;(win as any).opacity = from + (to - from) * e
+          win.opacity = from + (to - from) * e
           if (t >= 1) {
-            ;(win as any).opacity = to
+            win.opacity = to
             onDone()
             return false
           }
