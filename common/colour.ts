@@ -1,5 +1,8 @@
 /**
  * Colour helpers — shared config→CSS conversions.
+ *
+ * Pure (no gi:// imports), so its checks run under plain Node
+ * (`common/colour.probe.ts`).
  */
 
 /** Convert a 6-digit hex colour (#rrggbb) to an rgba() CSS string.
