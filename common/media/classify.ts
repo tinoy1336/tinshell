@@ -3,10 +3,9 @@
  * a path names, by extension.
  *
  * The image set is a contract about what actually renders, not a guess: every
- * image extension below was verified by decoding a real file of that format
- * through `Gdk.Texture.new_from_filename` on this machine (PNG, JPEG, GIF,
- * BMP, WebP, TIFF, ICO, HEIC, AVIF, JXL, SVG — all thirteen returned a
- * texture). A format whose loader is absent must NOT be listed: a consumer
+ * image extension below decodes through `Gdk.Texture.new_from_filename`
+ * (PNG, JPEG, GIF, BMP, WebP, TIFF, ICO, HEIC, AVIF, JXL, SVG — all thirteen
+ * return a texture). A format whose loader is absent must NOT be listed: a consumer
  * would route the user into a decoder error instead of a fallback.
  *
  * Extension parsing: the text after the LAST dot, lowercased, with the dot
