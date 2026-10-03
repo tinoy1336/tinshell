@@ -92,6 +92,7 @@ BUNDLED=(
   common/applets/host/transport.probe.ts
   common/path/complete.probe.ts
   common/config/loader.probe.ts
+  common/fs/files.probe.ts
   common/applets/shared/value-tick.probe.ts
   common/applets/utils/row-region.probe.ts
   common/applets/battery/charge-counter.probe.ts
