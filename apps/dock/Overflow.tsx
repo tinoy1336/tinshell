@@ -521,8 +521,11 @@ const CLEAN_GEOM = {
 }
 
 export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: AppletBackend) {
-  const row = aw.row!
-  if (!row) {
+  // The row is set before this applet is constructed; the guard keeps the
+  // degrade path live for the case it is not, and the narrowed handle below is
+  // what every callback closes over.
+  const rowOrNull = aw.row
+  if (!rowOrNull) {
     // Shouldn't happen (Dock.tsx always sets the row before constructing),
     // but degrade to a plain non-interactive disc rather than crashing.
     aw.icon.set_draw_func((_, cr, w, h) => {
@@ -531,6 +534,7 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
     })
     return
   }
+  const row = rowOrNull
 
   // Caret glyph rotated by the row's live caret angle (0 = resting
   // caret-up). The rotation is applied around the disc centre. The SHADOW is

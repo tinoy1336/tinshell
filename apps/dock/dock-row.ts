@@ -208,6 +208,31 @@ export function createDockRow(
   surface: AppletSurface,
 ): DockRow {
   const byName = new Map<string, AppletWindow<DockRow>>() // config order (insertion order)
+  /** The overflow applet's window — the frame source for every overflow
+   *  animation. A named failure rather than a raw TypeError: null here means the
+   *  applet is not mounted and there is nothing to animate. */
+  function overflowWindow(): any {
+    const aw = overflowAw
+    if (!aw) throw new Error("[overflow] animation requested before the applet mounted")
+    return aw.window
+  }
+
+  /** The binding a hidden name must have: the overflow set is built from the
+   *  mounted bindings, so a miss means the two lists have drifted apart. */
+  function bindingFor(name: string): AppletWindow<DockRow> {
+    const aw = byName.get(name)
+    if (!aw) throw new Error(`[overflow] no binding for '${name}'`)
+    return aw
+  }
+
+  /** The offset computed for a hidden name — `computeOffsetsFor` covers every
+   *  hidden binding, so a miss here is the same drift. */
+  function offsetFor(name: string, offs: Map<string, number>): number {
+    const off = offs.get(name)
+    if (off === undefined) throw new Error(`[overflow] no offset for '${name}'`)
+    return off
+  }
+
   let overflowAw: AppletWindow<DockRow> | null = null
 
   const autoHidden = new Map<string, boolean>()
@@ -561,7 +586,7 @@ export function createDockRow(
     return new Promise<void>((resolve) => {
       anim.resolve = resolve
       anim.runner = runFrames(
-        overflowAw!.window,
+        overflowWindow(),
         () => {
           const t = Math.min(1, (GLib.get_monotonic_time() - startUs) / durationUs)
           overflowRot = from + (to - from) * ease(t)
@@ -598,9 +623,9 @@ export function createDockRow(
     if (DBG) print(`[overflow] BEGIN REVEAL: ${hidden.join(",")}`)
     const offs = computeOffsetsFor(dg, true)
     const anims: Promise<void>[] = hidden.map((name) => {
-      const aw = byName.get(name)!
+      const aw = bindingFor(name)
       aw.setHiddenState(false) // restore disc input region + unlock intro
-      animateOffset(name, aw, offs.get(name)!, easeOutCubic) // spread fast
+      animateOffset(name, aw, offsetFor(name, offs), easeOutCubic) // spread fast
       return aw.playAppear(false, easeCubicIn) // fade in slow (transparent while stacked)
     })
     // Swing the caret to face the reveal direction, synced with the sweeps.
@@ -627,7 +652,7 @@ export function createDockRow(
     if (DBG) print(`[overflow] COLLAPSE: ${hidden.join(",")}`)
     const offs = computeOffsetsFor(dg, false)
     const anims: Promise<void>[] = hidden.map(async (name) => {
-      const aw = byName.get(name)!
+      const aw = bindingFor(name)
       aw.setInputEmpty() // stop capturing input immediately
       // Fan back in: slide toward the overflow slot WHILE fading out. Both run
       // over appearOutAnim with the SAME cubic-out ease, so opacity and slide
@@ -636,7 +661,7 @@ export function createDockRow(
       // translucent discs pile at the slot (a sequenced fade-then-slide would
       // hide the slide entirely — a "fade out in place" with no fan-in).
       const slideMs = Math.max(config.timing.appearOutAnim, config.timing.pillAnim)
-      animateOffset(name, aw, offs.get(name)!, easeOutCubic, slideMs)
+      animateOffset(name, aw, offsetFor(name, offs), easeOutCubic, slideMs)
       return aw.playAppear(true, easeOutCubic)
     })
     // Swing the caret back to resting, synced with the sweeps.
@@ -974,7 +999,7 @@ export function createDockRow(
   }
 
   function getFreeMargin(key: "left" | "right" | "top" | "bottom"): number {
-    const win = overflowAw!.window as any
+    const win = overflowWindow() as any
     switch (key) {
       case "left":
         return win.get_margin_left?.() ?? 0
@@ -988,7 +1013,7 @@ export function createDockRow(
   }
 
   function setFreeMargin(key: "left" | "right" | "top" | "bottom", v: number): void {
-    const win = overflowAw!.window as any
+    const win = overflowWindow() as any
     const r = Math.round(v)
     switch (key) {
       case "left":
@@ -1097,7 +1122,7 @@ export function createDockRow(
     const anim: FlyAnim = { runner: null, active: true }
     flyAnim = anim
     anim.runner = runFrames(
-      overflowAw!.window,
+      overflowWindow(),
       () => {
         const t = Math.min(1, (GLib.get_monotonic_time() - startUs) / (dur * 1000))
         const e = easeQuadInOut(t)
@@ -1321,7 +1346,7 @@ export function createDockRow(
   /** The overflow window's current on-screen disc centre (the move drag's
    *  release reference). */
   function overflowDiscCentreLive(): { x: number; y: number } {
-    const win = overflowAw!.window as any
+    const win = overflowWindow() as any
     const sz = config.layout.iconSize
     const [w, h] = windowDims(dg)
     const ml = win.get_margin_left?.() ?? 0
@@ -1437,7 +1462,7 @@ export function createDockRow(
       }
       return true
     }
-    anim.runner = runFrames(overflowAw!.window, step, config.timing.framerate)
+    anim.runner = runFrames(overflowWindow(), step, config.timing.framerate)
   }
 
   function setAppletAttention(name: string, active: boolean): void {
