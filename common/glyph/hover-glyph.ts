@@ -62,7 +62,7 @@ export function hoverGlyph(opts: HoverGlyphOpts): {
       const g = hoverOpts.glow
       // SUBTLE: a soft halo sized to the glyph box, not a disc.
       const glow = new (cairo as any).RadialGradient(w / 2, h / 2, 0.5, w / 2, h / 2, w / 2)
-      const a = opts.hover!.glowAlpha ?? 0.22
+      const a = hoverOpts.glowAlpha ?? 0.22
       glow.addColorStopRGBA(0, g[0], g[1], g[2], a)
       glow.addColorStopRGBA(0.6, g[0], g[1], g[2], a * 0.36)
       glow.addColorStopRGBA(1, g[0], g[1], g[2], 0)
