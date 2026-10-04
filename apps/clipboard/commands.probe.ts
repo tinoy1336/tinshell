@@ -256,6 +256,37 @@ try {
 check("debug counts the entries", parsed.entries, 3)
 check("debug counts the pins", parsed.pinned, 1)
 
+// ── dump-heap takes ONE absolute path and writes a snapshot there ──
+// The snapshot is a debugging artefact the caller owns; what the contract
+// pins is that the path is a single absolute argument and that the reply names
+// where the dump landed rather than answering anything about the entries.
+const snapshotPath = GLib.build_filenamev([dataHome, "heap-dump.json"])
+check(
+  "dump-heap refuses a missing path",
+  reply("clipboard dump-heap"),
+  "error: usage: clipboard dump-heap <path>",
+)
+check(
+  "dump-heap refuses a relative path",
+  reply("clipboard dump-heap heap.json"),
+  "error: usage: clipboard dump-heap <path>",
+)
+check(
+  "dump-heap refuses a trailing argument",
+  reply(`clipboard dump-heap ${snapshotPath} extra`),
+  "error: usage: clipboard dump-heap <path>",
+)
+check(
+  "dump-heap answers the path it wrote",
+  reply(`clipboard dump-heap ${snapshotPath}`),
+  `ok ${snapshotPath}`,
+)
+check(
+  "dump-heap leaves a snapshot behind",
+  GLib.file_get_contents(snapshotPath)[1]?.length > 0,
+  true,
+)
+
 // ── the size the surface reports is the store's own measurement ──
 check(
   "payloadSize measures a text payload in UTF-8 bytes",

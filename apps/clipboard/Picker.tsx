@@ -400,7 +400,7 @@ export default function Picker() {
           }}
         >
           <box class="rows" hexpand orientation={Gtk.Orientation.VERTICAL}>
-            <For each={rows}>
+            <For each={rows} id={(r: ClipboardEntry) => r.id}>
               {(r: ClipboardEntry, index: any) => (
                 <box
                   class={rowClass(index)}

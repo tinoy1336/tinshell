@@ -15,7 +15,8 @@
  *
  * `toggle` / `show` / `hide` (picker visibility), `focus-search`,
  * `history [<limit>]`, `entry <id> [--reveal]`, `clear`, `delete <id>`,
- * `pin` / `unpin <id>`, `debug`, and the standard `config get|set|reload`.
+ * `pin` / `unpin <id>`, `debug`, `dump-heap <path>`, and the standard
+ * `config get|set|reload`.
  * Quit is the builtin `ags -i clipboard quit`.
  */
 
@@ -58,6 +59,7 @@ const USAGE = {
   pin: "usage: clipboard pin <id>",
   unpin: "usage: clipboard unpin <id>",
   debug: "usage: clipboard debug",
+  dumpHeap: "usage: clipboard dump-heap <path>",
 }
 
 /**
@@ -169,6 +171,23 @@ register(["clipboard", "debug"], (tokens, res) => {
       pinned: [...pinned()].length,
     }),
   )
+})
+
+// A gjs heap snapshot, written by gjs itself. It takes an ABSOLUTE path,
+// because the shell's working directory is not the caller's and a snapshot
+// dropped next to whichever directory that happens to be is unfindable. The
+// snapshot is the caller's file; the reply names only where it landed.
+register(["clipboard", "dump-heap"], (tokens, res) => {
+  const [path, ...extra] = tokens
+  if (!path || extra.length > 0 || !path.startsWith("/")) {
+    return res(`error: ${USAGE.dumpHeap}`)
+  }
+  try {
+    imports.system.dumpHeap(path)
+  } catch (e) {
+    return res(`error: heap dump failed: ${(e as Error).message}`)
+  }
+  res(`ok ${path}`)
 })
 
 registerConfigCommands("clipboard", {

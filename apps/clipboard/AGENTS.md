@@ -49,6 +49,11 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   the control's own click would never complete its press/release pair. The
   delete control obeys the same rule. Dismissal via
   `common/window/popup-dismiss` (Escape / click-outside / focus-loss).
+  The row list is KEYED BY ENTRY ID (`For`'s `id`), because the store hands
+  back freshly parsed entry objects on every read: by reference every row is a
+  new item each refresh, so every open rebuilds the whole list and the rows it
+  replaced are retained (measured ~100 recreated rows per show). With the key,
+  a refresh reuses the rows it already has.
   The card is BOUNDED: `window.width`/`maxWidth` fix its width and
   `window.maxHeight` caps the list, which scrolls past that cap — a card
   sized to the full natural height of every entry is an impossible layer
@@ -161,6 +166,7 @@ contract below — METADATA only, payload behind one explicit opt-in.
 | `clipboard delete <id>` | delete one entry |
 | `clipboard pin` / `clipboard unpin` `<id>` | pin an entry (survives clearing) |
 | `clipboard debug` | capture-loop state + entry/pin COUNTS |
+| `clipboard dump-heap <path>` | write a gjs heap snapshot to that absolute path |
 | `clipboard config get/set/reload` | live config via the store |
 
 There is NO command for the row preview: the preview button calls the MEDIA
@@ -189,6 +195,11 @@ caller can read payloads by accident:
   the blob the picker previews). Nothing bulk reveals.
 - **No listing path takes a reveal flag** — `history --reveal` is refused, not
   silently ignored.
+- **`dump-heap <path>` writes a gjs heap snapshot** (`imports.system.dumpHeap`)
+  to that ABSOLUTE path and answers `ok <path>`: the shell's working directory
+  is not the caller's, so a relative path would land somewhere unfindable. No
+  entry metadata and no payload is involved, and the file belongs to the
+  caller.
 - **Parsing is strict on every path.** A token the path does not define — an
   unknown flag, an extra argument, a non-numeric or zero `<limit>` — answers
   `error: usage: <that path's usage>` and the request does nothing else. A
