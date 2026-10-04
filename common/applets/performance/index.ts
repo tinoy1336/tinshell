@@ -172,7 +172,9 @@ export default function mount({ port, config, backend }: AppletContext): void {
   function refreshInitial(): void {
     Promise.all([backend.powerProfile.readProfile(), readAutoMode(backend.powerProfile)]).then(
       ([p, am]) => {
-        profile = p
+        // An unanswered read is not a profile: keep the seed rather than
+        // painting `balanced` as if the daemon had said so.
+        if (p !== "unknown") profile = p
         autoMode = am
         if (autoMode) startAutoPoll()
         port.icon.queue_draw()
@@ -190,6 +192,9 @@ export default function mount({ port, config, backend }: AppletContext): void {
       void Promise.all([readAcOnline(backend.fs), backend.powerProfile.readProfile()]).then(
         ([onAc, current]) => {
           if (!autoMode) return // may have switched off mid-await
+          // Switching on an unanswered read would move the machine to a
+          // profile the applet never observed.
+          if (current === "unknown") return
           const target: TlpProfile = onAc ? "balanced" : "power-saver"
           if (current !== target) backend.powerProfile.writeProfile(target)
         },
@@ -309,6 +314,7 @@ export default function mount({ port, config, backend }: AppletContext): void {
     if (!autoMode) {
       void backend.powerProfile.readProfile().then((newProfile) => {
         if (autoMode) return
+        if (newProfile === "unknown") return // no reading, no drift
         if (newProfile !== profile) {
           profile = newProfile
           handle.externalChange(profileToStep(newProfile))

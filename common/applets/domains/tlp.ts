@@ -7,6 +7,10 @@ import { onProfileChanged, readProfile } from "./power-profile"
 let cached: TlpProfile = "balanced"
 let inflight = false
 
+/** Whether the LAST primary read named a profile. `false` means the daemon did
+ *  not answer, which is the only case the `tlp-stat` fallback exists for. */
+let primaryAnswered = false
+
 /** tlp-stat fallback refresh. Used ONLY by the safety net — the primary
  *  source is the PowerProfiles PropertiesChanged signal (see below), which
  *  feeds readProfile() (a DBus Get, cheaper and more authoritative than a
@@ -41,30 +45,38 @@ let _tlpState: ReturnType<typeof mkReactive<TlpProfile>> | null = null
 let _tlpLast: TlpProfile = "balanced"
 
 /** TLP/power-profile state. PRIMARY: PowerProfiles PropertiesChanged (DBus)
- *  → instant on every ActiveProfile set (ours + external). SAFETY NET:
- *  `intervalMs` (timing.poll.tlp, now 30s) via tlp-stat -s — covers a dead
- *  or absent daemon (the DBus Get fails → readProfile resolves "balanced";
- *  tlp-stat still tells the truth). */
+ *  → instant on every ActiveProfile set (ours + external). FALLBACK: while that
+ *  read reports `unknown` (the daemon is absent or not answering — readProfile
+ *  no longer hides it behind "balanced"), each `intervalMs` (timing.poll.tlp)
+ *  tick runs `tlp-stat -s`, which reads TLP's own state from disk and still
+ *  tells the truth. On a healthy daemon the fallback never runs: it starts ~53
+ *  programs to re-learn a value the signal already delivered. */
 export function tlpProfile(intervalMs: number = 30000): Reactive<TlpProfile> {
   if (!_tlpState) {
     _tlpState = mkReactive(cached)
     const apply = (p: TlpProfile): void => {
+      if (p === "unknown") return
       if (p === _tlpLast) return
       _tlpLast = p
       cached = p
       _tlpState?.set(p)
     }
-    // Primary: daemon signal → DBus read → instant set.
-    onProfileChanged(() => {
-      void readProfile().then(apply)
-    })
-    // Initial read: the signal only fires on CHANGE, so without this the
-    // state sits on the "balanced" seed until the first safety-net tick
-    // (30s). readProfile is one DBus Get — cheaper than tlp-stat.
-    void readProfile().then(apply)
-    // Safety net: tlp-stat -s subprocess, dedup via apply().
+    /** The primary read, and the signal that triggers it. Its RESULT arms the
+     *  fallback below — the fallback is never armed by the timer alone. */
+    const primary = (): void => {
+      void readProfile().then((p) => {
+        primaryAnswered = p !== "unknown"
+        apply(p)
+      })
+    }
+    onProfileChanged(primary)
+    // The signal fires only on CHANGE, so one read at mount seeds the state
+    // (otherwise it sits on the `balanced` seed until the first tick).
+    primary()
+    // Fallback: `tlp-stat -s` starts ~53 programs, so it runs only while the
+    // primary source is not answering.
     GLib.timeout_add(GLib.PRIORITY_DEFAULT, intervalMs, () => {
-      refreshAsync(apply)
+      if (!primaryAnswered) refreshAsync(apply)
       return GLib.SOURCE_CONTINUE
     })
   }

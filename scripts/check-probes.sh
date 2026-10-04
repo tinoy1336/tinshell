@@ -103,6 +103,7 @@ PLAIN=(
   common/emoji/insert-plan.probe.ts
   common/host/registry-exports.probe.ts
   common/applets/battery/low-warning.probe.ts
+  common/applets/domains/profile-name.probe.ts
   common/local-index/local-index.probe.mjs
   apps/launcher/sources/bang-token.probe.ts
   apps/launcher/sources/exec-fields.probe.ts

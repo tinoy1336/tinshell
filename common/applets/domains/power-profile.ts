@@ -2,6 +2,7 @@ import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import type { TlpProfile } from "@common/applets/types"
 import { createStateStore } from "@common/state"
+import { profileFromString } from "./profile-name"
 
 const SERVICE = "org.freedesktop.UPower.PowerProfiles"
 const PATH = "/org/freedesktop/UPower/PowerProfiles"
@@ -19,7 +20,10 @@ export const autoProfileStore = createStateStore<"autoProfile">({
   keys: { autoProfile: (v: unknown) => typeof v === "boolean" },
 })
 
-/** Read the active power profile asynchronously via DBus (never blocks the main loop). */
+/** Read the active power profile asynchronously via DBus (never blocks the main
+ *  loop). An absent or unanswered daemon resolves `unknown` — callers treat that
+ *  as "no reading" and use their own source (domains/tlp.ts runs `tlp-stat` only
+ *  then), instead of acting on a default that merely looks like a profile. */
 export function readProfile(): Promise<TlpProfile> {
   return new Promise((resolve) => {
     Gio.DBus.system.call(
@@ -37,12 +41,9 @@ export function readProfile(): Promise<TlpProfile> {
           const result = Gio.DBus.system.call_finish(res)
           const variant = result.get_child_value(0).get_child_value(0)
           const [s] = variant.get_string()
-          if (s === "performance") return resolve("performance")
-          if (s === "balanced") return resolve("balanced")
-          if (s === "power-saver") return resolve("power-saver")
-          resolve("balanced")
+          resolve(profileFromString(s))
         } catch (_) {
-          resolve("balanced")
+          resolve("unknown")
         }
       },
     )
