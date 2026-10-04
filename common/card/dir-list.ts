@@ -269,7 +269,12 @@ export function createCardDirList<TEntry, TKey extends string>(
 
   function makeNameColumn(): Gtk.ColumnViewColumn {
     const factory = Gtk.SignalListItemFactory.new()
-    const cells = new Map<GObject.Object, { box: Gtk.Box; glyph: Gtk.Label; name: Gtk.Label }>()
+    // WeakMap, not Map: the side table must never be what keeps a recycled
+    // ListItem alive. A strong key here pins every ListItem the view has ever
+    // set up — with the widget graph it carries — for the life of the module,
+    // which is longer than any window (modules stay loaded across an app
+    // unload), so each listing build leaked its rows' cells.
+    const cells = new WeakMap<GObject.Object, { box: Gtk.Box; glyph: Gtk.Label; name: Gtk.Label }>()
     factory.connect("setup", (_f, listItem) => {
       const box = new Gtk.Box({ spacing: 10, hexpand: true })
       const glyph = new Gtk.Label({ halign: Gtk.Align.START, xalign: 0 })
@@ -312,7 +317,8 @@ export function createCardDirList<TEntry, TKey extends string>(
 
   function makeMetaColumn(meta: CardListMetaColumn<TEntry, TKey>): Gtk.ColumnViewColumn {
     const factory = Gtk.SignalListItemFactory.new()
-    const cells = new Map<GObject.Object, Gtk.Label>()
+    // WeakMap for the same reason as the name column's side table above.
+    const cells = new WeakMap<GObject.Object, Gtk.Label>()
     factory.connect("setup", (_f, listItem) => {
       const label = new Gtk.Label({
         halign: meta.align === "end" ? Gtk.Align.END : Gtk.Align.START,

@@ -54,7 +54,7 @@
 
 import GLib from "gi://GLib"
 import { copy } from "@common/clipboard"
-import { loadStill } from "@common/media/decode"
+import { loadStill, loadStillCapped } from "@common/media/decode"
 import { NullIntrinsicPaintable } from "@common/media/paintable"
 import { Gdk, Gtk } from "ags/gtk4"
 import { get } from "./config"
@@ -282,7 +282,7 @@ function appIconPicture(
     if (path === skipPath) continue
     if (!GLib.file_test(path, GLib.FileTest.EXISTS)) continue
     try {
-      picture.paintable = bound(loadStill(path).texture)
+      picture.paintable = bound(artworkTexture(path, size))
       return picture
     } catch (e) {
       log(`icon file decode failed for ${path}: ${e}`)
@@ -304,6 +304,20 @@ function appIconPicture(
     log(`icon fallback lookup failed: ${e}`)
   }
   return picture
+}
+
+/** The texture for a slot `slotPx` wide: decoded at twice the slot (hidpi),
+ *  with a full-size fallback for a format the pixbuf scaler refuses (an SVG with
+ *  no rasteriser installed). The cap matters: a full-size texture bound into a
+ *  small slot costs the renderer the whole source size — measured, a 1920x1080
+ *  notification artwork retained ~85MB per popup. */
+function artworkTexture(path: string, slotPx: number) {
+  const cap = slotPx * 2
+  try {
+    return loadStillCapped(path, cap, cap).texture
+  } catch {
+    return loadStill(path).texture
+  }
 }
 
 /** GTK floors a `Gtk.Picture`'s height (measured: a box asking for 13px is
@@ -352,7 +366,8 @@ function bodyImagePicture(noti: any): Gtk.Picture | null {
   if (!GLib.file_test(path, GLib.FileTest.EXISTS)) return null
 
   try {
-    const still = loadStill(path)
+    const cap = get<number>("appearance.thumbnailSize", 80) * 2
+    const still = loadStillCapped(path, cap, cap)
     const box = thumbnailBox(still.width, still.height)
     const picture = new Gtk.Picture()
     picture.add_css_class("body-image")
@@ -393,7 +408,7 @@ function senderImagePicture(noti: any): Gtk.Picture | null {
     picture.content_fit = Gtk.ContentFit.COVER
     picture.set_valign(Gtk.Align.START)
     picture.set_halign(Gtk.Align.START)
-    picture.paintable = bound(loadStill(path).texture)
+    picture.paintable = bound(artworkTexture(path, size))
     return picture
   } catch (e) {
     log(`sender image decode failed for ${path}: ${e}`)

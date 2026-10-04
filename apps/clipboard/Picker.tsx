@@ -35,7 +35,7 @@ import {
   remove as storeRemove,
   togglePin,
 } from "./store"
-import { thumbTexture } from "./thumbs"
+import { pruneThumbTextures, thumbTexture } from "./thumbs"
 
 const { NONE } = Astal.WindowAnchor
 
@@ -111,6 +111,10 @@ export default function Picker() {
   function refreshRows(preferred?: number): void {
     const all = storeAll()
     const p = pinned()
+    // Keep the decoded-thumbnail table exactly the history: an id that left (a
+    // delete, a clear, an eviction) drops its texture here, so the cache is
+    // bounded by the entry cap rather than by everything ever shown.
+    pruneThumbTextures(all.map((e) => e.id))
     setPinnedIds(p)
     const next = computeRows(entry ? entry.get_text() : "", all, p)
     // Read the selection BEFORE the setter below: the re-set is what

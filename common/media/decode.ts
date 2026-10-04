@@ -9,6 +9,7 @@
  */
 
 import Gdk from "gi://Gdk?version=4.0"
+import GdkPixbuf from "gi://GdkPixbuf"
 import GLib from "gi://GLib"
 import Cairo from "cairo"
 import type { StillImage } from "./types"
@@ -16,6 +17,29 @@ import type { StillImage } from "./types"
 /** Decode `path` into a texture. Throws when the file cannot be decoded. */
 export function loadStill(path: string): StillImage {
   const texture = Gdk.Texture.new_from_filename(path)
+  let surface: Cairo.ImageSurface | null = null
+  return {
+    path,
+    texture,
+    width: texture.get_width(),
+    height: texture.get_height(),
+    surface(): Cairo.ImageSurface {
+      if (!surface) surface = surfaceFromTexture(texture)
+      return surface
+    },
+  }
+}
+
+/** Decode `path` at a display cap: never larger than `maxW`x`maxH` device px.
+ *
+ *  `GdkPixbuf` scales DURING the load, so there is no full-size intermediate.
+ *  Use it for a slot far smaller than the source: a full-size texture bound into
+ *  an 80px artwork slot costs the renderer the whole source size — measured, a
+ *  1920x1080 notification artwork retained ~85MB per popup — while the capped
+ *  decode is the same picture at slot scale. */
+export function loadStillCapped(path: string, maxW: number, maxH: number): StillImage {
+  const pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, maxW, maxH, true)
+  const texture = Gdk.Texture.new_for_pixbuf(pb)
   let surface: Cairo.ImageSurface | null = null
   return {
     path,

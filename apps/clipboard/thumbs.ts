@@ -60,17 +60,41 @@ export function ensureThumb(id: string): boolean {
   }
 }
 
+/** Decoded thumbnail textures, by id. Rendering a row decodes its thumbnail;
+ *  a rebuild re-renders every row (every keystroke in the search box does), so
+ *  without this table each rebuild made a fresh GdkTexture per image row —
+ *  renderer memory the collector cannot see and does not reclaim. One texture
+ *  per id is what the rows paint anyway; the table is bounded by the history
+ *  (one small thumbnail per entry). */
+const textures = new Map<string, Gdk.Texture>()
+
 /** The cached thumbnail as a texture, or null when it has not been built yet
  *  (the caller renders a placeholder and schedules one fill). */
 export function thumbTexture(id: string): Gdk.Texture | null {
+  const hit = textures.get(id)
+  if (hit) return hit
   const path = thumbPath(id)
   if (!GLib.file_test(path, GLib.FileTest.IS_REGULAR)) return null
   try {
-    return Gdk.Texture.new_from_filename(path)
+    const tex = Gdk.Texture.new_from_filename(path)
+    textures.set(id, tex)
+    return tex
   } catch (e) {
     ignore("clipboard thumbnail texture load", e)
     return null
   }
+}
+
+/** Drop decoded thumbnails for ids that are no longer in the history (a delete,
+ *  a clear, or an eviction) — the cache must never outlive the entries. */
+export function pruneThumbTextures(liveIds: Iterable<string>): void {
+  const live = new Set(liveIds)
+  for (const id of [...textures.keys()]) if (!live.has(id)) textures.delete(id)
+}
+
+/** Drop every decoded thumbnail (history cleared, or the app unloading). */
+export function dropThumbTextures(): void {
+  textures.clear()
 }
 
 /** Build the given ids' missing thumbnails in the background — one per idle

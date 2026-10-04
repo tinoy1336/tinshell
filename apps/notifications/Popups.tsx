@@ -35,13 +35,14 @@ import { ignore, log } from "./log"
 import { notifications, popupIds } from "./Notifd"
 import NotificationCard from "./NotificationCard"
 
-// Astal.WindowAnchor has NO `ALL` member (enum: NONE/TOP/RIGHT/LEFT/BOTTOM) —
-// the explicit OR is the full-screen form (the dock scrim's).
-const FULL =
-  Astal.WindowAnchor.TOP |
-  Astal.WindowAnchor.BOTTOM |
-  Astal.WindowAnchor.LEFT |
-  Astal.WindowAnchor.RIGHT
+// Top strip: anchored to every edge EXCEPT the bottom. A full-screen surface
+// (all four edges, the dock scrim's form) makes the compositor hand the window a
+// monitor-sized buffer — measured 1440x900 logical / 2880x1800 physical — and
+// each popup then costs ~120MB of renderer buffers that are never returned. The
+// card is only `popup.width` wide, and nothing below it is ever painted, so the
+// surface stops at its content height instead. Placement is unchanged: the cards
+// still sit centred along the top edge.
+const TOP_STRIP = Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT
 
 export default function Popups(): Astal.Window {
   let win: Astal.Window
@@ -261,7 +262,7 @@ export default function Popups(): Astal.Window {
       layer={Astal.Layer.OVERLAY}
       keymode={Astal.Keymode.NONE}
       exclusivity={Astal.Exclusivity.IGNORE}
-      anchor={FULL}
+      anchor={TOP_STRIP}
       resizable
       visible={false}
       $={(self) => {
