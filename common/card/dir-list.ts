@@ -23,6 +23,7 @@ import GLib from "gi://GLib"
 import GObject from "gi://GObject"
 import Gtk from "gi://Gtk?version=4.0"
 import Pango from "gi://Pango"
+import { ignore } from "@common/log/logger"
 import { type CardStatusBar, createCardStatusBar } from "./status-bar"
 
 /** The hidden-entries toggle's glyph pair: the preview toggle owns eye /
@@ -312,6 +313,16 @@ export function createCardDirList<TEntry, TKey extends string>(
       const cell = cells.get(listItem)
       if (cell) opts.cells?.unbind?.(cell.box)
     })
+    // GTK recycles ListItems, and `teardown` is the documented place to undo what
+    // `setup` built. Leaving it out left the child (and the labels, style context,
+    // css node, controllers and pango layouts it carries) attached to an item the
+    // view had finished with — the row tree then could not be finalised. GTK calls
+    // setup again before the next bind, so dropping the entry here is safe.
+    factory.connect("teardown", (_f, listItem) => {
+      cells.delete(listItem)
+      // @ts-expect-error @girs under-declares `child`; gjs provides it at runtime
+      listItem.child = null
+    })
     return new Gtk.ColumnViewColumn({ title: opts.name.title, factory, expand: true })
   }
 
@@ -340,6 +351,12 @@ export function createCardDirList<TEntry, TKey extends string>(
     factory.connect("unbind", (_f, listItem) => {
       const label = cells.get(listItem)
       if (label) opts.cells?.unbind?.(label)
+    })
+    // Same teardown contract as the name column's factory above.
+    factory.connect("teardown", (_f, listItem) => {
+      cells.delete(listItem)
+      // @ts-expect-error @girs under-declares `child`; gjs provides it at runtime
+      listItem.child = null
     })
     return new Gtk.ColumnViewColumn({ title: meta.title, factory })
   }
@@ -557,6 +574,19 @@ export function createCardDirList<TEntry, TKey extends string>(
     commitTypedPath,
     dispose: () => {
       disposed = true
+      // Release the view's items deterministically instead of leaving them to the
+      // window teardown. GTK keeps a per-row cell (GtkColumnViewCellWidget and the
+      // ListItem behind it) while a model is attached, and the tree those cells
+      // carry — style context, css node, controllers, labels, pango layouts — was
+      // measured unfinalised after an open/close cycle (~17k GObject instances a
+      // cycle). Detaching the models drops the items while the widget still lives.
+      try {
+        store.remove_all()
+        view.set_model(null)
+        selection.set_model(null)
+      } catch (e) {
+        ignore("dir-list model dismantle", e)
+      }
     },
   }
 }
