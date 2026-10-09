@@ -93,6 +93,42 @@ function asyncTitles(query: string, ...expected: string[]): void {
   checks.push([query, JSON.stringify(out.map((r) => r.title)), JSON.stringify(expected)])
 }
 
+/**
+ * `titles` for an async source that must resolve to NOTHING — a conversion qalc
+ * only half-read (the calc path drops the row rather than showing the source
+ * quantity back). The wait ends when the source reports itself idle and a
+ * short grace has passed with no row, so the check costs the query, not a
+ * timeout.
+ */
+function asyncNoRow(query: string): void {
+  let out: Result[] = []
+  let busy = false
+  let sawBusy = false
+  let settledAt = 0
+  const combiner = new Combiner({
+    onResults: (batch) => {
+      out = batch.results
+    },
+    onBusy: (b: boolean) => {
+      busy = b
+      if (b) sawBusy = true
+    },
+  })
+  combiner.queryDidChange(query)
+  const ctx = GLib.MainContext.default()
+  const deadline = GLib.get_monotonic_time() + 20_000_000
+  while (GLib.get_monotonic_time() < deadline) {
+    ctx.iteration(false)
+    if (out.length > 0) break
+    if (sawBusy && !busy) {
+      // The result lands just after the busy latch clears, so keep pumping.
+      if (settledAt === 0) settledAt = GLib.get_monotonic_time()
+      else if (GLib.get_monotonic_time() - settledAt > 400_000) break
+    }
+  }
+  checks.push([query, JSON.stringify(out.map((r) => r.title)), JSON.stringify([])])
+}
+
 // LIVE=1: the same query through the SETTLED path — the async preview replaces
 // the sync row (one row, with the fetched description) instead of doubling it.
 // It runs BEFORE the fixture checks: those leave their own debounce timers
@@ -128,6 +164,18 @@ titles(
 // ── percent-of: qalc reads `%` as a remainder, so the combiner rewrites the
 // shape it cannot parse (`15% of 200` → `15% * 200`) before the kickoff ──
 asyncTitles("15% of 200", "30")
+
+// ── an answer qalc only half-read is dropped, not shown ──
+// A target qalc cannot apply is discarded silently — `10 m to s` is the source
+// quantity again, `10 grams to cad` is the same shape, and a compound target is
+// applied factor by factor (`10 usd to cad/gal` is the plain `cad` rate) — so
+// the conversion is checked against what qalc makes of less of the same query.
+asyncNoRow("10 m to s")
+asyncNoRow("10 grams to cad")
+asyncNoRow("10 usd to cad/gal")
+// A conversion qalc DID answer keeps its row: the same checks must not eat a
+// real answer (`furlong` is a unit only qalc knows).
+asyncTitles("100 furlong to m", "20116.8 m")
 
 // ── an enriched bang shows its OWN row on the keystroke ──
 // The preview is a thunk the combiner calls on the settled query, so the sync

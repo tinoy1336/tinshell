@@ -22,6 +22,13 @@
  * Input normalization: qalc parses bare `in` as `inch`, so "1 hour in
  * seconds" → "1 hour to seconds" (the user-meaningful "convert to" form).
  * `as` is rewritten the same way.
+ *
+ * Answer verification: qalc never reports a target it cannot apply —
+ * `10 grams to cad` comes back as `10 g` and `10 usd to cad/gal` as the plain
+ * `usd`→`cad` rate, both with exit 0 and an empty stderr — so a zero exit says
+ * nothing about whether the question was answered. A conversion is therefore
+ * checked against what qalc makes of LESS of the same query (see
+ * `targetApplied`), and a row that fails is dropped rather than shown.
  */
 
 import { copy } from "@common/clipboard"
@@ -99,6 +106,50 @@ async function fetchRate(
 }
 
 /**
+ * Ask qalc one expression and return its first output line, or null when qalc
+ * fails: a missing binary, a timeout, a refusal. Rates are never refreshed
+ * here — a probe has to read the same rates the answer it verifies was
+ * computed from.
+ */
+async function askQalc(expr: string, timeoutMs: number): Promise<string | null> {
+  try {
+    const res = await run(["qalc", "-t", expr], { timeoutMs })
+    if (res.exit !== 0) return null
+    return res.stdout.trim().split("\n")[0].trim() || null
+  } catch (e) {
+    ignore("qalc probe", e)
+    return null
+  }
+}
+
+/**
+ * Did qalc actually answer the question it was asked?
+ *
+ * A target qalc cannot apply is silently discarded: `10 grams to cad` is the
+ * source quantity unchanged, and a compound target is applied factor by factor,
+ * so `10 usd to cad/gal` is exactly the plain `cad` rate. Both are caught by
+ * asking qalc for the same query with less of it — the source alone, and a
+ * compound target reduced to its first factor — and rejecting an answer that
+ * either one already produced. A probe that cannot run proves nothing, so the
+ * answer stands; only an answer that matches a smaller query is dropped.
+ */
+async function targetApplied(
+  conv: { amount: string; from: string; to: string },
+  answer: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  const source = await askQalc(`${conv.amount} ${conv.from}`, timeoutMs)
+  if (source !== null && source === answer) return false
+
+  const [first] = conv.to.split("/")
+  if (first && first !== conv.to) {
+    const reduced = await askQalc(`${conv.amount} ${conv.from} to ${first}`, timeoutMs)
+    if (reduced !== null && reduced === answer) return false
+  }
+  return true
+}
+
+/**
  * Evaluate `query` via qalc. Resolves with a Result (title=answer) or null
  * when qalc has nothing to say (non-zero exit / empty answer). `onBusy`
  * brackets the async phases so the UI can spin its loading indicator.
@@ -127,14 +178,19 @@ export async function calc(query: string, onBusy: (busy: boolean) => void): Prom
     if (!firstLine) return null
     if (needRefresh) ratesLastRefresh = Date.now()
 
+    // A conversion qalc only half-read is not an answer: verify it before it
+    // reaches the list (see `targetApplied`).
+    const conv = parseConversion(expr)
+    if (conv && !(await targetApplied(conv, firstLine, timeoutMs))) {
+      log(`calc: qalc ignored the target on "${expr}"`)
+      return null
+    }
+
     // For currency conversions, also show the per-unit rate as the description.
     let description = raw
-    if (looksMonetary) {
-      const conv = parseConversion(expr)
-      if (conv) {
-        const rate = await fetchRate(conv, needRefresh)
-        if (rate) description = `${rate}  (${raw})`
-      }
+    if (looksMonetary && conv) {
+      const rate = await fetchRate(conv, needRefresh)
+      if (rate) description = `${rate}  (${raw})`
     }
 
     return {

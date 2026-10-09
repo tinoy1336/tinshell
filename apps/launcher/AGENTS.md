@@ -1274,3 +1274,11 @@ click-outside (Graphene bounds) / focus-loss — all via
   query the table answered (`20C`, `100 km to mi`, `255 in binary`) never also
   reaches qalc: the rows it produced suppress the implicit calc, so one
   conversion is one row.
+- **A qalc answer to a conversion is verified before it reaches the list**
+  (`sources/calc.ts` `targetApplied`): a target qalc cannot apply is discarded
+  silently — `10 m to s` prints `10 m` again, and a compound target is applied
+  factor by factor, so `10 usd to cad/gal` prints the plain `cad` rate — each
+  with exit 0 and an empty stderr. The answer is compared against what qalc
+  makes of the same query with LESS of it (the source alone, and a compound
+  target reduced to its first factor) and the row is dropped when they match,
+  so a half-read query shows no row instead of the source quantity back.
