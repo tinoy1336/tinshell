@@ -396,6 +396,16 @@ conv("5")
 // A `us`-prefixed word outside the cooking measures is not a unit: a currency
 // pair still reaches qalc.
 conv("100 usd to cad")
+// A fuzzy match is a GUESS, not knowledge, so it may not decide a query on its
+// own: a pair with no KNOWN spelling on either side is not this table's to
+// answer (`cny` reads as `century` and `cad` as `decade` — `cad` is a substring
+// of it — which is exactly the pair that must reach qalc), and with no target
+// to validate it only an abbreviation survives (`20 cel` above; `cny` is not a
+// prefix of `century`). One known side still validates the other's guess.
+conv("10 km to kilometr", ["10 km = 10 km", "1 km = 1 km"])
+conv("10 cny to cad")
+conv("10 cny")
+conv("10 cad")
 conv("")
 // A squared or cubed spelling is not the linear unit with a stray character:
 // `m2`/`m²` name no unit this table has (area is qalc's business).

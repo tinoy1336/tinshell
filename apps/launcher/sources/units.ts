@@ -31,6 +31,14 @@
  * spelling TWO units share is never guessed (b/B, Mbps/MBps). Plurals resolve
  * by dropping a trailing `s`.
  *
+ * A fuzzy match is a GUESS, not knowledge, and a guess may not decide what a
+ * query means: a conversion answers from a spelling the table KNOWS on at least
+ * one side, and the other side's guess is then validated by the family check.
+ * With no target to validate it (`20 cel`), a guess must at least be a PREFIX
+ * of the name it matched — an abbreviation — so a scattered letter match
+ * decides nothing: `10 cny` names no unit here, and the currency pair
+ * `10 cny to cad` reaches qalc instead of reading as centuries and decades.
+ *
  * Two readings the table settles by CONTEXT rather than by a table lookup:
  *   - the cooking measures are metric (`cup` 250 mL, `tbsp` 15 mL, `tsp`
  *     5 mL), and the US customary ones are spelled with an explicit `us `
@@ -735,7 +743,16 @@ function lookup(token: string): Ref | null {
   return normalized ?? null
 }
 
-function fuzzyUnit(token: string): Ref | null {
+/** A fuzzy match: the unit it lands on, the name it matched, and whether the
+ *  typed token is a PREFIX of that name (an abbreviation) rather than a
+ *  scattered letter match. */
+interface FuzzyMatch {
+  ref: Ref
+  norm: string
+  prefix: boolean
+}
+
+function fuzzyUnit(token: string): FuzzyMatch | null {
   const norm = normToken(token)
   if (norm.length < 3) return null
   const ranked = rank(fuzzyNames, (c) => fuzzyScore(norm, c.norm))
@@ -747,19 +764,43 @@ function fuzzyUnit(token: string): Ref | null {
   const top = ranked.filter((c) => c.score === best.score)
   const shortest = Math.min(...top.map((c) => c.item.norm.length))
   const tight = top.filter((c) => c.item.norm.length === shortest)
-  return tight.every((c) => c.item.ref === tight[0].item.ref) ? tight[0].item.ref : null
+  if (!tight.every((c) => c.item.ref === tight[0].item.ref)) return null
+  const { ref, norm: name } = tight[0].item
+  return { ref, norm: name, prefix: name.startsWith(norm) }
+}
+
+/**
+ * A typed spelling and where it came from: a spelling the table KNOWS (exact,
+ * case-folded, normalized, or a plural of one) or a fuzzy GUESS at another
+ * name. The two are not interchangeable, so a caller that answers a conversion
+ * reports which one it used (see `unitConversions`); the composites take the
+ * ref either way.
+ */
+interface Spelling {
+  ref: Ref | null
+  /** False when the only match came from the fuzzy pass. */
+  known: boolean
+  /** True when a guessed match is a prefix of the name it matched. */
+  prefix: boolean
+}
+
+function resolveSpelling(token: string): Spelling {
+  const t = token.trim()
+  const direct = lookup(t)
+  if (direct) return { ref: direct, known: true, prefix: true }
+  if (t.length > 2 && /s$/i.test(t)) {
+    const singular = lookup(t.slice(0, -1))
+    if (singular) return { ref: singular, known: true, prefix: true }
+  }
+  const guess = fuzzyUnit(t)
+  return guess
+    ? { ref: guess.ref, known: false, prefix: guess.prefix }
+    : { ref: null, known: false, prefix: false }
 }
 
 /** The unit a typed spelling names, or null (an unknown spelling names none). */
 function resolveUnit(token: string): Ref | null {
-  const t = token.trim()
-  const direct = lookup(t)
-  if (direct) return direct
-  if (t.length > 2 && /s$/i.test(t)) {
-    const singular = lookup(t.slice(0, -1))
-    if (singular) return singular
-  }
-  return fuzzyUnit(t)
+  return resolveSpelling(token).ref
 }
 
 /** A degree marker makes a token a temperature scale outright. */
@@ -1358,14 +1399,23 @@ export function unitConversions(query: string): UnitConversion[] {
   // as kelvin (`100k to c`) or names no unit at all (a `k` beside a length
   // target is "thousand", and converts to nothing), and it decides which unit
   // owns a context-resolved spelling (`g`, `pt`, `nm`).
-  const rawTarget = parsed.toToken !== null ? resolveUnit(parsed.toToken) : null
+  const targetSpelling = parsed.toToken !== null ? resolveSpelling(parsed.toToken) : null
+  const rawTarget = targetSpelling?.ref ?? null
   const targetFamily = rawTarget?.kind === "unit" ? rawTarget.family : null
 
-  const from =
-    resolveContexts(parsed.fromToken, targetFamily) ??
-    resolveUnit(parsed.fromToken) ??
-    resolveScaleShort(parsed.fromToken, rawTarget?.kind !== "temp")
+  const spelling = resolveSpelling(parsed.fromToken)
+  let from =
+    resolveContexts(parsed.fromToken, targetFamily) ?? (spelling.known ? spelling.ref : null)
+  if (!from) from = resolveScaleShort(parsed.fromToken, rawTarget?.kind !== "temp")
+  const fromGuessed = from === null && spelling.ref !== null
+  if (!from) from = spelling.ref
   if (!from) return []
+
+  // A fuzzy match is a GUESS, and a guess may not decide a query on its own: a
+  // conversion answers from a spelling the table KNOWS on at least one side.
+  // With no target to validate it, only an abbreviation survives — a scattered
+  // letter match decides nothing, so `10 cny` names no unit here.
+  if (fromGuessed && parsed.toToken === null && !spelling.prefix) return []
 
   if (parsed.toToken === null) {
     if (from.kind === "temp") {
@@ -1391,6 +1441,11 @@ export function unitConversions(query: string): UnitConversion[] {
     (from.kind === "temp" ? resolveScaleShort(parsed.toToken, false) : null) ??
     rawTarget
   if (!to) return []
+
+  // Both sides guessed: nothing here is knowledge, and the family check below
+  // cannot tell a real pair from a coincidence (`10 cny to cad` reads as
+  // centuries and decades). The query belongs to qalc, which knows currencies.
+  if (fromGuessed && !targetSpelling?.known) return []
 
   if (from.kind === "temp") {
     if (to.kind !== "temp") return []

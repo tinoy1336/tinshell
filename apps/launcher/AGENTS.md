@@ -319,6 +319,16 @@ the acceleration while `m2` and `m²` name nothing at all (area is qalc's
 business, and a squared spelling must never be read as the linear unit plus a
 stray character).
 
+**A fuzzy match is a GUESS, never knowledge**, and a guess may not decide what a
+conversion means: the table answers from a spelling it KNOWS (exact,
+case-folded, normalized, or a plural of one) on at least one side, and the
+family check then validates the other side's guess. With no target to validate
+it, a guess must at least be a PREFIX of the name it matched — an abbreviation
+(`20 cel` → °C) — so a scattered letter match decides nothing: `10 cny` names no
+unit, and the currency pair `10 cny to cad` (whose code reads as `century`, and
+`cad` is a substring of `decade`) produces no row and reaches qalc, which knows
+currencies.
+
 **Four spellings are settled by CONTEXT**, because another unit owns them
 outright: a bare `k` names no unit at all — `4k` and `10k` read as thousand and
 produce NO row (a 4K display or a 10K run is an ordinary search, and a `4k =
@@ -364,10 +374,11 @@ unit and a frequency unit name the same photon through λ·f = c, so
 `700 nm to THz` → `428.275 THz` and `1 THz to nm` → `299792 nm`. It needs a
 named target — a bare wavelength answers its own family's companions.
 
-Anything the table does not parse yields no row and falls through to qalc, which
-stays the answer for arithmetic, constants, currency, and unit pairs the table
-omits. The reverse also holds: once the table produced rows, the combiner
-suppresses implicit qalc, so a conversion is one row and never two.
+Anything the table does not parse — including anything it only GUESSED — yields
+no row and falls through to qalc, which stays the answer for arithmetic,
+constants, currency, and unit pairs the table omits. The reverse also holds: a
+row means the table recognised the spelling, and only then does the combiner
+suppress implicit qalc, so a conversion is one row and never two.
 
 ## App rows and Exec field codes
 
