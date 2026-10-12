@@ -50,6 +50,26 @@ register(["dock", "debug", "windows"], (_args, res) => {
   )
 })
 
+// debug toplevels — every toplevel the process still holds, by label. A card
+// window that was closed and destroyed must NOT appear here: this is how a
+// closed window's survival (and the whole widget tree behind it) is told apart
+// from the residue a destroyed window leaves.
+register(["dock", "debug", "toplevels"], (_args, res) => {
+  const tops = Gtk.Window.get_toplevels()
+  const labels: string[] = []
+  for (let i = 0; i < tops.get_n_items(); i++) {
+    const win = tops.get_item(i) as {
+      namespace?: string
+      application?: { application_id?: string }
+      title?: string
+    } | null
+    labels.push(
+      String(win?.namespace ?? win?.application?.application_id ?? win?.title ?? "unnamed"),
+    )
+  }
+  res(`${tops.get_n_items()} toplevel(s): ${labels.join(", ")}`)
+})
+
 register(["dock", "debug", "redraw"], (_args, res) => {
   for (const aw of getDockWindows()) aw.window.queue_draw()
   res("queued")
