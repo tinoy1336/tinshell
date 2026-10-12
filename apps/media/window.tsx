@@ -1330,7 +1330,8 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
     unsub()
     pipeline.shutdown()
     removeSurface(thisSurface)
-    return false // let the window close normally
+    frame.destroy() // releases the application's reference as well as destroying
+    return true // the close is done here; never defer to the default handler
   })
 
   // Register + activate BEFORE present so the first window owns MPRIS.

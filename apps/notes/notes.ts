@@ -11,6 +11,7 @@
  * that was unloaded can never be re-presented or written to again.
  */
 import GLib from "gi://GLib"
+import { scheduleCollect } from "@common/app/collect"
 import { scheduleUnload } from "@common/app/lazy"
 import { isShell } from "@common/app/mode"
 import { ignore, log } from "@common/log/logger"
@@ -225,11 +226,23 @@ function closeWindow(note: Note, mode: "user" | "unmount"): void {
   } else {
     unregister(note)
   }
+  // The application holds a reference of its own to every window it lists, so
+  // it is released BEFORE the destroy: a toplevel that still carries it is
+  // never finalised, and the wrapper and every closure connected to its
+  // signals stay reachable behind it (one window's worth per open/close).
+  try {
+    app.remove_window(note.win)
+  } catch (e) {
+    ignore("notes window release", e)
+  }
   try {
     note.win.destroy()
   } catch (e) {
     ignore("notes window destroy", e)
   }
+  // A closed note's widget tree is gjs garbage the engine does not collect on
+  // its own; one deferred collection covers a burst of closes.
+  scheduleCollect()
 }
 
 function register(note: Note): void {

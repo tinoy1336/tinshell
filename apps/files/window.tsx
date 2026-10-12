@@ -758,7 +758,7 @@ function createBrowserWindow(startPath: string): BrowserHandle {
   frame.win.connect("destroy", teardown) // backstop only — may never fire (see above)
   frame.win.connect("close-request", () => {
     teardown()
-    frame.win.destroy()
+    frame.destroy() // releases the application's reference too (frame.destroy)
     return true // the close is done here; never defer to the default handler
   })
 

@@ -12,6 +12,8 @@
  * resizes a mapped window.
  */
 import Gtk from "gi://Gtk?version=4.0"
+import { scheduleCollect } from "@common/app/collect"
+import { ignore } from "@common/log/logger"
 import { setAppId } from "@common/window/app-id"
 import app from "ags/gtk4/app"
 import { type CardKeys, installCardKeys } from "./keys"
@@ -42,6 +44,15 @@ export interface CardFrame {
   /** Request the close: GTK emits `close-request`, which is where the app's
    *  teardown and destroy live. */
   close(): void
+  /** Destroy the toplevel AND release the application's own reference to it.
+   *
+   *  `app.add_window` takes a reference of its own, and a toplevel that still
+   *  carries it is never finalised: its gjs wrapper, every closure connected to
+   *  its signals and the whole widget tree those closures capture stay
+   *  reachable — one window's worth of them per open/close cycle, which is the
+   *  residue a card app leaks when it calls `win.destroy()` directly. Every
+   *  close path goes through here. */
+  destroy(): void
   setTitle(title: string): void
 }
 
@@ -73,6 +84,21 @@ export function createCardFrame(opts: CardFrameOptions): CardFrame {
     root,
     present: () => win.present(),
     close: () => win.close(),
+    destroy: () => {
+      try {
+        app.remove_window(win)
+      } catch (e) {
+        // Already unlisted (a second close, or destruction under way): the
+        // destroy below is what the caller asked for either way.
+        ignore("card window release", e)
+      }
+      win.destroy()
+      // The closed window's wrapper objects (widgets, controllers, the closures
+      // they carry) are gjs garbage the engine will not collect on its own —
+      // widget construction moves C memory, not JS bytes. One deferred
+      // collection per burst of closes recovers what the collector would not.
+      scheduleCollect()
+    },
     setTitle: (title: string) => win.set_title(title),
   }
 }

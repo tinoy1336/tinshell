@@ -970,7 +970,7 @@ export function createChooserWindow(kind: ChooserKind, opts: ChooserOptions): Ch
       log(`cleanup failed: ${(e as Error).message}`)
     }
     try {
-      if (!destroyed) win.destroy()
+      if (!destroyed) frame.destroy() // releases the application's reference too
     } catch (e) {
       log(`destroy failed: ${(e as Error).message}`)
     }
@@ -1054,7 +1054,7 @@ export function createChooserWindow(kind: ChooserKind, opts: ChooserOptions): Ch
       frame.present()
     },
     destroy() {
-      if (!destroyed) win.destroy()
+      if (!destroyed) frame.destroy()
     },
   }
 }

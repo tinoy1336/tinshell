@@ -36,6 +36,7 @@ import Gdk from "gi://Gdk?version=4.0"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import Gtk from "gi://Gtk?version=4.0"
+import { scheduleCollect } from "@common/app/collect"
 import { scheduleUnload } from "@common/app/lazy"
 import { isShell } from "@common/app/mode"
 import { createCardFrame } from "@common/card/frame"
@@ -187,24 +188,6 @@ let cascadeSlot = 0
 
 /** Placement chain — see placeAndPresent. */
 let placement: Promise<void> = Promise.resolve()
-
-/** Reclaim the images a closing editor drops.
- *
- *  gjs hands a decoded image's native memory to the process without reporting
- *  it to the collector, so a `Gdk.Texture`'s bytes come back only when a GC
- *  runs — and with nothing pressing on the JS heap it does not run on its own.
- *  One idle-time collection after the LAST editor closes returns them (the same
- *  `imports.system.gc()` the dock exposes as `dock debug gc`). */
-let gcArmed = false
-function nudgeGc(): void {
-  if (gcArmed) return
-  gcArmed = true
-  GLib.idle_add(GLib.PRIORITY_LOW, () => {
-    gcArmed = false
-    imports.system.gc()
-    return GLib.SOURCE_REMOVE
-  })
-}
 
 interface HyprMonitor {
   x?: number
@@ -1169,13 +1152,13 @@ function createEditorWindow(): EditorHandle {
     if (editors.length === 0) {
       cascadeSlot = 0 // no editors left: the next open starts at the origin again
       scheduleUnload("annotate") // shell unload grace (no-op in islands)
-      nudgeGc()
+      scheduleCollect()
     }
   }
   win.connect("destroy", teardown) // backstop only — may never fire (see above)
   win.connect("close-request", () => {
     teardown()
-    win.destroy()
+    frame.destroy() // releases the application's reference too
     return true // the close is done here; never defer to the default handler
   })
 
@@ -1187,7 +1170,7 @@ function createEditorWindow(): EditorHandle {
     close() {
       teardown()
       try {
-        win.destroy()
+        frame.destroy()
       } catch (e) {
         ignore("annotate window destroy", e)
       }
@@ -1263,9 +1246,8 @@ export function closeEditors(): void {
 export function unmount(): void {
   cascadeSlot = 0 // module scope survives a lazy unload — re-arm the cascade origin
   for (const e of [...editors]) {
-    e.teardown()
     try {
-      e.win.destroy()
+      e.close() // teardown + destroy, and the application's reference goes with it
     } catch (err) {
       ignore("annotate window destroy on unmount", err)
     }
