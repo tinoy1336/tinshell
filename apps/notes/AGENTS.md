@@ -528,9 +528,11 @@ restart.
    typed text invisible while the buffer/autosave still work (looks like
    "typing does nothing" + empty cards). Same for keyboard focus:
    `grab_focus` must run on the window's `map` signal, not at creation.
-10. **`GLib.dir_open` is not a function in gjs** (C macro) — note listing
-   uses Gio.File.enumerate_children; a dir_open call throws and, if
-   swallowed, makes `list` return an empty list.
+10. **`GLib.dir_open` is not a function in gjs** (C macro) — note listing goes
+   through `listDirChildren` (@common/fs/files), which is Gio enumeration AND
+   closes the enumerator; a dir_open call throws and, if swallowed, makes
+   `list` return an empty list, and an enumerator left to the collector keeps
+   the directory's file descriptor open until one happens to run.
 11. **Shared logger fileSink traps:** `write_async` needs
    GLib.PRIORITY_DEFAULT (not null — gjs rejects) and a GLib.Bytes-wrapped
    buffer (a raw Uint8Array writes pool garbage) — otherwise every fileSink

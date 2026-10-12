@@ -12,12 +12,14 @@
  * RUNTIME CONTRACT (gjs 1.88.1): the
  * Gio async methods have NO Promise overloads despite the @girs .d.ts, and
  * FileEnumerator has NO sync `next_files()` (TypeError — only the singular
- * `next_file()` loop below and the async variants exist). This module uses
- * SYNC enumeration: completion is key-driven (Tab) and needs results
- * synchronously. `GLib.dir_open` is NOT a function — Gio enumeration only.
+ * `next_file()` loop, which `listDirChildren` in @common/fs/files owns). This
+ * module uses SYNC enumeration: completion is key-driven (Tab) and needs
+ * results synchronously. `GLib.dir_open` is NOT a function — Gio enumeration
+ * only.
  */
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
+import { listDirChildren } from "@common/fs/files"
 import { ignore } from "@common/log/logger"
 
 /** One path-completion suggestion. */
@@ -69,25 +71,11 @@ interface DirEntry {
 
 /** List a directory's children, synchronously. Never throws — [] on error. */
 function listChildrenSync(dir: string): DirEntry[] {
-  try {
-    const file = Gio.File.new_for_path(dir)
-    const enumerator = file.enumerate_children(LIST_ATTRS, Gio.FileQueryInfoFlags.NONE, null)
-    const out: DirEntry[] = []
-    for (;;) {
-      const info = enumerator.next_file(null)
-      if (info === null) break
-      const name = info.get_name()
-      if (name === "." || name === "..") continue
-      out.push({
-        name,
-        isDir: info.get_file_type() === Gio.FileType.DIRECTORY,
-        mtime: info.get_attribute_uint64(Gio.FILE_ATTRIBUTE_TIME_MODIFIED),
-      })
-    }
-    return out
-  } catch (_) {
-    return []
-  }
+  return listDirChildren(dir, LIST_ATTRS).map((info) => ({
+    name: info.get_name(),
+    isDir: info.get_file_type() === Gio.FileType.DIRECTORY,
+    mtime: info.get_attribute_uint64(Gio.FILE_ATTRIBUTE_TIME_MODIFIED),
+  }))
 }
 
 /** True when the text names a path EXPLICITLY — a leading `/`, `~`, `./` or

@@ -63,9 +63,10 @@ export async function listDirAsync(
   dir: string,
   cancellable: Gio.Cancellable | null,
 ): Promise<{ ok: boolean; items?: DirEntry[]; error?: string }> {
+  let enumerator: Gio.FileEnumerator | null = null
   try {
     const file = Gio.File.new_for_path(dir)
-    const enumerator = await enumerateChildrenAsync(
+    enumerator = await enumerateChildrenAsync(
       file,
       LIST_ATTRS,
       Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
@@ -98,6 +99,16 @@ export async function listDirAsync(
     const msg = String(e)
     log(`[fs] list failed ${dir}: ${msg}`)
     return { ok: false, error: friendlyError(msg) }
+  } finally {
+    // The enumerator holds the directory open: without this the descriptor
+    // outlives the window (and a cancelled listing, and a read error) until a
+    // collection happens to finalise the wrapper — one descriptor per open
+    // window, measured. Closing a local enumerator does not block.
+    try {
+      enumerator?.close(null)
+    } catch (e) {
+      ignore("files enumerator close", e)
+    }
   }
 }
 

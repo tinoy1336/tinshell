@@ -83,6 +83,7 @@ import { easeCubicInOut } from "@common/anim/easings"
 import { runFrames } from "@common/anim/run-frames"
 import { scheduleUnload } from "@common/app/lazy"
 import { createCardFrame } from "@common/card/frame"
+import { listDirChildren } from "@common/fs/files"
 import { ignore, log } from "@common/log/logger"
 import { isStillImage } from "@common/media/classify"
 import { loadStill, surfaceFromTexture } from "@common/media/decode"
@@ -245,23 +246,10 @@ function ringFor(target: string): RingLoad | null {
     return null
   }
   const dirPath = isDir ? target : GLib.path_get_dirname(target)
-  const dir = Gio.File.new_for_path(dirPath)
   const names: string[] = []
-  try {
-    const it = dir.enumerate_children(
-      "standard::name,standard::type",
-      Gio.FileQueryInfoFlags.NONE,
-      null,
-    )
-    let info: Gio.FileInfo | null
-    while ((info = it.next_file(null)) !== null) {
-      const name = info.get_name()
-      if (info.get_file_type() === Gio.FileType.REGULAR && isStillImage(name)) names.push(name)
-    }
-    it.close(null)
-  } catch (e) {
-    ignore("media folder listing", e)
-    return null
+  for (const info of listDirChildren(dirPath, "standard::name,standard::type")) {
+    const name = info.get_name()
+    if (info.get_file_type() === Gio.FileType.REGULAR && isStillImage(name)) names.push(name)
   }
   names.sort()
   if (names.length === 0) return null

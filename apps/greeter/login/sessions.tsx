@@ -14,6 +14,7 @@
 
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
+import { listDirChildren } from "@common/fs/files"
 import { ignore } from "@common/log/logger"
 import { Gtk } from "ags/gtk4"
 import { get } from "../config"
@@ -101,20 +102,7 @@ function parseDesktop(path: string, id: string, type: SessionType): SessionEntry
 
 function scanDir(dir: string, type: SessionType): SessionEntry[] {
   const out: SessionEntry[] = []
-  const dirFile = Gio.File.new_for_path(dir)
-  const children: Gio.FileInfo[] = []
-  try {
-    const it = dirFile.enumerate_children(
-      "standard::name,standard::type",
-      Gio.FileQueryInfoFlags.NONE,
-      null,
-    )
-    let info: Gio.FileInfo | null
-    while ((info = it.next_file(null))) children.push(info)
-  } catch {
-    return out // dir missing → no sessions of this type
-  }
-  for (const info of children) {
+  for (const info of listDirChildren(dir, "standard::name,standard::type")) {
     if (info.get_file_type() !== Gio.FileType.REGULAR) continue
     const id = info.get_name()
     if (!id.endsWith(".desktop")) continue

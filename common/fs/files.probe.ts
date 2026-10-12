@@ -11,6 +11,14 @@
  * cleared history that refuses to clear — so the empty write is pinned here
  * first, then overwrite, then the failure direction.
  *
+ * The second half pins `listDirChildren`, the ONE directory listing: the
+ * entries and the attributes it asks for, `.`/`..` filtered, an unreadable
+ * directory answering an empty list, AND the descriptor invariant that is the
+ * reason it exists at all — a `Gio.FileEnumerator` holds the directory open, so
+ * a listing that leaves it to the collector keeps a file descriptor until one
+ * happens to run (one per file-browser window, measured). Two hundred listings
+ * must leave the process's descriptor count where they found it.
+ *
  * Everything it touches lives under a scratch root in the temp dir, removed at
  * the end of the run.
  *
@@ -26,7 +34,7 @@
  */
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
-import { ensureDir, writeFileAsync, writeFileSync } from "./files.ts"
+import { ensureDir, listDirChildren, writeFileAsync, writeFileSync } from "./files.ts"
 
 const checks: [string, unknown, unknown][] = []
 const check = (name: string, actual: unknown, expected: unknown): void => {
@@ -163,6 +171,58 @@ check(
   writeFileSync(join(ROOT, "made", "deep", "s.md"), "x"),
   true,
 )
+
+// ── listDirChildren: entries, attributes, flags, errors ──
+const listed = join(ROOT, "listed")
+const listedSub = join(listed, "a-directory")
+ensureDir(listedSub)
+for (let i = 0; i < 20; i++) {
+  GLib.file_set_contents(join(listed, `file-${String(i).padStart(2, "0")}.txt`), "x")
+}
+// GLib.symlink is not exposed by this gjs; the Gio call is the working route.
+Gio.File.new_for_path(join(listed, "a-link")).make_symbolic_link(listedSub, null)
+
+const entries = listDirChildren(listed)
+const names = entries.map((info) => info.get_name()).sort()
+check("the listing returns every child", names.length, 22)
+check("its first name is the directory", names[0], "a-directory")
+check("dot entries are never listed", names.filter((n) => n === "." || n === "..").length, 0)
+const byName = new Map(entries.map((info) => [info.get_name(), info]))
+check(
+  "a directory reads as a directory",
+  byName.get("a-directory")?.get_file_type(),
+  Gio.FileType.DIRECTORY,
+)
+check("a file reads as regular", byName.get("file-00.txt")?.get_file_type(), Gio.FileType.REGULAR)
+// A Gio.FileInfo carries only the attributes the enumeration asked for.
+const sized = listDirChildren(listed, "standard::name,standard::size")
+check(
+  "a requested attribute arrives",
+  sized.find((info) => info.get_name() === "file-00.txt")?.get_size(),
+  1,
+)
+check(
+  "mtime is requested by default",
+  (byName.get("file-00.txt")?.get_attribute_uint64("time::modified") ?? 0) > 0,
+  true,
+)
+check(
+  "NOFOLLOW_SYMLINKS keeps a link symbolic",
+  listDirChildren(listed, "standard::name,standard::type", Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS)
+    .find((info) => info.get_name() === "a-link")
+    ?.get_file_type(),
+  Gio.FileType.SYMBOLIC_LINK,
+)
+check("a missing directory answers empty", listDirChildren(join(ROOT, "not-here")).length, 0)
+
+// The descriptor invariant. Counted through the helper itself, so the listing
+// this measurement opens is closed before the count is read — baseline and
+// reading are taken the same way.
+const descriptors = (): number => listDirChildren("/proc/self/fd", "standard::name").length
+const fdsBefore = descriptors()
+for (let i = 0; i < 200; i++) listDirChildren(listed, "standard::name")
+check("200 listings leak no descriptor", descriptors() - fdsBefore, 0)
+check("the descriptor count is a real reading", fdsBefore > 0, true)
 
 removeTree(ROOT)
 check("the scratch root is removed by the run", GLib.file_test(ROOT, GLib.FileTest.EXISTS), false)

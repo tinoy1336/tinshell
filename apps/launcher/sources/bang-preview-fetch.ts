@@ -36,7 +36,7 @@ import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import Soup from "gi://Soup"
 import { bytesToUtf8 } from "@common/fs/bytes"
-import { ignore } from "@common/log/logger"
+import { listDirChildren } from "@common/fs/files"
 import { log } from "../log"
 import type { Result } from "../types"
 import {
@@ -177,21 +177,11 @@ function fetchText(url: string, kind: EnrichKind, cancellable: Gio.Cancellable):
 function installedPackages(): InstalledIndex {
   if (installedCache) return installedCache
   const index: InstalledIndex = {}
-  try {
-    const dir = Gio.File.new_for_path(PACMAN_LOCAL_DB)
-    const children = dir.enumerate_children("standard::name", Gio.FileQueryInfoFlags.NONE, null)
-    let info: Gio.FileInfo | null = children.next_file(null)
-    while (info !== null) {
-      const name = info.get_name()
-      const release = name.lastIndexOf("-")
-      const version = name.lastIndexOf("-", release - 1)
-      if (version > 0) index[name.slice(0, version)] = name.slice(version + 1)
-      info = children.next_file(null)
-    }
-    children.close(null)
-  } catch (e) {
-    // A missing or unreadable database costs the installed line, not the row.
-    ignore("launcher preview: pacman local db", e)
+  for (const info of listDirChildren(PACMAN_LOCAL_DB, "standard::name")) {
+    const name = info.get_name()
+    const release = name.lastIndexOf("-")
+    const version = name.lastIndexOf("-", release - 1)
+    if (version > 0) index[name.slice(0, version)] = name.slice(version + 1)
   }
   installedCache = index
   return index

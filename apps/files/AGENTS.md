@@ -548,7 +548,9 @@ pane is likewise NOT configured here: its switch and geometry live in the shared
    promisifies all three. A 4-arg enumerate call throws "At least 5
    arguments required" at runtime.
 5. **`GLib.dir_open` is not a function in gjs** (C macro) — Gio enumeration
-   only (notes GOTCHA 10).
+   only (notes GOTCHA 10). `listDirAsync` CLOSES its enumerator in a `finally`:
+   an enumerator left to the collector holds the directory's file descriptor,
+   measured at one descriptor per open/close window.
 6. **`Gtk.Widget.toggle_css_class` does NOT exist** (GTK4 has add/remove/
    has only) — a bind-time crash on every row.
 7. **gvfs is NOT installed, yet `Gio.File.trash` works** — GLib's built-in

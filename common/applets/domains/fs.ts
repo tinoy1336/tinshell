@@ -1,6 +1,7 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { bytesToUtf8 } from "@common/fs/bytes"
+import { listDirChildren } from "@common/fs/files"
 import { ignore } from "@common/log/logger"
 
 /** Whether this host is served the fs domain at all. The socket policy never
@@ -23,18 +24,7 @@ export function readFile(path: string): string {
 
 /** List directory entries. Returns empty array on failure. */
 export function listDir(path: string): string[] {
-  try {
-    const file = Gio.File.new_for_path(path)
-    const enumerator = file.enumerate_children("standard::name", Gio.FileQueryInfoFlags.NONE, null)
-    const names: string[] = []
-    let info: Gio.FileInfo | null
-    while ((info = enumerator.next_file(null))) {
-      names.push(info.get_name())
-    }
-    return names
-  } catch (_) {
-    return []
-  }
+  return listDirChildren(path, "standard::name").map((info) => info.get_name())
 }
 
 // ── Async variants — never block the GTK main loop ──

@@ -27,7 +27,7 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { bytesToUtf8 } from "@common/fs/bytes"
-import { writeFileSync } from "@common/fs/files"
+import { listDirChildren, writeFileSync } from "@common/fs/files"
 import { ignore } from "@common/log/logger"
 import { get as getConfig } from "./config"
 import { log } from "./log"
@@ -340,29 +340,17 @@ export function gcImages(): number {
 /** Delete every `<id>.png` in `dir` whose id has no entry. A missing dir
  *  (no thumbnails built yet) is not an error. */
 function sweepOrphans(dir: string, ids: Set<string>): number {
-  try {
-    const it = Gio.File.new_for_path(dir).enumerate_children(
-      "standard::name",
-      Gio.FileQueryInfoFlags.NONE,
-      null,
-    )
-    let removed = 0
-    let info: Gio.FileInfo | null = it.next_file(null)
-    while (info) {
-      const name = info.get_name()
-      if (name.endsWith(".png") && !ids.has(name.slice(0, -4))) {
-        try {
-          Gio.File.new_for_path(GLib.build_filenamev([dir, name])).delete(null)
-          removed++
-        } catch (e) {
-          // Another writer removed it first; the count simply skips it.
-          ignore("clipboard orphan file delete", e)
-        }
-      }
-      info = it.next_file(null)
+  let removed = 0
+  for (const info of listDirChildren(dir, "standard::name")) {
+    const name = info.get_name()
+    if (!name.endsWith(".png") || ids.has(name.slice(0, -4))) continue
+    try {
+      Gio.File.new_for_path(GLib.build_filenamev([dir, name])).delete(null)
+      removed++
+    } catch (e) {
+      // Another writer removed it first; the count simply skips it.
+      ignore("clipboard orphan file delete", e)
     }
-    return removed
-  } catch {
-    return 0
   }
+  return removed
 }

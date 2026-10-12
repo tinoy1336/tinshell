@@ -10,7 +10,7 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { bytesToUtf8 } from "@common/fs/bytes"
-import { writeFileAsync, writeFileSync } from "@common/fs/files"
+import { listDirChildren, writeFileAsync, writeFileSync } from "@common/fs/files"
 import { log } from "@common/log/logger"
 import { expandTilde } from "@common/path/complete"
 import { get as getConfig } from "./config"
@@ -67,18 +67,11 @@ export function readNote(path: string): string {
 /** Note file names (basenames, *.md) in `dir`, sorted. */
 export function listNotes(dir: string): string[] {
   const out: string[] = []
-  try {
-    // Gio enumeration — GLib.dir_open is NOT exposed by this gjs (it's a C
-    // macro); a dir_open call here threw and silently returned an empty list.
-    const f = Gio.File.new_for_path(dir)
-    const it = f.enumerate_children("standard::name", Gio.FileQueryInfoFlags.NONE, null)
-    let info: Gio.FileInfo | null
-    while ((info = it.next_file(null))) {
-      const name = info.get_name()
-      if (name.endsWith(".md")) out.push(name)
-    }
-  } catch (e) {
-    log(`listNotes failed: ${e}`)
+  // Gio enumeration — GLib.dir_open is NOT exposed by this gjs (it's a C
+  // macro), and the shared lister owns closing the enumerator.
+  for (const info of listDirChildren(dir, "standard::name")) {
+    const name = info.get_name()
+    if (name.endsWith(".md")) out.push(name)
   }
   return out.sort()
 }
@@ -100,20 +93,13 @@ export function pruneStorageDir(): void {
   if (!Number.isFinite(max) || max < 1) return
   const dir = storageDir()
   try {
-    const f = Gio.File.new_for_path(dir)
     // `time::modified` MUST be named in the query: a Gio.FileInfo carries only
     // the attributes the enumeration asked for. `standard::time-modified` is
     // not an attribute, so it read 0 for EVERY file — the "oldest" sort was a
     // no-op and the cap deleted ARBITRARY notes (including the just-written
     // one).
-    const it = f.enumerate_children(
-      "standard::name,standard::type,time::modified",
-      Gio.FileQueryInfoFlags.NONE,
-      null,
-    )
     const files: { name: string; mtime: number }[] = []
-    let info: Gio.FileInfo | null
-    while ((info = it.next_file(null))) {
+    for (const info of listDirChildren(dir)) {
       if (info.get_file_type() !== Gio.FileType.REGULAR) continue
       const name = info.get_name()
       if (!name.endsWith(".md")) continue

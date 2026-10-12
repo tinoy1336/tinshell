@@ -15,7 +15,7 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import { instanceName } from "@common/app/mode"
-import { writeFileSync } from "@common/fs/files"
+import { listDirChildren, writeFileSync } from "@common/fs/files"
 import { log } from "@common/log/logger"
 import { appStateFilePath } from "@common/state"
 import {
@@ -136,18 +136,11 @@ function pruneOncePerProcess(): void {
 export function pruneHistoryFiles(): void {
   const dir = GLib.path_get_dirname(historyPathFor("/x"))
   try {
-    const f = Gio.File.new_for_path(dir)
     // `time::modified` MUST be named in the query — a Gio.FileInfo carries only
     // the attributes the enumeration asked for, so an unrequested mtime reads 0
     // for every file and the oldest-first order would be arbitrary.
-    const it = f.enumerate_children(
-      "standard::name,standard::type,time::modified",
-      Gio.FileQueryInfoFlags.NONE,
-      null,
-    )
     const files: { path: string; mtime: number }[] = []
-    let info: Gio.FileInfo | null
-    while ((info = it.next_file(null))) {
+    for (const info of listDirChildren(dir)) {
       if (info.get_file_type() !== Gio.FileType.REGULAR) continue
       const name = info.get_name()
       if (!name.startsWith(FILE_PREFIX) || !name.endsWith(".json")) continue
