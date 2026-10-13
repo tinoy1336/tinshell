@@ -56,17 +56,26 @@ export interface CardFrame {
   setTitle(title: string): void
 }
 
-/** Detach a widget and everything under it. A child the window still holds has
- *  a C reference of its own, and a C-referenced wrapper keeps its JavaScript
- *  closures reachable; when one of those closures can reach the window, the two
- *  form a cycle that spans C and JavaScript. Unparenting the whole tree leaves
- *  every widget held by its wrapper alone, which the collector can then free. */
+/** Detach a widget and everything under it, and dispose each one.
+ *
+ *  A child the window still holds has a C reference of its own, and a
+ *  C-referenced wrapper keeps its JavaScript closures reachable; when one of
+ *  those closures can reach the window, the two form a cycle that spans C and
+ *  JavaScript. Unparenting drops the tree's C references, and disposing each
+ *  widget on the way out drops the signal connections it holds — the closures
+ *  those connections keep are what stays behind otherwise, measured as roughly
+ *  one window's worth of handler closures per open and close. */
 function detachSubtree(widget: Gtk.Widget): void {
   let child = widget.get_first_child()
   while (child) {
     const next = child.get_next_sibling()
     child.unparent()
     detachSubtree(child)
+    try {
+      child.run_dispose()
+    } catch (e) {
+      ignore("card widget dispose", e)
+    }
     child = next
   }
 }
@@ -119,6 +128,11 @@ export function createCardFrame(opts: CardFrameOptions): CardFrame {
         const outer = win.child
         win.child = null
         detachSubtree(outer)
+        try {
+          outer.run_dispose()
+        } catch (e) {
+          ignore("card root dispose", e)
+        }
       }
       win.set_focus(null)
       win.destroy()
