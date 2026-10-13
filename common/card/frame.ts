@@ -56,6 +56,21 @@ export interface CardFrame {
   setTitle(title: string): void
 }
 
+/** Detach a widget and everything under it. A child the window still holds has
+ *  a C reference of its own, and a C-referenced wrapper keeps its JavaScript
+ *  closures reachable; when one of those closures can reach the window, the two
+ *  form a cycle that spans C and JavaScript. Unparenting the whole tree leaves
+ *  every widget held by its wrapper alone, which the collector can then free. */
+function detachSubtree(widget: Gtk.Widget): void {
+  let child = widget.get_first_child()
+  while (child) {
+    const next = child.get_next_sibling()
+    child.unparent()
+    detachSubtree(child)
+    child = next
+  }
+}
+
 /** Build the card toplevel, its root box and its header slot. */
 export function createCardFrame(opts: CardFrameOptions): CardFrame {
   const win = new Gtk.Window({
@@ -92,6 +107,20 @@ export function createCardFrame(opts: CardFrameOptions): CardFrame {
         // destroy below is what the caller asked for either way.
         ignore("card window release", e)
       }
+      // Detach the widget tree BEFORE destroying the window. A child the window
+      // still holds carries a C reference of its own, and a C-referenced wrapper
+      // keeps its JavaScript closures reachable; a handler on a child that can
+      // reach the window closes a cycle which spans C and JavaScript, and such a
+      // cycle survives every collection — measured on this shell, a card window
+      // holding one button with a handler left a whole window behind on every
+      // open/close, while the same window without the handler left none.
+      // Unparenting the tree leaves each widget held by its wrapper alone.
+      if (win.child) {
+        const outer = win.child
+        win.child = null
+        detachSubtree(outer)
+      }
+      win.set_focus(null)
       win.destroy()
       // The closed window's wrapper objects (widgets, controllers, the closures
       // they carry) are gjs garbage the engine will not collect on its own —

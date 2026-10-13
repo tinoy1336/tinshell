@@ -25,7 +25,12 @@ let armed = false
 export function scheduleCollect(): void {
   if (armed) return
   armed = true
-  GLib.idle_add(GLib.PRIORITY_LOW, () => {
+  // Delayed, not immediate: a close is still unwinding when the window is
+  // destroyed (GTK tears the tree down and the compositor releases the
+  // surface), and a collection that runs before that finishes finds the
+  // objects still reachable. A short delay costs nothing — a burst of closes
+  // shares the one timer — and collects them once for real.
+  GLib.timeout_add(GLib.PRIORITY_LOW, 250, () => {
     armed = false
     imports.system.gc()
     return GLib.SOURCE_REMOVE
