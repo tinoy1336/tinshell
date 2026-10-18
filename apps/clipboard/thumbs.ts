@@ -92,11 +92,6 @@ export function pruneThumbTextures(liveIds: Iterable<string>): void {
   for (const id of [...textures.keys()]) if (!live.has(id)) textures.delete(id)
 }
 
-/** Drop every decoded thumbnail (history cleared, or the app unloading). */
-export function dropThumbTextures(): void {
-  textures.clear()
-}
-
 /** Build the given ids' missing thumbnails in the background — one per idle
  *  tick, so a large legacy history never stalls the main loop for the whole
  *  batch — then report completion. Called once at mount by the host. */
