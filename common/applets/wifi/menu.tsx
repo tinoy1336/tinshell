@@ -238,6 +238,21 @@ export function openWifiMenu(
     })
   }
 
+  /** The trash both wifi rows carry — the active profile's and every saved
+   *  network's. One body, because both offer the same operation: a fix to the
+   *  failure text, the guard or the refresh delay must not land in one row and
+   *  miss the other. */
+  const forgetAction = (ssid: string) => ({
+    emoji: I().menuForget,
+    onClick: () => {
+      if (state.connecting) return
+      void backend.wifi.forgetWifiNetwork(ssid).then((r) => {
+        if (!r.ok) state.error = r.error ?? "Forget failed"
+        later(500, refresh)
+      })
+    },
+  })
+
   /** The current-connection row — shared by buildRows() (render) and the
    *  primed open. Click = disconnect; the trash forgets the active profile. */
   function currentRow(net: WifiNetwork): Gtk.Widget {
@@ -265,16 +280,7 @@ export function openWifiMenu(
       },
       // Forget the active profile (nmcli connection delete) — the trash
       // "lights up" on hover instead of a filled circle.
-      action: {
-        emoji: I().menuForget,
-        onClick: () => {
-          if (state.connecting) return
-          void backend.wifi.forgetWifiNetwork(net.ssid).then((r) => {
-            if (!r.ok) state.error = r.error ?? "Forget failed"
-            later(500, refresh)
-          })
-        },
-      },
+      action: forgetAction(net.ssid),
     })
   }
 
@@ -323,18 +329,7 @@ export function openWifiMenu(
           // Saved networks get a trash on the right cap — it IS the known
           // marker and forgets the profile straight
           // from the list. The lock status sits left of it.
-          action: state.saved.includes(net.ssid)
-            ? {
-                emoji: I().menuForget,
-                onClick: () => {
-                  if (state.connecting) return
-                  void backend.wifi.forgetWifiNetwork(net.ssid).then((r) => {
-                    if (!r.ok) state.error = r.error ?? "Forget failed"
-                    later(500, refresh)
-                  })
-                },
-              }
-            : undefined,
+          action: state.saved.includes(net.ssid) ? forgetAction(net.ssid) : undefined,
           onClick: () => {
             if (state.connecting) return
             if (state.passwordFor === net.ssid) {
