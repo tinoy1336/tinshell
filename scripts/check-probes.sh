@@ -138,6 +138,7 @@ BUNDLED=(
   apps/launcher/sources/bang-preview.probe.ts
   apps/media/zoom.probe.ts
   apps/notes/history-store.probe.ts
+  apps/launcher/row-caps.probe.ts
 )
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/tinshell-probes.XXXXXX")"

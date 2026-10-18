@@ -91,7 +91,8 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
     per-character caps, `textBudget`/`capChars`, and how many description lines
     a row of each kind may use (one for every ordinary row, four for a preview
     row). `row-caps.probe.ts` measures it on real GTK labels (no window is
-    mapped): `ags bundle --gtk 4 apps/launcher/row-caps.probe.ts
+    mapped) and runs in the bundled tier of `npm run check:probes`; the bare
+    build-and-run form is `ags bundle --gtk 4 apps/launcher/row-caps.probe.ts
     /tmp/row-caps-probe.sh && bash /tmp/row-caps-probe.sh`.
   - `text-tools.ts` — the pure value shapes a bang or a BARE typed query answers
     from: base64, percent encoding, JSON, colour codes, cron, JWT, instants,

@@ -22,7 +22,7 @@
 # build through the ags toolchain, which a stock runner does not carry. The
 # runner therefore executes the tier it can, prints
 # `PROBE COVERAGE: ran N of T, skipped S` and names every probe it skipped — a
-# skip is never counted as a pass, and the 25 that skip state their own absence
+# skip is never counted as a pass, and the 26 that skip state their own absence
 # instead of hiding in a green tick.
 name: CI
 
