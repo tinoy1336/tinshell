@@ -52,6 +52,7 @@ import { isShell } from "@common/app/mode"
 import { ignore, log } from "@common/log/logger"
 import theme from "@common/shell/theme.css"
 import { buildStampText, registerBuildStampRequest } from "./build-stamp"
+import { registerFrameLogRequest } from "./frame-log"
 import {
   CANONICAL_ORDER,
   LAZY_APPS,
@@ -97,6 +98,11 @@ void (async () => {
   // like `<instance> quit`, so it adds no namespace of its own — the
   // single-app-host probe in tinshell-host.sh counts namespaces.
   registerBuildStampRequest(instance, () => [`set: ${set.join(",")}`])
+
+  // `<instance> debug frames`: measure this instance's frame cadence on demand
+  // (same instance-keyed shape, no namespace of its own). The complaint it
+  // answers is perceptual, and no other counter in the process measures it.
+  registerFrameLogRequest(instance)
 
   // isShell consistency check (host script owns the flag — see header):
   // resident iff the set hosts any EAGER member (a pure-lazy set is a
