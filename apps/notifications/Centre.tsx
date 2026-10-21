@@ -304,6 +304,13 @@ export default function Centre() {
   let root: Gtk.Box
 
   const [groups, setGroups] = createState<Group[]>([])
+
+  /** The CURRENT items of a group, by key. A reused row renders from this
+   *  rather than from the group object captured when it was built: the list
+   *  rebuilds its group objects on every change, so a stale capture would keep
+   *  rendering the item array that row was created with — rows added since
+   *  would never appear, and dismissed ones would never leave. */
+  const itemsOf = (key: string): HistoryEntry[] => groups().find((x) => x.key === key)?.items ?? []
   const [expandedKey, setExpandedKey] = createState<string | null>(null)
   const [selectedId, setSelectedId] = createState<number | null>(null)
   const [groupingOn, setGroupingOn] = createState<boolean>(get("grouping.enabled", true))
@@ -552,8 +559,8 @@ export default function Centre() {
     else show("toggle")
   }
 
-  function closeGroup(g: Group): void {
-    for (const e of g.items) forget(e.noti.id)
+  function closeGroup(key: string): void {
+    for (const e of itemsOf(key)) forget(e.noti.id)
   }
 
   function toggleGroup(key: string): void {
@@ -727,7 +734,21 @@ export default function Centre() {
                 })
               }}
             />
-            <For each={groups}>
+            <For
+              each={groups}
+              id={(g: Group) =>
+                // Row identity decides REUSE. A single-entry group IS its card,
+                // so its identity is the entry object itself: an entry object is
+                // replaced whenever its own state changes (the live flag, a
+                // re-send) and stays identical while it does not, so an
+                // unchanged card is neither rebuilt nor left stale. A
+                // multi-entry group renders a header carrying its item count, so
+                // it is rebuilt when that count changes; its nested list reads
+                // the CURRENT items of the group (see below), so item changes
+                // ride on the nested rows instead of the whole group.
+                g.items.length === 1 ? (g.items[0] as unknown as string) : g.key
+              }
+            >
               {(g) => {
                 // A single-entry group IS its card, with or without grouping:
                 // the header exists to stand for several entries at once, and an
@@ -742,7 +763,7 @@ export default function Centre() {
                 // The group's own clear glyph — built here so the row's click
                 // gesture can hand a press over it to the glyph (pressOver).
                 const clearGroupGlyph = controlGlyph(GLYPH.clearAll, `Clear ${g.name}`, () =>
-                  closeGroup(g),
+                  closeGroup(g.key),
                 )
                 return (
                   <box class="centre-group" orientation={Gtk.Orientation.VERTICAL}>
@@ -772,9 +793,18 @@ export default function Centre() {
                         ellipsize={3}
                       />
                       <label
-                        label={String(g.items.length)}
                         class="group-count"
                         halign={Gtk.Align.END}
+                        $={(self) =>
+                          // The row is REUSED while its group keeps existing, so
+                          // the count cannot be a value captured at build time:
+                          // an arrival in a multi-entry group would otherwise
+                          // leave a stale number on screen. Read the live group
+                          // and keep the label in step.
+                          createEffect(() => {
+                            self.label = String(itemsOf(g.key).length)
+                          })
+                        }
                       />
                       <label label={isExpanded() ? "▾" : "▸"} class="group-chevron" />
                       {clearGroupGlyph}
@@ -785,7 +815,7 @@ export default function Centre() {
                       transition_duration={collapseMs}
                     >
                       <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-                        <For each={(() => g.items) as any}>
+                        <For each={(() => itemsOf(g.key)) as any}>
                           {(e: HistoryEntry) => <CentreRow entry={e} />}
                         </For>
                       </box>

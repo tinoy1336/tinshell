@@ -75,7 +75,27 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
   `Gtk.Box`, not a `Gtk.Button`: a Button claims every press inside its box, so
   the trailing clear glyph would never see its own click) carrying the app icon,
   the name, the count, the chevron and the group's clear glyph; the row's own
-  `Gtk.GestureClick` toggles the group and bails over the glyph's box. The
+  `Gtk.GestureClick` toggles the group and bails over the glyph's box. **The
+  list's rows are KEYED, and a reused row reads only LIVE data.** gnim's `For`
+  re-runs its whole callback on every change and, with no `id`, keys items by
+  object identity — while `computeGroups` builds fresh group objects, and every
+  history mutation builds a fresh entry object, so an unkeyed list rebuilds
+  every card on every notification arrival. The rows it replaces are never
+  destroyed either: gnim's Gtk4 cleanup default (`env.defaultCleanup` in
+  gnim/dist/jsx/env.ts) is a no-op, so their widgets and icon textures stay
+  resident — measured at 1.5-5.5 MB of process memory per notification when
+  unkeyed, and 4 kB per notification once keyed. The outer key is therefore the
+  ENTRY OBJECT for a single-entry group (such a group IS its card, so its
+  identity has to change whenever the entry does — the `live` flag, a re-send)
+  and the group KEY for a multi-entry group (whose cards belong to the nested
+  list). Two consequences follow, and both are load-bearing: the group row's
+  count label is assigned from `itemsOf(key)` inside a `createEffect` rather
+  than captured as `g.items.length` (a reused row would otherwise show a stale
+  number), and the nested `For` and `closeGroup` also go through `itemsOf(key)`
+  rather than the `g` captured when that row was built. The nested rows keep
+  their default identity — the entry object — so an unchanged entry is reused
+  and a replaced one is rebuilt.
+  The
   list is a plain `Gtk.ScrolledWindow` — GTK's own scroll path, no app-side
   controller and no app-side momentum — whose scroller is capped by
   `applyViewport()` (see Gotchas). Its HEIGHT follows the content between
