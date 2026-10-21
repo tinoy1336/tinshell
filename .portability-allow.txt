@@ -10,4 +10,4 @@
 # and nothing around it. Detectors and the rule are documented in
 # `README.md` §Path references and at the top of `scripts/check-paths.mjs`.
 
-apps/notes/history.probe.mjs:442|foreign-home|the fixture hashes a synthetic home path, so the reference is the foreign-home shape the test exists to pin and not a directory any checkout resolves
+apps/notes/history.probe.mjs:464|foreign-home|the fixture hashes a synthetic home path, so the reference is the foreign-home shape the test exists to pin and not a directory any checkout resolves
