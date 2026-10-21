@@ -214,7 +214,11 @@ Decoding dominates: `Gdk.Texture.new_from_filename` measures 55-160 ms for a
 (`GdkPixbuf.new_from_file_at_scale`) is no faster — the PNG inflate is the
 cost, not the scaling. The viewer therefore decodes each still ONCE: an LRU
 cache (`STILL_CACHE_PX` / `STILL_CACHE_MAX`, dropped by `clearStillCache()` on
-unload/quit) plus an idle PRELOAD of the next ring entry
+unload/quit AND when the last window closes — no window means no flip to
+preload, and decoded pixels are exactly what a long-lived shell must not keep;
+each drop arms one idle collection, because a still's native memory is invisible
+to the JS collector and clearing the table alone returns none of it) plus an
+idle PRELOAD of the next ring entry
 (`PRELOAD_DELAY_MS` after a still is shown). A flip at the cadence a person
 actually flips at (a second or so per image) hits the preload; a first view of
 a still still pays the decode.
@@ -434,10 +438,13 @@ earlier one is showing.
 
 ## Close contract
 
-Every window closes through its `close-request` handler: unsubscribe the
-pipeline events, `pipeline.shutdown()`, `removeSurface()` (which re-derives
-the active transport surface + the MPRIS gate and arms the idle unload when
-the last window goes). The registry array is therefore the single live-window
+Every window closes through its `close-request` handler: release the media it
+binds (`picture.paintable = null`, `videoPt` / `artPt` / `stillSrc` dropped with
+the geometry they described), unsubscribe the pipeline events,
+`pipeline.shutdown()`, `removeSurface()` (which re-derives
+the active transport surface + the MPRIS gate, drops the decoded-still cache
+when the last window goes, and arms the idle unload). The registry array is
+therefore the single live-window
 list — a closed window is never presented again (the zombie shape in
 `files/AGENTS.md` GOTCHA 15). `media close` and the shell `unmount` both go
 through the same path (`win.close()`), never a bare `destroy()`.

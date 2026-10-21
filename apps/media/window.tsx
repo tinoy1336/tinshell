@@ -81,6 +81,7 @@ import Gtk from "gi://Gtk?version=4.0"
 import Pango from "gi://Pango"
 import { easeCubicInOut } from "@common/anim/easings"
 import { runFrames } from "@common/anim/run-frames"
+import { scheduleCollect } from "@common/app/collect"
 import { scheduleUnload } from "@common/app/lazy"
 import { createCardFrame } from "@common/card/frame"
 import { listDirChildren } from "@common/fs/files"
@@ -190,11 +191,15 @@ function decodeStill(path: string): StillImage {
   return image
 }
 
-/** Drop every cached still — the app's largest heap objects, released with
- *  the lazy-unload / instance-quit teardown. */
+/** Drop every cached still — the app's largest heap objects — and arm one
+ *  idle collection. The cache holds the last reference to each decoded
+ *  texture, and gjs does not report a decoded image's native memory to the
+ *  collector, so clearing the table alone leaves those pixels resident; the
+ *  collection is what returns them. */
 export function clearStillCache(): void {
   stillCache.clear()
   stillCachePx = 0
+  scheduleCollect()
 }
 
 /** Decode `path` at a display cap: never larger than `maxW`x`maxH` device px.
@@ -343,7 +348,15 @@ function removeSurface(s: Surface): void {
   if (i >= 0) surfaces.splice(i, 1)
   if (lastFocused === s) lastFocused = surfaces[surfaces.length - 1] ?? null
   refreshActive()
-  if (surfaces.length === 0) scheduleUnload("media") // shell unload grace (no-op in islands)
+  if (surfaces.length === 0) {
+    scheduleUnload("media") // shell unload grace (no-op in islands)
+    // No window is left to flip through, so the decoded stills have no reader:
+    // drop the cache here rather than holding it until the lazy unload (which a
+    // resident instance may never reach). The cache is the largest thing this
+    // app keeps and the one a shell that only showed an image once would
+    // otherwise carry for its whole life.
+    clearStillCache()
+  }
 }
 
 /** The schemes `common/media/pipeline` plays as URLs (its `toUri` passes them
@@ -1329,6 +1342,18 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
     cancelPreload()
     unsub()
     pipeline.shutdown()
+    // Release the bound media BEFORE the window goes away. The picture holds
+    // whatever paintable it was given and `stillSrc` holds the viewer's own
+    // reference to the decoded texture, so a closed window that keeps its
+    // binding keeps those pixels for the life of the process — gjs never
+    // reports a decoded image's native memory to the collector, which therefore
+    // reclaims none of it on its own.
+    picture.paintable = null
+    videoPt = null
+    artPt = null
+    stillSrc = null
+    imgW = 0
+    imgH = 0
     removeSurface(thisSurface)
     frame.destroy() // releases the application's reference as well as destroying
     return true // the close is done here; never defer to the default handler
