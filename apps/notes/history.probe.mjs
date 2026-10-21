@@ -410,21 +410,43 @@ check("4c a gap past the window splits", typing(801, ["", "a", "ab"]).steps.leng
   const dir = mkdtempSync(join(tmpdir(), "notes-history-probe-"))
   const file = join(dir, "history.json")
   const rounds = 30
-  const times = []
-  for (let i = 0; i < rounds; i++) {
-    const t0 = performance.now()
-    writeFileSync(file, payload)
-    times.push(performance.now() - t0)
+  /** Median of `rounds` writes of `body`. The BASELINE writes a buffer of the
+   *  payload's own length, so it costs the same bytes through the same call and
+   *  is the yardstick a slow machine moves equally: the assertion below is about
+   *  the payload being no more expensive than its size, never about how fast
+   *  this disk happens to be. An absolute millisecond bound measures the runner
+   *  (a shared CI disk takes 100x longer than a workstation) and fails for a
+   *  reason the code cannot fix. */
+  const medianWrite = (body) => {
+    const times = []
+    for (let i = 0; i < rounds; i++) {
+      const t0 = performance.now()
+      writeFileSync(file, body)
+      times.push(performance.now() - t0)
+    }
+    times.sort((a, b) => a - b)
+    return { median: times[Math.floor(rounds / 2)], worst: times[rounds - 1] }
   }
-  times.sort((a, b) => a - b)
-  const median = times[Math.floor(rounds / 2)]
-  const worst = times[rounds - 1]
+  const capped = medianWrite(payload)
+  const baseline = medianWrite(Buffer.alloc(payload.length))
   rmSync(dir, { recursive: true, force: true })
   console.log(
-    `     payload ${(payload.length / 1024).toFixed(1)} KiB, ${h.steps.length} steps: median ${median.toFixed(2)} ms, worst ${worst.toFixed(2)} ms over ${rounds} writes`,
+    `     payload ${(payload.length / 1024).toFixed(1)} KiB, ${h.steps.length} steps: median ${capped.median.toFixed(2)} ms, worst ${capped.worst.toFixed(2)} ms; same-size baseline median ${baseline.median.toFixed(2)} ms over ${rounds} writes each`,
   )
   check("8a a capped payload serialises", payload.length > 0 && parseHistory(payload) !== null)
-  check("8b a capped write stays under 5 ms median", median < 5, `${median.toFixed(2)} ms`)
+  check(
+    "8b a capped write costs no more than writing the same bytes",
+    capped.median <= baseline.median * 3 + 2,
+    `${capped.median.toFixed(2)} ms against a ${baseline.median.toFixed(2)} ms baseline`,
+  )
+  // The cap is a byte budget: the step logs stay under MAX_LOG_BYTES, and each
+  // step carries a bounded amount of bookkeeping beside its log (path, hashes,
+  // counters) — 512 bytes of slack per step covers that envelope.
+  check(
+    "8c the capped payload stays inside its log budget",
+    payload.length <= MAX_LOG_BYTES + MAX_STEPS * 512,
+    `${(payload.length / 1024).toFixed(1)} KiB`,
+  )
 }
 
 // ── extra: the text ceiling keeps the chain honest ──
