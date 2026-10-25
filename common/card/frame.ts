@@ -7,9 +7,9 @@
  * minimum, the Wayland app_id override and `app.add_window`. Above it sits the
  * card COMPOSITION: the header slot, the window's key backstop, and the
  * present/close/title lifecycle the request handlers drive. The window's
- * default size comes from the app's config (`window.width`/`height`) and the
- * Hyprland rule owns the frost, rounding and the pinned size — so nothing here
- * resizes a mapped window.
+ * default size comes from the app's config (`window.width`/`height`), the card
+ * app's Hyprland rule pins that map size, and the frost comes from the
+ * compositor — so nothing here resizes a mapped window.
  */
 import Gtk from "gi://Gtk?version=4.0"
 import { scheduleCollect } from "@common/app/collect"

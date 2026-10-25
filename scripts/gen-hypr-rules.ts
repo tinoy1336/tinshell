@@ -53,11 +53,7 @@ import { tmpdir } from "node:os"
 import { basename, dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import type { BindEntry, HyprRuleSet, LayerRuleSpec, WindowRuleSpec } from "../common/hyprland/rule"
-import {
-  BIND_POSITION_REASON,
-  DECORATION_REASSERTION_REASON,
-  START_HOOK_REASON,
-} from "../common/hyprland/rule.ts"
+import { BIND_POSITION_REASON, START_HOOK_REASON } from "../common/hyprland/rule.ts"
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const APPS = join(ROOT, "apps")
@@ -107,16 +103,7 @@ const DEFAULT_TARGET = join(process.env.HOME ?? "", ".config", "hypr", "rules")
 
 /** Window-rule keys in the order they are emitted — the shape a hand-written
  *  rule in the config used, so a generated fragment reads the same way. */
-const WINDOW_KEY_ORDER = [
-  "name",
-  "match",
-  "float",
-  "rounding",
-  "size",
-  "decorate",
-  "border_size",
-  "move",
-] as const
+const WINDOW_KEY_ORDER = ["name", "match", "float", "size", "move"] as const
 
 /** A Lua string literal: the emitted fragment is Lua source, so a backslash the
  *  pattern needs (`io\.Astal\.notes`) has to survive as a backslash in the
@@ -148,10 +135,7 @@ function renderWindowRule(rule: WindowRuleSpec): string {
     name: luaString(rule.name),
     match: renderMatch(rule.match),
     float: luaValue(rule.float ?? false),
-    rounding: luaValue(rule.rounding ?? 0),
     size: rule.size ? `{ ${rule.size.app}W, ${rule.size.app}H }` : "{}",
-    decorate: luaValue(rule.decorate ?? false),
-    border_size: luaValue(rule.border_size ?? 0),
     move: rule.move ? `{ ${rule.move.x}, ${rule.move.y} }` : "{}",
   }
   const present = WINDOW_KEY_ORDER.filter((key) => {
@@ -212,10 +196,9 @@ const RULE_ORDER_NOTE = [
   `-- requires every match in ascending FILENAME order (byte order — the numeric`,
   `-- prefix is fixed-width, so numeric order is byte order). A window rule's keys`,
   `-- are applied over every earlier match and the LAST match wins, so this`,
-  `-- directory must be required AFTER the inline rules in the config: the generic`,
-  `-- float-decorations rule sets rounding 12 on every float and the app rules`,
-  `-- below override it. The namespaces and app ids below come from the surface's`,
-  `-- own identity module, never from a repeated literal.`,
+  `-- directory must be required AFTER the inline rules in the config, which set`,
+  `-- a float's rounding and border. The namespaces and app ids below come from`,
+  `-- the surface's own identity module, never from a repeated literal.`,
 ]
 
 /** The ordering paragraph for a fragment whose only registration is a keybind:
@@ -305,14 +288,7 @@ function renderFragment(set: HyprRuleSet, order: number): { name: string; conten
     lines.push("")
   }
   for (const rule of set.layer ?? []) lines.push(renderLayerRule(rule), "")
-  let reasonEmitted = false
   for (const rule of set.window ?? []) {
-    // A rule that re-asserts the decorations carries the reason the keys exist,
-    // once per fragment, right where they are set.
-    if (!reasonEmitted && (rule.decorate !== undefined || rule.border_size !== undefined)) {
-      lines.push(...commentBlock(DECORATION_REASSERTION_REASON), "")
-      reasonEmitted = true
-    }
     lines.push(renderWindowRule(rule), "")
   }
   if (set.bind?.length) lines.push(...renderBinds(set.bind))

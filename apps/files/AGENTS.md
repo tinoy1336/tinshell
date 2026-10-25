@@ -29,7 +29,7 @@ pattern.
 | Dir | `files/` |
 | Instance / bus | in shell: inside the shell instance (`io.Astal.shell`); dev island: `files` (`io.Astal.files`) — addressed `ags -i files request "files …"` / `ags -i files quit` |
 | Window class | `io.Astal.files` (GTK4 app_id from the `identity.ts` constant `FILES_APP_ID`; matched by the `files-float` window rule) |
-| Window rule | `files-float` in `hypr-rules.ts` → `~/.config/hypr/rules/090-files.lua` — float, rounding 14, `decorate = true`, `border_size = 1`, `size` read from config `window.width`/`window.height` (620×390) — the startup-race fix, mirroring notes-float |
+| Window rule | `files-float` in `hypr-rules.ts` → `~/.config/hypr/rules/090-files.lua` — float plus `size` read from config `window.width`/`window.height` (620×390), the startup-race fix mirroring notes-float; rounding and border are the session config's, not this rule's |
 | Keybind | **NONE** — the browser is opened through the desktop entry (`tinshell-files.desktop`, `Exec = files/ensure-open.sh %f`), so anything that calls `xdg-open` on a folder lands here |
 | Layer rule | **NONE** — XDG window, not a layer surface. Frost = GLOBAL blur + translucent card, exactly like notes. |
 | Unit | **NONE — by design.** Interactive desktop app; the ISLAND quits when its LAST window closes. In SHELL the app is LAZY: loaded on the first `files …` request, unloaded ~60s after the last browser window closes (`scheduleUnload("files")` in window.tsx, armed only when the window registry is empty; `unmount` closes every window). Do NOT add `tinshell-files.service` to setup.sh's unit loop (same exception as notes). |

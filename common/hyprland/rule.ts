@@ -54,22 +54,9 @@ export type WindowRuleSpec = {
   name: string
   match: { class?: string; title?: string }
   float?: boolean
-  rounding?: number
   size?: ConfigMapSize
-  decorate?: boolean
-  border_size?: number
   move?: { x: number; y: number }
 }
-
-/** Why a rule that rounds a float also sets `decorate` and `border_size`.
- *
- *  Stated once here, beside the two keys it constrains, and emitted by the rule
- *  generator above every rule that sets them: the constraint belongs to the KEY,
- *  not to an app — the session's smart-gaps workspace rule affects every floating
- *  window in the same way, so no owner can set these keys for a different reason,
- *  and a copy per rule set would only be a place to drift. */
-export const DECORATION_REASSERTION_REASON =
-  "The smart-gaps workspace rule (w[tv1]: zero gaps and no decorations while a single tiled window is visible) sets no_border and decorate = false, which would strip a floating window's border and frame on such a workspace; decorate and border_size re-assert them for this window. rounding re-asserts the corner radius against the same rule's no_rounding."
 
 /** A command the compositor runs at session start.
  *
@@ -148,8 +135,7 @@ export const BIND_POSITION_REASON =
  *  `note` is a reason for the SHAPE of this rule set — why positions are pinned
  *  by a rule at all, say — written as technical fact and emitted as a comment
  *  above the rules, so the fragment explains its own shape to whoever reads the
- *  compositor config. A reason that belongs to one key rather than to this owner
- *  goes on the key's declaration instead (see `DECORATION_REASSERTION_REASON`). */
+ *  compositor config. */
 export type HyprRuleSet = {
   owner: string
   identityModule?: string

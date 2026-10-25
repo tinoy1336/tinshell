@@ -2,9 +2,9 @@
  * apps/media/hypr-rules.ts — the media window's compositor rules (generated into
  * the compositor config by `npm run gen:hypr-rules`, see common/hyprland/rule).
  *
- * Floats + rounds every media window (frost = the compositor's global blur
- * through the translucent window, `size` pinned per `ConfigMapSize`), and
- * cascades instances 2+ so consecutive windows do not stack invisibly.
+ * Floats every media window (frost = the compositor's global blur through the
+ * translucent window, `size` pinned per `ConfigMapSize`), and cascades
+ * instances 2+ so consecutive windows do not stack invisibly.
  */
 import type { HyprRuleSet, WindowRuleSpec } from "../../common/hyprland/rule.ts"
 import { appIdPattern } from "../../common/hyprland/rule.ts"
@@ -43,10 +43,7 @@ const rules: HyprRuleSet = {
       name: "media-float",
       match: { class: appIdPattern(MEDIA_APP_ID) },
       float: true,
-      rounding: 14,
       size: { app: "media", fallback: { width: 670, height: 380 } },
-      decorate: true,
-      border_size: 1,
     },
     ...cascadeRules(),
   ],

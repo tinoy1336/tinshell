@@ -1112,15 +1112,17 @@ surface is DATA beside that surface, never a literal in the compositor config:
   that dictates the number declares the key). A bind IS a top-level `hl.bind`,
   which is parse-time registration — the same call the config made inline — so
   unlike a start command it needs no hook.
-- **A rule definition carries the REASON for its shape**: a rule set's `note` (why
-  media positions instances by rule, say) and a reason belonging to one KEY,
-  declared on the key in `common/hyprland/rule.ts` and emitted wherever that key
-  is set (`DECORATION_REASSERTION_REASON` — the smart-gaps workspace rule `w[tv1]`
-  sets `no_border` + `decorate = false`, so a rule that rounds a float re-asserts
-  the decorations, border and radius). The generator emits both as comments above
-  the rules they explain, so a fragment explains its own shape to whoever reads
-  the compositor config; a reason is stated ONCE in the tree, never copied per
-  app.
+- **A rule definition carries the REASON for its shape** as a rule set's `note`
+  (why media positions instances by rule, say), which the generator emits as a
+  comment above the rules it explains, so a fragment explains its own shape to
+  whoever reads the compositor config. **Decoration is never a rule's business:**
+  `rounding`, `decorate` and `border_size` are owned by the session config in
+  `~/.config/hypr/hyprland.lua` — its `float-decorations` rule gives a float its
+  border and radius, and its `w[tv1]` workspace rule squares a lone tiled window.
+  A decoration key pinned here on a class match out-ranks both, because a window
+  rule beats a workspace rule and keeps matching after the window is tiled —
+  which is why an app that pinned its own rounding stayed rounded after
+  `SUPER+V` tiled it.
 - `npm run gen:hypr-rules` (`scripts/gen-hypr-rules.ts`) renders one Lua
   fragment per owner into `~/.config/hypr/rules/`; `npm run check:hypr-rules`
   is its gate and is part of `npm run check`. The rule definitions are
@@ -1154,8 +1156,10 @@ numeric prefix is fixed-width three digits and numeric order IS byte order: the
 generator's ORDER table assigns it, and every fragment's header restates the
 rule for a reader reordering the directory. A window rule's keys are applied over
 every earlier match and the LAST match wins, so the directory must be required
-AFTER the inline rules in the config (the generic `float-decorations` rule sets
-rounding 12 on every float, and the app rules override it). A KEYBIND's position
+AFTER the inline rules in the config (the `float-decorations` rule there owns a
+float's border and radius, and the `w[tv1]` workspace rule squares a lone tiled
+window; a fragment that pinned those keys for its own class would out-rank
+both). A KEYBIND's position
 is not load-bearing: Hyprland keys a bind by (modmask, key) rather than matching
 in order, so a bind's prefix only decides where it is required — the one
 order-sensitive case is the same key declared twice, which the gate rejects

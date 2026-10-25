@@ -457,8 +457,9 @@ loaded by the shared schema-driven loader. Schema uses draft-07 + custom
 
 - `appearance.*` (restart) — cardColour, cardAlpha, selectionColour (the shared
   card chrome's pressed/selection tint), textColour, accentColour, hoverColour.
-  The window's radius is not a config key: the `media-float` window rule
-  hardcodes rounding=14 and CSS emits no radius.
+  The window's radius is not a config key and is not in the rule either: the
+  session config (`~/.config/hypr/hyprland.lua`) owns rounding and border, and
+  `media-float` deliberately sets neither. CSS emits no radius.
 - `window.*` (restart) — width, height (min 400×240; defaults 670×380) — the
   one window size BOTH modes use; the generated `media-float` rule's
   `configMapSize("media", …)` (apps/media/hypr-rules.ts) reads it for the map size.

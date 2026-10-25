@@ -3,8 +3,8 @@
  * into the compositor config by `npm run gen:hypr-rules`, see
  * common/hyprland/rule).
  *
- * Floats + rounds the FileChooser dialog; the frost is the compositor's global
- * blur through the translucent window. `size` is pinned on purpose — see
+ * Floats the FileChooser dialog; the frost is the compositor's global blur
+ * through the translucent window. `size` is pinned on purpose — see
  * `ConfigMapSize`.
  */
 import type { HyprRuleSet } from "../../common/hyprland/rule.ts"
@@ -19,10 +19,7 @@ const rules: HyprRuleSet = {
       name: "portal-float",
       match: { class: appIdPattern(PORTAL_APP_ID) },
       float: true,
-      rounding: 14,
       size: { app: "portal", fallback: { width: 630, height: 420 } },
-      decorate: true,
-      border_size: 1,
     },
   ],
 }

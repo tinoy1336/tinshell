@@ -417,16 +417,15 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
   it automatically. The Lua window_rule API has NO per-window blur/ignorealpha
   keys (layer rules only) — do not add a layerrule for notes; it's an XDG
   window, not a layer surface.
-- Rounding: Hyprland `notes-float` rule `rounding = 14` rounds the window
-  itself (the card fills the surface; no CSS radius). Matches the
-  launcher/promptd card radius.
-- Border: the `notes-float` rule sets `decorate = true` + `border_size = 1`
-  to re-assert the active border — the smart-gaps workspace rules
-  (`w[tv1]`/`f[1]`) strip `no_border`/`decorate` on immersive workspaces
-  (single tiled or maximized window, where the note usually floats).
-  `border_size` alone beats `w[tv1]` but NOT `f[1]`; `decorate = true`
-  covers both. The border draws at the window's OUTER edge (outside the
-  surface rect) — probing for it inside the window finds nothing.
+- Rounding and border come from the SESSION config, not from `notes-float`:
+  `~/.config/hypr/hyprland.lua` owns them. Its `float-decorations` rule rounds
+  and outlines a floating window, and its smart-gaps workspace rule (`w[tv1]`,
+  a lone tiled window) squares it off. Pinning these keys in an app rule would
+  out-rank both — a window rule beats a workspace rule, and a class match keeps
+  matching after the window is tiled — so `notes-float` deliberately sets none
+  of them. The card fills the surface and emits no CSS radius. The border draws
+  at the window's OUTER edge (outside the surface rect) — probing for it inside
+  the window finds nothing.
 - Context menu: the text view's right-click edit menu (GTK default —
   Cut/Copy/Paste/Delete/Select All + Input Methods/Insert Emoji) is themed
   in the dynamic CSS block (app.ts) to match the card: same config-driven
