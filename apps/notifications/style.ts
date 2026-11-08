@@ -54,10 +54,12 @@ window.notifications-centre .card {
 window.notifications-popup .card.critical,
 window.notifications-centre .card.critical {
   background: rgba(${criticalRgb}, ${alphaCritical});
-  /* Elevation shadow — the never-expiring card reads as lifted — plus a blurred
-     spread of the accent role on its outer edge. Both are shadows (blurred, no
-     offset line), so the glow tints the edge instead of outlining it. */
-  box-shadow: 0 6px 18px 0 rgba(0, 0, 0, 0.45), 0 0 16px 2px ${hexToRgba(accent, CRITICAL_GLOW_ALPHA)};
+  /* Two halos, both concentric with the card's own edge: an elevation shadow so
+     the never-expiring card reads as lifted, and a blurred tint of the accent
+     role on that edge. Neither carries an offset or a spread — a shifted or
+     inflated shadow draws a second rounded rect beside the card, and its
+     visible corner curvature no longer matches the card's radius. */
+  box-shadow: 0 0 18px 0 rgba(0, 0, 0, 0.45), 0 0 16px 0 ${hexToRgba(accent, CRITICAL_GLOW_ALPHA)};
 }
 window.notifications-centre .centre {
   background: rgba(${rgbCss}, ${alpha});
