@@ -153,10 +153,14 @@ jobs:
 
           # The commits this run answers for. A branch's first push has no
           # `before`, so it answers for its head commit alone; a pull request
-          # answers for everything between its base and its head.
+          # answers for everything between its base and its head. A push that
+          # rewrote history (an amend, a rebase) reports a `before` that no
+          # longer exists in the branch the runner checked out, and that answers
+          # for the head commit alone too.
           if [ "$EVENT" = "pull_request" ]; then
             range="$PR_BASE..$AFTER"
-          elif [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+          elif [ "$BEFORE" = "0000000000000000000000000000000000000000" ] ||
+               ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             range="$AFTER"
           else
             range="$BEFORE..$AFTER"
