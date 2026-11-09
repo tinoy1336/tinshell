@@ -17,7 +17,12 @@ export interface CardThemeAppearance {
 /** `window.<cssClass>` card rules shared by every card window app. */
 export function cardThemeCss(cssClass: string, a: CardThemeAppearance): string {
   const card = hexToRgba(a.cardColour, a.cardAlpha)
-  return `window.${cssClass} { background: ${card}; }
+  return `window.${cssClass} {
+  background: ${card};
+  /* The frost: a translucent fill blurs nothing behind it unless the widget
+     requests a background effect, which is a stylesheet decision. */
+  backdrop-filter: blur(var(--tinshell-blur));
+}
 window.${cssClass} row:selected { background: ${a.selectionColour}; }
 window.${cssClass} row:hover { background: ${a.hoverColour}; }
 `

@@ -50,6 +50,9 @@ window.notifications-popup .card,
 window.notifications-centre .card {
   background: rgba(${rgbCss}, ${alpha});
   border-radius: ${radius}px;
+  /* The frost: a translucent fill alone leaves the compositor with nothing to
+     blur, because a background effect is requested per widget from CSS. */
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 window.notifications-popup .card.critical,
 window.notifications-centre .card.critical {
@@ -64,6 +67,7 @@ window.notifications-centre .card.critical {
 window.notifications-centre .centre {
   background: rgba(${rgbCss}, ${alpha});
   border-radius: ${radius}px;
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 window.notifications-popup .summary,
 window.notifications-centre .summary {

@@ -27,6 +27,9 @@ window.dock-pill {
      The grey debug fill is opt-in via appearance.debugFill (the dock build
      toggles the debug-fill class). */
   background: transparent;
+  /* The frost. The window's extents ARE the drawn band, so the compositor's
+     background effect covers exactly what the Cairo painter tints. */
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 
 window.dock-pill.debug-fill {
@@ -41,6 +44,9 @@ window.dock-pill.debug-fill {
    highlights) — no visible colours live in CSS here. */
 window.dock-menu {
   background: transparent;
+  /* The frost: the window is sized to the drawn panel, so the background
+     effect covers the panel and its rounded corners. */
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 
 /* The invisible corner-cancel surface (touch bail) — must never paint. */

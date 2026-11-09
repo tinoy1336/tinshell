@@ -15,7 +15,7 @@ naming, router, launch path, shell aggregation, common modules, onboarding).
 | Unit | none (dev island; production = `tinshell-shell.service`) |
 | ONE-OWNER | `org.freedesktop.Notifications` (AstalNotifd daemon) — never run shell AND this island at once |
 | Window namespaces | `notifications-popup` (full-screen overlay, input region = card rects), `notifications-centre` (500×600, top-centre) — owned by `identity.ts` |
-| Compositor rule | blur `notifications-.*` (ignore_alpha 0.2); DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/030-notifications.lua` by `npm run gen:hypr-rules` |
+| Compositor rule | blur `notifications-.*` (ignore_alpha 0.2), and the frost itself is the `backdrop-filter` line on the `.card` and `.centre` rules in `style.ts`; DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/030-notifications.lua` by `npm run gen:hypr-rules` |
 | Router | `route-map.conf`: `notifications=shell,notifications` |
 | Keybind | mod+TAB → `tinshell-route notifications toggle-centre`. The key is DATA in `hypr-rules.ts`, rendered into `~/.config/hypr/rules/030-notifications.lua` by `npm run gen:hypr-rules` |
 

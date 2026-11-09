@@ -148,7 +148,9 @@ another window.
   greeter-side applet never writes into a user's home).
 - **Frost:** the compositor blur of what is behind the greeter window — the
   greeter compositor's layer rule for namespace `greeter` in login mode, the
-  live session's global blur in preview/lock. The window is TRANSPARENT (no
+  live session's global blur in preview/lock, and, because a layer rule only
+  selects the surface, the `backdrop-filter` line `style.css` declares on
+  `window.greeter`. The window is TRANSPARENT (no
   window-wide veil: the strip's glass must sit on the same background the
   dock's does). The card paints NO panel — `.greeter-card` is layout only —
   so in LOGIN mode that region's alpha is 0, below the greeter compositor's
@@ -617,7 +619,9 @@ placement or pointer semantics in an app — extend the shared renderer + port.
   widget composition, not the renderer's.
 
 - Window namespace **`greeter`**; blur in LOGIN mode comes from the greeter
-  compositor's layer rule in `/etc/greetd/greeter.lua` (NOT hyprland.lua); the
+  compositor's layer rule in `/etc/greetd/greeter.lua` (NOT hyprland.lua) plus
+  the `backdrop-filter` on `window.greeter` (the rule selects the surface, the
+  property is what requests the blur); the
   lock surface and the preview windows get the live session's GLOBAL blur
   (and the lock is blanked by Hyprland — no frost there, see the strip
   section).

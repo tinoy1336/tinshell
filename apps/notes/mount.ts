@@ -29,7 +29,12 @@ function dynamicCss(): string {
   const pad = getConfig("window.padding")
   const card = hexToRgba(a.cardColour, a.cardAlpha)
   return `
-window.note { background: ${card}; }
+window.note {
+  background: ${card};
+  /* The frost: a translucent fill blurs nothing behind it unless the widget
+     requests a background effect, which is a stylesheet decision. */
+  backdrop-filter: blur(var(--tinshell-blur));
+}
 .note-pad { padding: ${pad}px; }
 textview.note-view text { color: ${a.textColour}; caret-color: ${a.caretColour}; font-size: ${a.fontSize}px; }
 textview.note-view text selection { background-color: ${a.selectionColour}; }
@@ -52,6 +57,7 @@ window.note popover.menu contents {
   border: none;
   border-radius: var(--tinshell-panel-radius);
   padding: 6px;
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 window.note popover.menu > arrow {
   background: ${card};

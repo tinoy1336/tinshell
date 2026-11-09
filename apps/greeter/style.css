@@ -7,7 +7,9 @@
  * appended AFTER this file. Add colour declarations there, never here — one
  * owner per value. Layered on common/shell/theme.css (font + entry base). Frost
  * comes from the greeter COMPOSITOR's layerrule (namespace "greeter", blur) in
- * /etc/greetd/greeter.lua — NOT hyprland.lua, NOT CSS alpha alone.
+ * /etc/greetd/greeter.lua AND from the window asking for a background effect
+ * (the backdrop-filter on window.greeter below) — NOT hyprland.lua, NOT CSS
+ * alpha alone.
  *
  * The window is TRANSPARENT: the compositor's wallpaper shows through. In
  * preview the live session's wallpaper is the backdrop; on the greeter
@@ -23,6 +25,11 @@ window.greeter {
    * the strip: the dock's glass must sit on the same background here as it
    * does on the desktop (see strip/Strip.tsx). */
   background: transparent;
+  /* The frost request. A compositor blurs a surface only when the surface's
+   * stylesheet asks for a background effect; the layer rule alone frosts
+   * nothing. The region is this window, and the blur engages wherever the
+   * painted alpha clears the compositor's ignore_alpha. */
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 
 .greeter-card {

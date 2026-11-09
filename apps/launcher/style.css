@@ -22,6 +22,9 @@ window.launcher .main {
   background: var(--tinshell-panel);
   border-radius: var(--tinshell-panel-radius);
   padding: 6px;
+  /* The frost: a background effect is requested per widget from CSS, so the
+     translucent fill above blurs nothing behind it on its own. */
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 
 window.launcher .entry-row {

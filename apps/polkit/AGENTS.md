@@ -21,7 +21,7 @@ them would bloat a security-critical path).
 | -------------- | ----------------------------------------------------------------------- |
 | Instance / bus | `polkit` (`io.Astal.polkit`)                                            |
 | Unit           | `tinshell-polkit.service` (WantedBy=graphical-session.target)                |
-| Windows        | **NONE** — all UI lives in promptd (blur layerrule `promptd` covers it) |
+| Windows        | **NONE** — all UI lives in promptd (its `promptd` blur layer rule selects the surface, and promptd's `.card` declares the `backdrop-filter` that frosts it) |
 | Launch path    | `tinshell-host.sh start polkit --foreground` (systemd/tinshell-polkit.service ExecStart; this app has no `run.sh`) |
 | Log            | `/tmp/tinshell-polkit-debug.log` (fileSink — systemd launch has no tty)      |
 

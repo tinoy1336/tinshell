@@ -27,6 +27,9 @@ export function buildClipboardCss(): string {
 window.clipboard-picker .main {
   background: rgba(${rgb}, ${alpha});
   border-radius: ${radius}px;
+  /* The frost: the compositor blurs a widget's region only when its
+     stylesheet asks for a background effect. */
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 window.clipboard-picker .entry-row {
   background: ${hoverBg};

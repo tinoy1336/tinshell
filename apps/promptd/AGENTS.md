@@ -28,7 +28,7 @@ request "promptd ping"`, falling back to the dev island `ags -i promptd request
 | --- | --- |
 | Instance / bus | in shell: inside the shell instance (`io.Astal.shell`); dev island: `promptd` (`io.Astal.promptd`) |
 | Unit | `tinshell-shell.service` (production); `tinshell-promptd.service` (DEV only) |
-| Window namespace | `promptd` (blur layer rule; owned by `identity.ts`) |
+| Window namespace | `promptd` (blur layer rule selects the surface, and the `.card` rule in `style.css` declares the `backdrop-filter` that frosts it; owned by `identity.ts`) |
 | Launch path | `tinshell-host.sh start promptd --foreground` (systemd/tinshell-promptd.service ExecStart; shell member in production; this app has no `run.sh`) |
 
 ## Request API
@@ -189,7 +189,9 @@ lists the token after the prefix.
 - The entry right-click context menu (GTK's default edit menu — Cut/Copy/
   Paste/Delete/Select All + Input Methods/Insert Emoji) is CSS-themed in
   `style.css`, appearance-only: the menu popover is a subsurface of the
-  promptd window, so the `promptd` blur layerrule frosts it like the card;
+  promptd window, so a background effect declared on its `contents` node
+  frosts it like the card (the `promptd` blur layer rule selects the surface;
+  the blur itself is the `backdrop-filter` line beside the fill);
   the bg matches `.card` (`--tinshell-panel` + `--tinshell-panel-radius`), items are
   `modelbutton` rows (the GTK4 popover paints its panel on the `contents`
   child node — the outer `popover` node is transparent) in `--tinshell-ink` with

@@ -60,6 +60,14 @@
   --tinshell-row-radius: 12px;
   --tinshell-row-padding: 6px 12px;
 
+  /* Frost: the radius every translucent surface asks its compositor for.
+   * GTK requests a background effect for a widget only when its stylesheet
+   * declares backdrop-filter, so a glass element that leaves it out is
+   * painted translucent with nothing blurred behind it. The compositor
+   * applies its own configured blur to the requested region; the radius is
+   * what a renderer that blurs on the client side uses. */
+  --tinshell-blur: 8px;
+
   /* Type: the card/row family's body size. Headings, entry fields and the
    * entry base set their own. */
   --tinshell-font-size-body: 12px;

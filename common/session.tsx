@@ -55,7 +55,12 @@ const LINGER_MS = 20_000
 const LOCK_POLL_MS = 400
 
 const OVERLAY_CSS = `
-window.${SESSION_OVERLAY_NAMESPACE} { background-color: rgba(0, 0, 0, 0.35); }
+window.${SESSION_OVERLAY_NAMESPACE} {
+  background-color: rgba(0, 0, 0, 0.35);
+  /* The frost: the scrim tints a blurred desktop, which the compositor only
+     produces for a widget that asks for a background effect. */
+  backdrop-filter: blur(var(--tinshell-blur));
+}
 .${SESSION_OVERLAY_NAMESPACE}-label { font-size: 30px; font-weight: 300; color: rgba(255, 255, 255, 0.92); }
 `
 

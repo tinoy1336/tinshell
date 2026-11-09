@@ -412,11 +412,13 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
 ## Aesthetics
 
 - Frost: `window.note` background `rgba(10,12,17,0.5)` (config
-  `appearance.cardColour`/`cardAlpha` — the black card scrim). Blur comes from Hyprland's GLOBAL
-  blur setting — the window is translucent, so the compositor blurs behind
-  it automatically. The Lua window_rule API has NO per-window blur/ignorealpha
-  keys (layer rules only) — do not add a layerrule for notes; it's an XDG
-  window, not a layer surface.
+  `appearance.cardColour`/`cardAlpha` — the black card scrim). The blur is the
+  `backdrop-filter` line beside that fill: a compositor only blurs a surface
+  that asks for a background effect, so a translucent window without the
+  property shows the desktop through it sharply. Hyprland's global blur
+  supplies the strength, at its GLOBAL setting. The Lua window_rule API has NO
+  per-window blur/ignorealpha keys (layer rules only) — do not add a layerrule
+  for notes; it's an XDG window, not a layer surface.
 - Rounding and border come from the SESSION config, not from `notes-float`:
   `~/.config/hypr/hyprland.lua` owns them. Its `float-decorations` rule rounds
   and outlines a floating window, and its smart-gaps workspace rule (`w[tv1]`,
@@ -429,7 +431,8 @@ taker with the suite's frosted aesthetic. One note = one plain `Gtk.Window`
 - Context menu: the text view's right-click edit menu (GTK default —
   Cut/Copy/Paste/Delete/Select All + Input Methods/Insert Emoji) is themed
   in the dynamic CSS block (app.ts) to match the card: same config-driven
-  card bg (the popover is a subsurface, so global blur frosts it), repo
+  card bg with the same `backdrop-filter` line (the popover is a subsurface,
+  so the effect is requested on its `contents` node), repo
   text colour, the shared `--tinshell-panel-radius`, rgba(0,0,0,0.15) hover, muted
   disabled items.
   Appearance-only — the default menu is kept, not replaced.

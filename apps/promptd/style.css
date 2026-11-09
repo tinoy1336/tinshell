@@ -14,6 +14,9 @@ window.promptd {
   background: var(--tinshell-panel);
   border-radius: var(--tinshell-panel-radius);
   padding: 12px;
+  /* The frost: the compositor blurs a widget's region only when its
+     stylesheet asks for a background effect. */
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 
 .prompt-title {
@@ -171,6 +174,7 @@ window.promptd popover.menu contents {
   border: none;
   border-radius: var(--tinshell-panel-radius);
   padding: 6px;
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 
 window.promptd popover.menu > arrow {

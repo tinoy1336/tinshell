@@ -38,6 +38,9 @@ export function buildDynamicCss(): string {
 /* ── keyboard dynamic tokens (config.appearance.*) ── */
 window.keyboard-main .keyboard-root {
   background: ${panel};
+  /* The frost: the compositor blurs a widget's region only when its
+     stylesheet asks for a background effect. */
+  backdrop-filter: blur(var(--tinshell-blur));
 }
 window.keyboard-main .keycap {
   background: ${key};
