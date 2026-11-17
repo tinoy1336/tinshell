@@ -116,7 +116,10 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
 - `dock-row.ts` — per-monitor dock row coordinator; the OVERFLOW feature
   (ordered slot list, hidden set, tri-state mode `auto`/`show`/`hide`
   persisted in this module's own state store — app `dock`, key `overflowMode`).
-  Owns slots (drives
+  `auto` parks the applets whose readings the overflow dial carries
+  (`DIAL_APPLETS`: battery, volume, brightness) on top of whatever their own
+  status rules park, so those three are hidden in `auto` exactly as they are in
+  `hide` and the dial is their readout in both. Owns slots (drives
   `surface.setSlot`/`provisionSlot`/`settle`), the reveal session, move mode
   (free-margin drag on the shared window) and the move-mode snap math
   (`windowDims`/`discOrigin` — single-applet extent + disc origin).
@@ -139,8 +142,9 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   and the band round-trip the painter reads back, `notchRunState` /
   `notchRunBands` / the two-tier `notchTicks`) is pinned by `Overflow.probe.ts`
   beside it.
-- **Battery notches (overflow `hide` mode).** With every applet parked the
-  battery icon is off the row, so the clock dial's 12 rim ticks double as the
+- **Battery notches (overflow readout modes — `hide` and `auto`).** Both modes
+  park the battery applet (`DIAL_APPLETS` in `dock-row.ts`), so its icon is off
+  the row and the clock dial's 12 rim ticks double as the
   charge readout: the 12 ticks sit `100/n` apart — ≈ 8.33 % each — and marker
   `i` (0 at 12 o'clock, clockwise) lights once the charge REACHES it: 12 o'clock
   at 0 %, 1 o'clock at 8.33 %, 2 o'clock at 16.67 %, up to the 11 o'clock marker
@@ -200,16 +204,18 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   the screen brightness is being adjusted the dial shows THAT value on the same
   marker scale, in the adjusting applet's own ring colour — `ringColours.volume`
   / `volumeByType` through `common/applets/volume/colour.ts` for volume,
-  `ringColours.brightness` for brightness. **It is the `hide` mode's readout
-  only:** the dial reads the row's own mode (`dock-row.ts` `getMode()` — the ONE
-  source the pill's steps and the reveal session answer to) and paints a coloured
-  notch only while that mode is `hide`, where every other applet is parked; in
-  `auto`/`show` the volume and brightness applets sit on the row, so a reading on
-  the dial would only repeat them. The gate is read per paint, so a mode switch
-  takes effect on the next frame, and a reading offered outside `hide` starts no
-  transient at all (no frame loop and no hold timer for a dial that paints none of
-  it). `transient` — the reading the dial is on, null = the idle charge scale — IS
-  the run the dial paints, so every change of what the dial shows is a change of
+  `ringColours.brightness` for brightness. **It is the overflow's READOUT modes'
+  only — `hide` and `auto`:** those park the three applets the dial reads
+  (`DIAL_APPLETS` in `dock-row.ts`: battery, volume, brightness), so the dial is
+  their readout; in `show` those applets sit on the row and a reading on the dial
+  would only repeat them. The dial reads the row's own mode (`dock-row.ts`
+  `getMode()` — the ONE source the pill's steps and the reveal session answer to)
+  through `readoutMode()` (`getMode() !== "show"`). The gate is read per paint, so
+  a mode switch takes effect on the next frame, and a reading offered in `show`
+  starts no transient at all (no frame loop and no hold timer for a dial that
+  paints none of it). `transient` — the reading the dial is on, null = the idle
+  charge scale — IS the run the dial paints, so every change of what the dial
+  shows is a change of
   that run's BANDS and goes through the dial's ONE declared fade element below:
   the outgoing run's alpha falls as the incoming one rises, each pass painting its
   own run's lit slots, so the idle run is never left underneath the reading and
@@ -248,6 +254,48 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   contract (`AppletBackend.brightness` is that module's type, so every value
   export becomes a transport member every host must provide). Tick dials only, and
   a hidden clock paints nothing.
+- **The dial's TEXT readout (`showReadout`).** The notch run colours the rim; the
+  text line names the value, and the two hold for the same
+  `appearance.clock.transientHoldMs`. THREE status changes put a value there, one
+  per applet the dial covers: a volume or brightness adjustment (the value just
+  set), the charger going in or out (`batteryPlugged` — the pure rule that reads
+  `Charging` and the plugged-and-idle pair as plugged, `Discharging` as not, and
+  every other status as no position at all, so a firmware blip fires nothing;
+  the value is the charge level, so the dial reads how full the plug event left
+  the pack), and the audio device being swapped (`kind` of the default sink
+  changing, `volumeSeen` suppressing the first observation after mount so a late
+  sink BIND is not a swap; the value is the level that came with the new device).
+  The text is drawn in the colour of the ring it accompanies, using the clock's
+  own label size and shadow, and ONLY in the digital dial — the analogue and
+  clean dials carry no text. It says a bare `0`-`100` integer, never a `%`, and
+  the readout never touches the hands: the second hand keeps sweeping through the
+  hold. The line is gated on `readoutMode()` like the run, so `show` never arms a
+  timer for it.
+- **The text line's own fade element (`clock-text`) and the value it follows.** The
+  time and a reading are two STATES of one declared element, created with the same
+  `createElementFade` (`common/applets/shared/element-fade.ts`) the notch run uses,
+  so a reading arriving or leaving cross-fades on the same `timing.fadeAnim` /
+  `timing.fadeEasing` policy the rings fade by — the time out as the value comes
+  in, and back again when the hold expires. The state is an ARRAY —
+  `dialTextStateOf(lines, colour)`, read back by `dialTextLines` / `dialTextColour`
+  — and NOT an object: the fade mechanism compares a state against the one it last
+  painted through the state's own string form, so a state has to carry its content
+  in `String(state)`. An object answers `"[object Object]"` on both sides, the
+  mechanism never sees a changed value, and every swap adopts INSTANTLY with no
+  cross-fade at all; the notch run's array is the same shape for the same reason.
+  The fade IDENTITY is the reading's SOURCE alone, never the digits and never a
+  colour: a value moving inside one reading stays the element the dial is on and
+  adopts per frame, while a change of what the line SHOWS is what cross-fades. The
+  text paints in the CLOCK's own text colour in every mode — the line is never
+  tinted by whatever the rim is showing. The digits are NOT animated on a timeline
+  of their own: a readout holds a `read` function that is asked at paint time and
+  answers the value the RIM is gliding on (`transientSmoother.value` for a volume
+  or brightness adjustment, `batterySmoother.value` for the charge), rounded to
+  whole units. That is how a continuous panel's % text behaves — the fill slides on
+  the float while the digits tick through 47, 46, 45 underneath it — so the number
+  and the rim are one motion and can never disagree. A reading with no rim glide
+  behind it (the level a device swap arrived with, while the rim is on the charge
+  scale) states its value directly, so nothing counts.
 - **The rim-notch colour fade (the dial's declared element `notches`).** The tick
   scale is painted as TWO elements. The **run** — the notches the colour policy
   colours on the idle scale (the battery charge) or the live transient

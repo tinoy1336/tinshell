@@ -35,9 +35,13 @@ import {
 } from "@common/applets/shared/battery-colour"
 import { config } from "./config"
 import OverflowApplet, {
+  batteryPlugged,
   CLOCK_SMOOTH_FPS,
   createNotchSmoother,
   type DialTime,
+  dialTextColour,
+  dialTextLines,
+  dialTextStateOf,
   dialTimeOf,
   intendedClockVisible,
   litMarkerCount,
@@ -419,6 +423,52 @@ check(
 check(
   "the first adjustment off a full-brightness baseline paints",
   transientStep(atFull.lane, 90).show === 90,
+)
+
+// ── The charger readout's plug state ──
+// The dial says the charge level when the charger goes in or out, so the state
+// the event is derived from has to change on a REAL transition only: the two
+// statuses the shared battery policy calls plugged-and-idle count as plugged, a
+// discharging pack counts as not, and a status it cannot place answers null so
+// the readout never fires on a firmware blip between two reads.
+check("charging reads as plugged", batteryPlugged("Charging") === true)
+check("a topped-out pack reads as plugged", batteryPlugged("Full") === true)
+check("a charge-capped pack reads as plugged", batteryPlugged("Not charging") === true)
+check("a discharging pack reads as unplugged", batteryPlugged("Discharging") === false)
+check("an unreadable status takes no position", batteryPlugged("Unknown") === null)
+
+// ── The dial's text line state ──
+// The fade element compares a state against the one it last painted via the
+// state's STRING form, so the text state has to carry its content in that form.
+// A plain object would answer "[object Object]" on both sides, the mechanism
+// would never see a changed value, and a reading would replace the time
+// instantly instead of cross-fading — the defect this encoding exists to
+// prevent. The state is therefore an array: colour channels then the lines.
+const textColour = { rgb: [0.95, 0.95, 0.95], alpha: 0.9 }
+const textFortyTwo = dialTextStateOf(["42"], textColour)
+const textFortyThree = dialTextStateOf(["43"], textColour)
+const textClock = dialTextStateOf(["13", "58"], textColour)
+const textColourBack = dialTextColour(textFortyTwo)
+check(
+  "the text colour round-trips out of its state",
+  textColourBack.rgb[0] === 0.95 &&
+    textColourBack.rgb[1] === 0.95 &&
+    textColourBack.rgb[2] === 0.95 &&
+    textColourBack.alpha === 0.9,
+)
+check("a one-line reading round-trips", dialTextLines(textFortyTwo).join("|") === "42")
+check("the stacked time keeps both of its lines", dialTextLines(textClock).join("|") === "13|58")
+check(
+  "two readings differ in their STRING form, which is what the fade compares",
+  String(textFortyTwo) !== String(textFortyThree),
+)
+check(
+  "a reading and the time differ in their string form too",
+  String(textFortyTwo) !== String(textClock),
+)
+check(
+  "the same line twice is the same state (no transition on a repeated paint)",
+  String(dialTextStateOf(["42"], textColour)) === String(textFortyTwo),
 )
 
 // ── The repaint policy: per frame only while the dial is actually moving ──

@@ -87,6 +87,13 @@ const DBG = !!GLib.getenv("DOCK_DEBUG")
 
 type OverflowMode = "auto" | "show" | "hide"
 
+/** The applets the overflow dial reads in its readout modes: the charge scale on
+ *  the rim and the value on the dial's text line come from these three, so `auto`
+ *  parks them the way `hide` parks everything (see `effectiveHidden`) and the dial
+ *  is their readout instead of a second copy beside them. Names are the dock
+ *  manifest's (`apps.ts`), the same keys the row files its applets under. */
+const DIAL_APPLETS = new Set(["battery", "volume", "brightness"])
+
 function isOverflowMode(v: unknown): v is OverflowMode {
   return v === "auto" || v === "show" || v === "hide"
 }
@@ -310,11 +317,15 @@ export function createDockRow(
 
   /** The MODE overrides the status rules entirely.
    *  Deactivated applets are hidden REGARDLESS of the mode — the mode is
-   *  only consulted for non-deactivated applets. */
+   *  only consulted for non-deactivated applets. `auto` parks the applets the
+   *  overflow dial reads (`DIAL_APPLETS`) in addition to whatever their own
+   *  status rules park: the dial carries their readings in that mode exactly as
+   *  it does in `hide`, so leaving their icons on the row would say it twice. */
   function effectiveHidden(name: string): boolean {
     if (deactivated.get(name)) return true
     if (mode === "show") return false
     if (mode === "hide") return true
+    if (DIAL_APPLETS.has(name)) return true
     return autoHidden.get(name) ?? false
   }
 

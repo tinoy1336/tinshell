@@ -7,6 +7,7 @@ import {
   batteryRingBands,
   type ConfigColour,
   configuredChargeCap,
+  isPluggedIdle,
 } from "@common/applets/shared/battery-colour"
 import { createStepApplet } from "@common/applets/shared/create-step-applet"
 import { clamp01, drawDisc, drawGlyph } from "@common/applets/shared/draw-utils"
@@ -137,9 +138,55 @@ export interface NotchBand {
   colour: ConfigColour
 }
 
+/** The slots a text state spends on its colour (r, g, b, a) before its glyph
+ *  lines. */
+const DIAL_TEXT_COLOUR_SLOTS = 4
+
+/** The dial's text line as ONE state value: the colour's four channels, then the
+ *  glyph lines.
+ *
+ *  The shape is an ARRAY for a hard reason: the shared fade mechanism
+ *  (`common/applets/shared/element-fade`) compares a state against the state it
+ *  last painted via `String(state)`, so a state has to be something whose string
+ *  form carries its CONTENT. A plain object compares equal to itself forever
+ *  (`"[object Object]"` on both sides), the mechanism never sees a changed value,
+ *  and the swap adopts instantly — no crossfade at all. This is the same shape
+ *  the rim's notch run already hands it. Pure — the probe drives it. */
+export type DialTextState = (string | number)[]
+
+/** The state a text line paints: its colour, then its lines in paint order. */
+export function dialTextStateOf(lines: string[], colour: ConfigColour): DialTextState {
+  return [colour.rgb[0], colour.rgb[1], colour.rgb[2], colour.alpha, ...lines]
+}
+
+/** The glyph lines a text state paints. Pure. */
+export function dialTextLines(state: DialTextState): string[] {
+  return state.slice(DIAL_TEXT_COLOUR_SLOTS).map((v) => String(v))
+}
+
+/** The colour a text state paints in. Pure. */
+export function dialTextColour(state: DialTextState): ConfigColour {
+  return {
+    rgb: [Number(state[0]), Number(state[1]), Number(state[2])],
+    alpha: Number(state[3]),
+  }
+}
+
 /** The one band a reading without segments paints. */
 export function uniformNotchBands(colour: ConfigColour): NotchBand[] {
   return [{ start: 0, end: 100, colour }]
+}
+
+/** Whether a sysfs status means AC is present: `Charging`, or the plugged-and-idle
+ *  pair the shared battery policy names (`Full` / `Not charging`). `Discharging`
+ *  means it is not, and every other status (`Unknown`, a firmware blip between
+ *  reads) answers null — so the dial's charger readout moves on a REAL transition
+ *  and an unreadable status never reads as a plug event. Pure — the probe drives
+ *  it. */
+export function batteryPlugged(status: string): boolean | null {
+  if (status === "Charging" || isPluggedIdle(status)) return true
+  if (status === "Discharging") return false
+  return null
 }
 
 /** The dial's rim-marker run — ONE value + ONE band list → the colour of each
@@ -649,9 +696,9 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
         dot: dotColour,
         centre: centreColour,
       } = clk
-      // Battery notches: in the overflow "hide" mode every other applet is
-      // parked, so the battery icon is not on the row and the dial's rim
-      // markers double as the charge readout. The charge is BANDED by the policy
+      // Battery notches: in the overflow's readout modes (`hide` and `auto` —
+      // see `readoutMode`) the battery applet is parked, so its icon is not on
+      // the row and the dial's rim markers double as the charge readout. The charge is BANDED by the policy
       // every battery surface renders through
       // (common/applets/shared/battery-colour: charging, plugged while AC is
       // present with the pack neither filling nor draining, else the level's
@@ -685,13 +732,13 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
       // the adjusting applet's own ring colour in the second; its lit fraction is
       // the run's own painted value.
       //
-      // The run — either one — belongs to the overflow `hide` mode alone: that
-      // mode parks every other applet, so the dial is the only readout, while in
-      // `auto`/`show` the volume and brightness applets are on the row and a
-      // coloured notch would only repeat what is already visible. Read per
-      // paint, so a mode switch takes effect on the next frame whatever the
-      // transient lane still holds.
-      const notchesUp = hideMode()
+      // The run — either one — belongs to the dial's readout modes alone (`hide`
+      // and `auto`): those park the three applets the dial reads, so the dial is
+      // the only readout, while `show` keeps the volume and brightness applets on
+      // the row and a coloured notch would only repeat what is already visible.
+      // Read per paint, so a mode switch takes effect on the next frame whatever
+      // the transient lane still holds.
+      const notchesUp = readoutMode()
       let run: NotchRun | null = null
       if (notchesUp) {
         if (transient !== null) {
@@ -815,25 +862,35 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
           secondColour,
         )
         const fs = config.fonts.labelSize
-        const t = clk.text ?? centreColour
-        const baseAlpha = t.alpha * rf * fade
-        const textColour: [number, number, number, number] = recording
-          ? [rc.rgb[0], rc.rgb[1], rc.rgb[2], baseAlpha * (0.3 + 0.7 * attention)]
-          : [t.rgb[0], t.rgb[1], t.rgb[2], baseAlpha]
-        const hh = dialTime.hh
-        const mm = dialTime.mm
+        // The text line is the dial's second fade element (see `clockTextFade`):
+        // the time and a live status reading are two states of it, so a reading
+        // arriving or leaving cross-fades. The state is an ARRAY (see
+        // `DialTextState`) because the fade mechanism compares states by their
+        // string form; the digits inside a reading ride the rim's own glide in
+        // whole steps and adopt per frame. The hands — the second hand included —
+        // keep sweeping behind it untouched.
+        const text = dialTextState(dialTime.hh, dialTime.mm, clk.digitalLayout === "one-line")
         const shadowAlpha = sh.alpha * fade
-        if (clk.digitalLayout === "one-line") {
-          drawGlyph(config, cr, cx, cy, `${hh}:${mm}`, fs, textColour, family, shadowAlpha, 1)
-        } else {
-          // stacked: two lines, bigger glyphs (favours the 36px disc).
-          // Tight leading: the two numbers read as ONE clock, not two labels.
-          // BOLD so the digits stay legible over the rim dots and the second
-          // hand sweeping behind them.
-          const lineH = fs * 1.0
-          drawGlyph(config, cr, cx, cy - lineH * 0.55, hh, fs, textColour, family, shadowAlpha, 1)
-          drawGlyph(config, cr, cx, cy + lineH * 0.55, mm, fs, textColour, family, shadowAlpha, 1)
-        }
+        const lineH = fs * 1.0
+        clockTextFade.paint(
+          text.state,
+          (painted, alpha) => {
+            const c = dialTextColour(painted)
+            const lines = dialTextLines(painted)
+            const a = c.alpha * rf * fade * alpha
+            const textColour: [number, number, number, number] = recording
+              ? [rc.rgb[0], rc.rgb[1], rc.rgb[2], a * (0.3 + 0.7 * attention)]
+              : [c.rgb[0], c.rgb[1], c.rgb[2], a]
+            lines.forEach((line, i) => {
+              // A single line (the time in `one-line`, every reading) sits at the
+              // centre; the stacked time keeps its tight two-line leading. BOLD so
+              // the digits stay legible over the rim ticks and the second hand.
+              const y = lines.length === 1 ? cy : cy + (i === 0 ? -1 : 1) * lineH * 0.55
+              drawGlyph(config, cr, cx, y, line, fs, textColour, family, shadowAlpha * alpha, 1)
+            })
+          },
+          text.key,
+        )
       } else if (mode === "clean") {
         // Clean: 4 cardinal dots + a length/thickness-contrasted hour & minute
         // pair — a 1.5px hand-length gap reads as IDENTICAL at 36px. No second
@@ -1111,19 +1168,33 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
   const notchRunFade = createElementFade<number[]>(aw, config, "notches")
   onCleanup(() => notchRunFade.dispose())
 
-  /** True while the row's overflow mode is `hide`. The row OWNS the mode —
-   *  dock-row.ts persists `overflowMode`, the pill's steps write it and the
-   *  reveal session answers to it — so the dial reads it from the row, never
-   *  from a copy of its own. */
-  function hideMode(): boolean {
-    return row.getMode() === "hide"
+  /** The dial's TEXT line is a fade element of its own: the time and a status
+   *  reading are two STATES of one element, so swapping between them cross-fades
+   *  on the same `timing.fadeAnim` / `timing.fadeEasing` policy the tick run fades
+   *  by — the shared mechanism, declared here. Its change identity is the
+   *  reading's source and colour (see `dialTextState`), never the digits: a value
+   *  counting from 40 to 45 stays one element and adopts per frame, because that
+   *  count is the readout walk's business. */
+  const clockTextFade = createElementFade<DialTextState>(aw, config, "clock-text")
+  onCleanup(() => clockTextFade.dispose())
+
+  /** True while the dial IS the row's readout: every mode but `show`. The row
+   *  OWNS the mode — dock-row.ts persists `overflowMode`, the pill's steps write
+   *  it and the reveal session answers to it — so the dial reads it from the
+   *  row, never from a copy of its own. BOTH readout modes qualify, because
+   *  `auto` parks the three applets the dial reads (dock-row.ts `DIAL_APPLETS`:
+   *  battery, volume, brightness) exactly as `hide` parks everything, so the
+   *  dial carries their readings in either; only `show` keeps them on the row,
+   *  where a reading on the dial would repeat what is already visible. */
+  function readoutMode(): boolean {
+    return row.getMode() !== "show"
   }
 
   /** True when the dial's rim ticks double as the charge scale: tick dials only
-   *  (clean mode's 4 cardinal dots carry no run), and only in the row's `hide`
-   *  mode, where the battery icon is parked in overflow. */
+   *  (clean mode's 4 cardinal dots carry no run), and only in a readout mode,
+   *  where the battery icon is parked in overflow. */
   function batteryScaleUp(): boolean {
-    return (config.appearance.clock.mode ?? "analogue") !== "clean" && hideMode()
+    return (config.appearance.clock.mode ?? "analogue") !== "clean" && readoutMode()
   }
 
   /** The charge that scale is heading for, or null when no tick scale is up.
@@ -1205,11 +1276,11 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
   }
 
   function showTransient(next: Transient): void {
-    // The dial's rim notches are the `hide` mode's readout (see the draw path),
-    // so no reading is taken up outside it: in `auto`/`show` the volume and
-    // brightness applets are on the row, and a run there would arm the frame
-    // loop and a hold timer for a dial that paints none of it.
-    if (!hideMode()) return
+    // The dial's rim notches are the readout modes' (see the draw path), so no
+    // reading is taken up in `show`: there the volume and brightness applets are
+    // on the row, and a run would arm the frame loop and a hold timer for a dial
+    // that paints none of it.
+    if (!readoutMode()) return
     if (transient !== null && transient.source === next.source) {
       // A step within one adjustment (a slider drag, a held media key): the run
       // the dial is on is RETARGETED in place — the lit fraction EASES to the new
@@ -1253,6 +1324,94 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
     aw.icon.queue_draw()
   }
 
+  // ── The dial's TEXT readout ──
+  // What the dial SAYS while one of the parked applets' states changes: the value
+  // drawn from that applet, on the line the time occupies. It is the notch run's
+  // companion, never a replacement: the run colours the rim, the text names the
+  // value in the CLOCK's own text colour — the line is never tinted by whatever
+  // the rim is showing, in any mode — and neither touches the hands (the second
+  // hand keeps sweeping through the whole hold).
+  //
+  // It exists for the three applets the dial covers (dock-row.ts `DIAL_APPLETS`):
+  // a volume or brightness adjustment, the charger going in or out, and the
+  // audio device being swapped. ONE readout, so a newer change replaces the value
+  // on screen and restarts the hold; after `appearance.clock.transientHoldMs`
+  // the time comes back.
+
+  /** Which parked applet a reading came from. It is the readout's fade IDENTITY:
+   *  a value moving within one source keeps the element the dial is on, while a
+   *  change of source cross-fades one element into another. */
+  type ReadoutKind = "volume" | "brightness" | "battery"
+
+  interface Readout {
+    /** The value to paint THIS frame, read at paint time. The dial never eases a
+     *  number of its own: the digits are the same eased value the rim is gliding
+     *  to, quantised to whole units — the way a continuous panel's % text ticks
+     *  through 47, 46, 45 while the fill slides underneath it. */
+    read: () => number
+    kind: ReadoutKind
+  }
+  let readout: Readout | null = null
+  let readoutTimer: number | null = null
+
+  function clearReadoutTimer(): void {
+    if (readoutTimer === null) return
+    GLib.source_remove(readoutTimer)
+    readoutTimer = null
+  }
+
+  /** The value the rim is gliding on during a volume or brightness adjustment
+   *  (the transient smoother the notch run paints from), so the digits and the
+   *  rim can never disagree. */
+  function transientReadoutRead(): number {
+    return transientSmoother.value
+  }
+
+  /** Put a value on the dial's text line for the hold, then hand the line back
+   *  to the time. `read` is asked on every paint, so the digits follow the rim's
+   *  glide in whole steps instead of animating on a clock of their own. Gated on
+   *  the dial being the row's readout (see `readoutMode`), like the notch run: in
+   *  `show` the applets themselves are the readout. */
+  function showReadout(read: () => number, kind: ReadoutKind): void {
+    if (!readoutMode()) return
+    readout = { read, kind }
+    aw.icon.queue_draw()
+    clearReadoutTimer()
+    readoutTimer = GLib.timeout_add(
+      GLib.PRIORITY_DEFAULT,
+      Math.max(0, config.appearance.clock.transientHoldMs),
+      () => {
+        readoutTimer = null
+        readout = null
+        aw.icon.queue_draw()
+        return GLib.SOURCE_REMOVE
+      },
+    )
+  }
+
+  /** The text line's state for this paint: the live reading's digits, or the
+   *  time — both in the clock's own text colour, in every mode. `key` is what the
+   *  dial's text element fades on: the SOURCE alone, never the digits, so a value
+   *  moving inside one reading adopts while a swap of what the line shows
+   *  cross-fades. */
+  function dialTextState(
+    hh: string,
+    mm: string,
+    oneLine: boolean,
+  ): { state: DialTextState; key: string } {
+    const colour = config.appearance.clock.text ?? config.appearance.clock.centre
+    if (readoutMode() && readout !== null) {
+      return {
+        state: dialTextStateOf([String(Math.round(readout.read()))], colour),
+        key: `readout|${readout.kind}`,
+      }
+    }
+    return {
+      state: dialTextStateOf(oneLine ? [`${hh}:${mm}`] : [hh, mm], colour),
+      key: "time",
+    }
+  }
+
   /** The volume ring colour (the cairo tuple the applet paints with) in the
    *  `{ rgb, alpha }` shape the notch run takes. */
   function notchColour(c: [number, number, number, number]): ConfigColour {
@@ -1278,33 +1437,74 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
   const volumeSeed = volumeRead?.peek()
   if (volumeSeed?.available) volumeLane = { baseline: volumeSeed.volume }
 
+  /** The audio device the reading belongs to (`kind` of the default sink), null
+   *  while there is no sink to belong to. A change of it is a device swap —
+   *  headphones in or out — which the dial says as the level that came with it.
+   *  `volumeSeen` suppresses the FIRST observation after mount (a fresh process
+   *  binds its sink late): binding is not a swap. */
+  let volumeDevice: string | null = volumeSeed?.available ? volumeSeed.kind : null
+  let volumeSeen = volumeSeed?.available ?? false
+
   function onVolumeChanged(): void {
     if (!volumeRead) return
     const state = volumeRead.peek()
+    const device = state.available ? state.kind : null
+    const swapped = volumeSeen && device !== volumeDevice
+    volumeDevice = device
     if (!state.available) return
+    volumeSeen = true
+    const colour = notchColour(volumeRingColour(state.kind, config))
+    if (swapped) {
+      // A swap carries a level the lane has usually never seen, and the dial
+      // says it even when the number did not move (the common same-level swap).
+      // The rim is on the charge scale here, so there is no glide to follow: the
+      // text states the level that came with the new device.
+      showReadout(() => state.volume, "volume")
+      volumeLane = { baseline: state.volume }
+      return
+    }
     const step = transientStep(volumeLane, state.volume)
     volumeLane = step.lane
     if (step.show === null) return
-    showTransient({
-      source: "volume",
-      value: state.volume,
-      colour: notchColour(volumeRingColour(state.kind, config)),
-    })
+    showTransient({ source: "volume", value: state.volume, colour })
+    showReadout(transientReadoutRead, "volume")
   }
 
   function onBrightnessChanged(): void {
     const step = transientStep(brightnessLane, brightnessRead.peek().screen)
     brightnessLane = step.lane
     if (step.show === null) return
+    const colour = config.appearance.ringColours.brightness
     showTransient({
       source: "brightness",
       value: step.show,
-      colour: config.appearance.ringColours.brightness,
+      colour,
     })
+    showReadout(transientReadoutRead, "brightness")
   }
 
   if (volumeRead) onCleanup(volumeRead.subscribe(onVolumeChanged))
   onCleanup(brightnessRead.subscribe(onBrightnessChanged))
+
+  // ── The charger going in or out ──
+  // The ring's colour already moves on a plug event (the shared battery policy:
+  // charging / plugged / the level's own colour), so the dial's contribution is
+  // the VALUE: the charge level the event left the pack at, said on the text line
+  // while the rim recolours. The domain is the same reactive the battery applet
+  // subscribes to — one more subscriber on one poll, never a second timer.
+  const batteryRead = backend.battery.batteryState(config.timing.poll.batteryPower)
+  let lastPlugged: boolean | null = batteryPlugged(batteryRead.peek().status)
+  function onBatteryChanged(): void {
+    const state = batteryRead.peek()
+    const plugged = batteryPlugged(state.status)
+    if (plugged === null) return
+    const prev = lastPlugged
+    lastPlugged = plugged
+    if (prev === null || plugged === prev) return
+    showReadout(() => batterySmoother.value, "battery")
+    aw.icon.queue_draw() // the rim's plug/charge colours moved with it
+  }
+  onCleanup(batteryRead.subscribe(onBatteryChanged))
 
   function clearReappearTimer(): void {
     if (reappearTimer !== null) {
@@ -1471,6 +1671,7 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
     clearReappearTimer()
     stopSmoothLoop()
     clearTransientTimer()
+    clearReadoutTimer()
   })
   // Live config changes (e.g. appearance.clock.enabled toggled at runtime)
   // must arm/stop the tick — the tick's own body also self-removes when it
