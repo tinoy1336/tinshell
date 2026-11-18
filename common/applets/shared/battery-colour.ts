@@ -21,6 +21,7 @@ import type { AppletBackend } from "@common/applets/backend"
 import type { AppletConfig } from "@common/applets/config"
 import { batteryColour } from "@common/applets/domains/battery"
 import { CHARGE_THRESHOLD_KEY } from "@common/applets/store-paths"
+import { batteryAcState } from "./battery-status"
 
 /** One `appearance.*` colour entry: RGB channels 0..1 plus alpha. */
 export interface ConfigColour {
@@ -33,17 +34,6 @@ export interface ConfigColour {
  *  type comes from the config rather than being restated here. `cap` is the
  *  charge-limit segment, which no level policy selects. */
 type BatteryRingColours = AppletConfig["appearance"]["ringColours"]["battery"]
-
-/** The sysfs statuses that MEAN "AC present, neither charging nor discharging".
- *  `Full` is a topped-out pack, `Not charging` a pack sitting under its charge
- *  cap. There is no third spelling: any other status keeps its level colour.
- *
- *  Exported because more than the COLOUR depends on this state — the battery
- *  applet's fully-charged counter runs while it holds — so the rule lives here
- *  instead of being spelt a second time at that call site. */
-export function isPluggedIdle(status: string): boolean {
-  return status === "Full" || status === "Not charging"
-}
 
 /** The reading the policy needs (a full BatteryState carries more). */
 interface BatteryReading {
@@ -58,14 +48,17 @@ export function batteryRingColour(
   thresholds: Record<string, number>,
   colours: BatteryRingColours,
 ): ConfigColour {
-  if (state.status === "Charging") return colours.charging
+  // The charger state comes from the shared status vocabulary, so this colour
+  // and every other surface acting on a status read the same meaning.
+  const ac = batteryAcState(state.status)
+  if (ac === "charging") return colours.charging
   const pct = clampPct(state.percentage)
   const level = batteryColour(pct, thresholds)
   const levelColour = level === "yellow" ? colours.warn : level === "red" ? colours.low : colours.ok
   // `plugged` is one key of an OPEN map, so a config written before the token
   // existed (a deployed greeter dock trio) has none: fall back to the level
   // colour rather than painting an undefined entry.
-  if (isPluggedIdle(state.status)) return colours.plugged ?? levelColour
+  if (ac === "plugged") return colours.plugged ?? levelColour
   return levelColour
 }
 

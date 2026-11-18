@@ -19,11 +19,8 @@ import { notify } from "@apps/notifications/Notifd"
 import type { AppletBackend } from "@common/applets/backend"
 import type { AppletConfig } from "@common/applets/config"
 import { continuousPanel } from "@common/applets/panel-framework"
-import {
-  batteryRingBands,
-  configuredChargeCap,
-  isPluggedIdle,
-} from "@common/applets/shared/battery-colour"
+import { batteryRingBands, configuredChargeCap } from "@common/applets/shared/battery-colour"
+import { isPluggedIdle } from "@common/applets/shared/battery-status"
 import { createContinuousApplet } from "@common/applets/shared/create-continuous-applet"
 import { clamp01, drawDisc, drawGlyph, drawRings } from "@common/applets/shared/draw-utils"
 import { createElementFade, withFadeAlpha } from "@common/applets/shared/element-fade"

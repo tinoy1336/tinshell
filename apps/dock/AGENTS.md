@@ -258,14 +258,17 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   text line names the value, and the two hold for the same
   `appearance.clock.transientHoldMs`. THREE status changes put a value there, one
   per applet the dial covers: a volume or brightness adjustment (the value just
-  set), the charger going in or out (`batteryPlugged` — the pure rule that reads
-  `Charging` and the plugged-and-idle pair as plugged, `Discharging` as not, and
-  every other status as no position at all, so a firmware blip fires nothing;
-  the value is the charge level, so the dial reads how full the plug event left
-  the pack), and the audio device being swapped (`kind` of the default sink
+  set), a change of the charger's state (`batteryAcState` in
+  `common/applets/shared/battery-status` — the ONE rule that reads a sysfs status
+  as `charging`, `plugged` (a topped-out pack or one sitting at its charge
+  limit), `unplugged`, or no position at all, so a firmware blip fires nothing;
+  AC going in, AC coming out AND the charge STOPPING while AC is still present —
+  `charging` → `plugged` — therefore all move the readout, and the value is the
+  charge level, so the dial reads how full the change left the pack), and the
+  audio device being swapped (`kind` of the default sink
   changing, `volumeSeen` suppressing the first observation after mount so a late
   sink BIND is not a swap; the value is the level that came with the new device).
-  The text is drawn in the colour of the ring it accompanies, using the clock's
+  The text is drawn in the clock's own text colour, using the clock's
   own label size and shadow, and ONLY in the digital dial — the analogue and
   clean dials carry no text. It says a bare `0`-`100` integer, never a `%`, and
   the readout never touches the hands: the second hand keeps sweeping through the
@@ -350,15 +353,14 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   settled. `Overflow.probe.ts` pins the policy truth table, the interval
   arithmetic and the easing's frame counts; whether the frame source actually
   fires on a mapped widget is the live check, not a probe's.
-- **The notch value eases to its reading (`NOTCH_SMOOTH_FACTOR` / `NOTCH_SMOOTH_EPSILON`).**
+- **The notch value eases to its reading (`createEasedValue`).**
   The lit fraction does not snap when the reading changes — it walks there, so a
   charge step and a volume/brightness adjustment both sweep the ticks. The shape
-  is the applet rings' OWN closed-state smoothing
-  (`common/applets/shared/create-applet-core.ts`: a frame moves
-  `ringValue += diff * 0.3`, settled under 0.3) mirrored verbatim in
-  `createNotchSmoother` rather than shared: that mechanism is an inline closure
-  inside the applet core's factory, not an exported primitive, and the file that
-  owns it is outside this applet's claim. Two lanes hold the LAST PAINTED value —
+  is the applet rings' OWN closed-state smoothing, and it is now ONE primitive
+  for both: `common/applets/shared/eased-value.ts` (`EASE_FACTOR` /
+  `EASE_EPSILON`), which `create-applet-core` steps for a closed applet ring and
+  the dial steps from its own frame loop. The dial passes no widget, because it
+  already runs one loop. Two lanes hold the LAST PAINTED value —
   the idle scale's charge and the live transient reading — and both advance in
   the frame loop's step, so the dial never returns to a stale charge. The first
   reading a lane is handed is ADOPTED, never swept from a made-up value (a fresh

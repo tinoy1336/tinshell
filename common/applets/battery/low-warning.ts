@@ -30,6 +30,7 @@
  * Pure: no gi, no GTK, no state store — the probe beside this module drives it
  * under plain Node.
  */
+import { batteryAcState } from "../shared/battery-status.ts"
 
 /** The reading the latch judges (a full BatteryState carries more). */
 export interface LowWarningReading {
@@ -49,7 +50,7 @@ export function lowWarningStep(
   if (reading.percentage > threshold) return warned ? "rearm" : "idle"
   // Charging is refilling the battery: never warn, and leave the latch as it
   // is so a plugged-in battery below the threshold still warns on unplug.
-  if (reading.status === "Charging") return "idle"
+  if (batteryAcState(reading.status) === "charging") return "idle"
   return warned ? "idle" : "warn"
 }
 

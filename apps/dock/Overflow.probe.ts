@@ -33,11 +33,11 @@ import {
   batteryRingColour,
   type ConfigColour,
 } from "@common/applets/shared/battery-colour"
+import { batteryAcState } from "@common/applets/shared/battery-status"
+import { createEasedValue, EASE_EPSILON, EASE_FACTOR } from "@common/applets/shared/eased-value"
 import { config } from "./config"
 import OverflowApplet, {
-  batteryPlugged,
   CLOCK_SMOOTH_FPS,
-  createNotchSmoother,
   type DialTime,
   dialTextColour,
   dialTextLines,
@@ -45,8 +45,6 @@ import OverflowApplet, {
   dialTimeOf,
   intendedClockVisible,
   litMarkerCount,
-  NOTCH_SMOOTH_EPSILON,
-  NOTCH_SMOOTH_FACTOR,
   type NotchBand,
   notchRun,
   notchRunBands,
@@ -425,17 +423,23 @@ check(
   transientStep(atFull.lane, 90).show === 90,
 )
 
-// ── The charger readout's plug state ──
-// The dial says the charge level when the charger goes in or out, so the state
-// the event is derived from has to change on a REAL transition only: the two
-// statuses the shared battery policy calls plugged-and-idle count as plugged, a
-// discharging pack counts as not, and a status it cannot place answers null so
-// the readout never fires on a firmware blip between two reads.
-check("charging reads as plugged", batteryPlugged("Charging") === true)
-check("a topped-out pack reads as plugged", batteryPlugged("Full") === true)
-check("a charge-capped pack reads as plugged", batteryPlugged("Not charging") === true)
-check("a discharging pack reads as unplugged", batteryPlugged("Discharging") === false)
-check("an unreadable status takes no position", batteryPlugged("Unknown") === null)
+// ── The charger readout's charger state ──
+// The dial says the charge level on a charger CHANGE — AC in, AC out, and the
+// charge stopping with AC still present — so the state the event is derived from
+// has to tell those apart and change on a REAL transition only: a charging pack,
+// the plugged-and-idle pair (a topped-out pack and one sitting at its charge
+// limit), and a discharging pack are three states, and a status the shared rule
+// cannot place answers null so the readout never fires on a firmware blip
+// between two reads.
+check("a charging pack reads as charging", batteryAcState("Charging") === "charging")
+check("a topped-out pack reads as plugged", batteryAcState("Full") === "plugged")
+check("a charge-capped pack reads as plugged", batteryAcState("Not charging") === "plugged")
+check("a discharging pack reads as unplugged", batteryAcState("Discharging") === "unplugged")
+check("an unreadable status takes no position", batteryAcState("Unknown") === null)
+check(
+  "the charge stopping at the limit is a change the readout sees",
+  batteryAcState("Charging") === "charging" && batteryAcState("Not charging") === "plugged",
+)
 
 // ── The dial's text line state ──
 // The fade element compares a state against the one it last painted via the
@@ -560,42 +564,39 @@ check(
   !intendedClockVisible(0.9, 0),
 )
 
-// ── The notch-value easing: the applet rings' own animation ──
-// The dial's painted values ease toward their readings a frame at a time — the
-// shape the applet cores smooth their closed-state ring with (`ringValue += diff
-// * 0.3`, settled under 0.3, in common/applets/shared/create-applet-core.ts).
-// `createNotchSmoother` is that shape: it SNAPS on settle, which is the frame
-// loop's stop condition, and it ADOPTS the first reading it is handed instead of
-// sweeping from a made-up value. What this cannot cover: whether the frames land
-// smoothly on screen — that is the eye's judgement, not a probe's.
+// ── The notch-value easing: the shared ring sweep ──
+// The dial's painted values ease toward their readings a frame at a time through
+// `common/applets/shared/eased-value` — the same primitive `create-applet-core`
+// steps for an applet's closed-state ring, so a dial and a ring cannot sweep at
+// different rates. It SNAPS on settle, which is the frame loop's stop condition,
+// and it ADOPTS the first reading it is handed instead of sweeping from a
+// made-up value. What this cannot cover: whether the frames land smoothly on
+// screen — that is the eye's judgement, not a probe's.
 
 check(
-  `the settle shape is the applet rings' own (factor ${NOTCH_SMOOTH_FACTOR}, settle ${NOTCH_SMOOTH_EPSILON})`,
-  NOTCH_SMOOTH_FACTOR === 0.3 && NOTCH_SMOOTH_EPSILON === 0.3,
+  `the settle shape is the applet rings' own (factor ${EASE_FACTOR}, settle ${EASE_EPSILON})`,
+  EASE_FACTOR === 0.3 && EASE_EPSILON === 0.3,
 )
 
-const eased = createNotchSmoother(0)
+const eased = createEasedValue(0)
 check("a seeded smoother starts on its initial value", eased.value === 0 && !eased.moving)
 check("...and is behind a reading it has not reached", eased.behind(50))
 const firstFrame = eased.advance(50)
 check(
   "one frame moves the smoothing factor of the way",
-  firstFrame && near(eased.value, 50 * NOTCH_SMOOTH_FACTOR) && eased.moving,
+  firstFrame && near(eased.value, 50 * EASE_FACTOR) && eased.moving,
 )
 eased.advance(50)
 check("...approaching without overshooting", eased.value > 15 && eased.value < 50)
 
 // A step DOWN is the mirror image: only the distance matters, never the sign.
-const easedDown = createNotchSmoother(50)
+const easedDown = createEasedValue(50)
 easedDown.advance(0)
-check(
-  "a step down moves by the same fraction",
-  near(easedDown.value, 50 * (1 - NOTCH_SMOOTH_FACTOR)),
-)
+check("a step down moves by the same fraction", near(easedDown.value, 50 * (1 - EASE_FACTOR)))
 
 // Settling bounds the frames one change costs: the value SNAPS onto its reading
 // and the loop's step answers false, which is what stops the loop.
-const settling = createNotchSmoother(0)
+const settling = createEasedValue(0)
 let settleFrames = 0
 while (settling.advance(50)) settleFrames++
 check(`a 50-unit change settles in ${settleFrames} frames`, settleFrames > 0 && settleFrames < 25)
@@ -609,7 +610,7 @@ check(
 // fixed-duration tween): a 1 % charge step is a handful of frames, a full-scale
 // jump stays bounded, and both stop.
 const framesFor = (delta: number): number => {
-  const s = createNotchSmoother(0)
+  const s = createEasedValue(0)
   let n = 0
   while (s.advance(delta)) n++
   return n
@@ -622,7 +623,7 @@ check(
 
 // `initial: null` = no reading yet: the first reading is ADOPTED, never swept
 // from a made-up value (a fresh process has no charge to sweep from).
-const unseeded = createNotchSmoother(null)
+const unseeded = createEasedValue(null)
 check("a smoother with no reading is behind nothing", !unseeded.behind(80) && !unseeded.moving)
 check(
   "...and adopts the first reading it is handed",
@@ -630,19 +631,19 @@ check(
 )
 check(
   "...before easing the next one",
-  unseeded.advance(60) && near(unseeded.value, 80 - 20 * NOTCH_SMOOTH_FACTOR),
+  unseeded.advance(60) && near(unseeded.value, 80 - 20 * EASE_FACTOR),
 )
 
 // `adopt` lands at once: a transition that animates another way (the source
 // crossfade) must not sweep the value as well.
-const adopted = createNotchSmoother(0)
+const adopted = createEasedValue(0)
 adopted.adopt(42)
 check("adopt lands on the reading with no sweep", adopted.value === 42 && !adopted.moving)
 
 // The sweep is what the eye sees on the ring: the lit fraction walks through the
 // scale's intermediate counts instead of jumping to its end count.
 const sweepSlots = notchTicks(COUNT, 3).length
-const sweep = createNotchSmoother(0)
+const sweep = createEasedValue(0)
 const litCounts: number[] = [litMarkerCount(sweep.value, sweepSlots)]
 while (sweep.advance(50) && litCounts.length < 500)
   litCounts.push(litMarkerCount(sweep.value, sweepSlots))
@@ -936,7 +937,7 @@ check(
 // notch alone, in the run's colour — and adoption is what fills the ring, which
 // is why the idle tick must arm the loop for an unseeded lane and not only for a
 // lane behind a changed reading.
-const unseededLane = createNotchSmoother(null)
+const unseededLane = createEasedValue(null)
 check(
   "a fresh idle lane is unseeded and paints exactly ONE marker",
   !unseededLane.seeded && litMarkerCount(unseededLane.value, SLOTS) === 1,
@@ -958,7 +959,7 @@ check(
 )
 check(
   "an unseeded lane is behind nothing, which is why the tick arms on `seeded` too",
-  createNotchSmoother(null).behind(80) === false && createNotchSmoother(null).seeded === false,
+  createEasedValue(null).behind(80) === false && createEasedValue(null).seeded === false,
 )
 
 // ── The applet built with NO row: the degrade path ──

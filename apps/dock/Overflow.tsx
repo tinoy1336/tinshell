@@ -7,10 +7,11 @@ import {
   batteryRingBands,
   type ConfigColour,
   configuredChargeCap,
-  isPluggedIdle,
 } from "@common/applets/shared/battery-colour"
+import { batteryAcState } from "@common/applets/shared/battery-status"
 import { createStepApplet } from "@common/applets/shared/create-step-applet"
 import { clamp01, drawDisc, drawGlyph } from "@common/applets/shared/draw-utils"
+import { createEasedValue } from "@common/applets/shared/eased-value"
 import { createElementFade, withFadeAlpha } from "@common/applets/shared/element-fade"
 import type { DrawIcon } from "@common/applets/types"
 import { volumeRingColour } from "@common/applets/volume/colour"
@@ -175,18 +176,6 @@ export function dialTextColour(state: DialTextState): ConfigColour {
 /** The one band a reading without segments paints. */
 export function uniformNotchBands(colour: ConfigColour): NotchBand[] {
   return [{ start: 0, end: 100, colour }]
-}
-
-/** Whether a sysfs status means AC is present: `Charging`, or the plugged-and-idle
- *  pair the shared battery policy names (`Full` / `Not charging`). `Discharging`
- *  means it is not, and every other status (`Unknown`, a firmware blip between
- *  reads) answers null — so the dial's charger readout moves on a REAL transition
- *  and an unreadable status never reads as a plug event. Pure — the probe drives
- *  it. */
-export function batteryPlugged(status: string): boolean | null {
-  if (status === "Charging" || isPluggedIdle(status)) return true
-  if (status === "Discharging") return false
-  return null
 }
 
 /** The dial's rim-marker run — ONE value + ONE band list → the colour of each
@@ -479,79 +468,10 @@ export function intendedClockVisible(clockFade: number, tweenTo: number | null):
   return (tweenTo ?? clockFade) > 0.001
 }
 
-/** The notch scale's per-frame approach to its reading — the shape the applet
- *  rings animate with (the closed-state ring smoothing in
- *  `common/applets/shared/create-applet-core.ts`: a frame moves
- *  `ringValue += diff * 0.3` and the sweep settles under 0.3). Mirrored here
- *  VERBATIM rather than shared: that mechanism is an inline closure inside the
- *  applet core's factory, not an exported primitive, and it belongs to another
- *  file. The two factors below are that shape's, not new ones. */
-export const NOTCH_SMOOTH_FACTOR = 0.3
-export const NOTCH_SMOOTH_EPSILON = 0.3
-
-interface NotchSmoother {
-  /** The value to paint: the eased value, snapped to its reading once settled. */
-  readonly value: number
-  /** True while a frame still moved it — the frame loop has work to do. */
-  readonly moving: boolean
-  /** True once a reading has been adopted. False only before the lane's first
-   *  reading, when `behind` answers false for EVERY value — a caller that arms
-   *  a frame loop on `behind` alone therefore never seeds a fresh lane. */
-  readonly seeded: boolean
-  /** True when it is not yet on `reading` (false before its first reading). */
-  behind: (reading: number) => boolean
-  /** Advance one frame toward `reading`. False once settled on it. */
-  advance: (reading: number) => boolean
-  /** Land on `reading` at once, no sweep (a transition that animates another
-   *  way — the source crossfade — must not sweep the value as well). */
-  adopt: (reading: number) => void
-}
-
-/** One frame moves a fraction of what is left, so a sweep's length scales with
- *  the size of the change; the value SNAPS to the reading as it settles, so a
- *  caller that stops its loop on the false return knows the lit fraction is
- *  exactly the reading's. `initial: null` = no reading yet: the first `advance`
- *  ADOPTS it instead of sweeping from a made-up value. Pure — the probe drives
- *  it. */
-export function createNotchSmoother(initial: number | null): NotchSmoother {
-  let value = initial ?? 0
-  let seeded = initial !== null
-  let moving = false
-  return {
-    get value() {
-      return value
-    },
-    get moving() {
-      return moving
-    },
-    get seeded() {
-      return seeded
-    },
-    behind: (reading) => seeded && Math.abs(reading - value) >= NOTCH_SMOOTH_EPSILON,
-    advance: (reading) => {
-      if (!seeded) {
-        seeded = true
-        value = reading
-        moving = false
-        return false
-      }
-      const diff = reading - value
-      if (Math.abs(diff) < NOTCH_SMOOTH_EPSILON) {
-        value = reading
-        moving = false
-        return false
-      }
-      value += diff * NOTCH_SMOOTH_FACTOR
-      moving = true
-      return true
-    },
-    adopt: (reading) => {
-      seeded = true
-      value = reading
-      moving = false
-    },
-  }
-}
+/** The notch scale's per-frame approach to its reading is the ring sweep every
+ *  applet paints with (`common/applets/shared/eased-value`): the dial runs its
+ *  own frame loop, so it STEPS the shared value instead of handing it a widget
+ *  to drive. */
 
 /** Clean-mode geometry: 4 cardinal dots instead of 12, and a deliberately
  *  length/thickness-contrasted hour+minute pair. A 4.5px vs 6px hand-length
@@ -1151,8 +1071,8 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
   // ring: the idle scale's charge and the live transient reading. Holding the
   // last painted value is what makes a change sweep the lit fraction instead of
   // snapping it.
-  const batterySmoother = createNotchSmoother(null)
-  const transientSmoother = createNotchSmoother(null)
+  const batterySmoother = createEasedValue(null)
+  const transientSmoother = createEasedValue(null)
 
   // The dial's ONE declared fade element: the RUN of rim notches — the run the
   // colour policy colours on the idle scale (the battery charge) and the
@@ -1333,7 +1253,8 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
   // hand keeps sweeping through the whole hold).
   //
   // It exists for the three applets the dial covers (dock-row.ts `DIAL_APPLETS`):
-  // a volume or brightness adjustment, the charger going in or out, and the
+  // a volume or brightness adjustment, a change of the charger's state (AC in, AC
+  // out, or the charge stopping with AC still present), and the
   // audio device being swapped. ONE readout, so a newer change replaces the value
   // on screen and restarts the hold; after `appearance.clock.transientHoldMs`
   // the time comes back.
@@ -1486,21 +1407,29 @@ export default function OverflowApplet(aw: AppletWindow<DockRow>, backend: Apple
   if (volumeRead) onCleanup(volumeRead.subscribe(onVolumeChanged))
   onCleanup(brightnessRead.subscribe(onBrightnessChanged))
 
-  // ── The charger going in or out ──
-  // The ring's colour already moves on a plug event (the shared battery policy:
-  // charging / plugged / the level's own colour), so the dial's contribution is
-  // the VALUE: the charge level the event left the pack at, said on the text line
-  // while the rim recolours. The domain is the same reactive the battery applet
-  // subscribes to — one more subscriber on one poll, never a second timer.
+  // ── The charger: in, out, and the charge stopping ──
+  // The ring's colour already moves on a charger change (the shared battery
+  // policy: charging / plugged / the level's own colour), so the dial's
+  // contribution is the VALUE: the charge level the change left the pack at,
+  // said on the text line while the rim recolours. Three changes qualify — AC
+  // going in, AC coming out, and the CHARGE STOPPING with AC still present (the
+  // pack reached its limit, or its configured charge cap) — which the shared
+  // charger-state rule tells apart ('common/applets/shared/battery-status':
+  // `charging` → `plugged` is exactly that stop).
+  //
+  // The signal is the state's own EVENT, never a timer: the domain's reactive
+  // re-reads on the kernel's power-supply uevent (and on its own slow poll as
+  // the safety net), so a stop lands here without the dial watching the clock.
+  // One more subscriber on one poll, never a second timer.
   const batteryRead = backend.battery.batteryState(config.timing.poll.batteryPower)
-  let lastPlugged: boolean | null = batteryPlugged(batteryRead.peek().status)
+  let lastAc = batteryAcState(batteryRead.peek().status)
   function onBatteryChanged(): void {
     const state = batteryRead.peek()
-    const plugged = batteryPlugged(state.status)
-    if (plugged === null) return
-    const prev = lastPlugged
-    lastPlugged = plugged
-    if (prev === null || plugged === prev) return
+    const ac = batteryAcState(state.status)
+    if (ac === null) return
+    const prev = lastAc
+    lastAc = ac
+    if (prev === null || ac === prev) return
     showReadout(() => batterySmoother.value, "battery")
     aw.icon.queue_draw() // the rim's plug/charge colours moved with it
   }

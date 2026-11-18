@@ -29,6 +29,7 @@ import {
 } from "@common/applets/panel-hub"
 import type { DrawIcon, Panel } from "@common/applets/types"
 import { onCleanup } from "gnim"
+import { createEasedValue } from "./eased-value"
 
 const DBG = !!GLib.getenv("DOCK_DEBUG")
 
@@ -78,7 +79,7 @@ interface AppletCoreOpts {
   buildPanel: (ctx: { setDragActive: (active: boolean) => void; close: () => void }) => Panel
   /** Draw-argument sources. Continuous reads the live render state
    *  (value/skipDisc/textValue) + getState(); step passes fixed 0/false/
-   *  undefined. The closed-state value is the core's own ringValue (0 for
+   *  undefined. The closed-state value is the core's own eased ring value (0 for
    *  step). */
   draw: {
     state: () => boolean // continuous: opts.getState(); step: false
@@ -98,7 +99,7 @@ export function createAppletCore(aw: AppletWindow, opts: AppletCoreOpts): Applet
   const drawIcon = opts.drawIcon
 
   let panel: Panel | null = null
-  let ringValue = opts.getValue?.() ?? 0 // smoothed icon value when closed (continuous)
+  const ring = createEasedValue(opts.getValue?.() ?? 0) // smoothed icon value when closed (continuous)
   let ringRunner: FrameRunner | null = null
   let closeTimer: number | null = null
   let panelOpen = false
@@ -140,17 +141,11 @@ export function createAppletCore(aw: AppletWindow, opts: AppletCoreOpts): Applet
     ringRunner = runFrames(
       icon,
       () => {
-        const target = getValue()
-        const diff = target - ringValue
-        if (Math.abs(diff) < 0.3) {
-          ringValue = target
-          icon.queue_draw()
-          ringRunner = null // self-removing via the false return
-          return false
-        }
-        ringValue += diff * 0.3
+        const moving = ring.advance(getValue())
         icon.queue_draw()
-        return true
+        if (moving) return true
+        ringRunner = null // self-removing via the false return
+        return false
       },
       opts.config.timing.framerate,
     )
@@ -305,7 +300,7 @@ export function createAppletCore(aw: AppletWindow, opts: AppletCoreOpts): Applet
       if (myToken !== closeToken) return // superseded by a reopen — bail
       closing = false
       // Drop the panel-driven values back to unset: the draw trampoline then
-      // falls back to the smoothed ringValue / its own defaults.
+      // falls back to the smoothed ring value / its own defaults.
       render.value = undefined
       render.ringFill = undefined
       if (opts.draw.channels) render.skipDisc = undefined
@@ -440,12 +435,12 @@ export function createAppletCore(aw: AppletWindow, opts: AppletCoreOpts): Applet
   })
 
   // ── Icon draw: reads the render state's panel value/ring fill during
-  //    animation, otherwise the smoothed ringValue (continuous) or 0 (step).
+  //    animation, otherwise the smoothed ring value (continuous) or 0 (step).
   //    `render.intro` alpha-fades the whole composition via a cairo group —
   //    disc, rings, glyph and text uniformly (no radial sweep). ──
 
   icon.set_draw_func((_, cr, w, h) => {
-    const v = render.value ?? ringValue
+    const v = render.value ?? ring.value
     const rf = render.ringFill ?? 1
     // While the panel is open the pill paints the disc as part of its disc+fill
     // shape; skip the icon's own disc so it isn't painted twice (double-paint
