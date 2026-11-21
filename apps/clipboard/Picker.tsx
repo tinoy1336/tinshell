@@ -536,7 +536,7 @@ export default function Picker() {
                       }}
                     />
                   ) : null}
-                  <label class="pin-badge" label={pinnedIds().has(r.id) ? PIN_GLYPH : ""} />
+                  {pinnedIds().has(r.id) ? <label class="pin-badge" label={PIN_GLYPH} /> : null}
                   {r.mime === "text" ? (
                     <label
                       class="snippet"
