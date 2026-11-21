@@ -11,6 +11,7 @@
     "check:shim-types": "node --experimental-strip-types scripts/gen-shim-types.ts --check",
     "gen:schemas": "node --experimental-strip-types scripts/gen-config-schemas.ts && biome format --write apps/*/config.schema.json",
     "check:schemas": "node --experimental-strip-types scripts/gen-config-schemas.ts --check",
+    "gen:emoji": "node --experimental-strip-types scripts/gen-emoji.ts",
     "gen:hypr-rules": "node --experimental-strip-types scripts/gen-hypr-rules.ts",
     "check:hypr-rules": "node --experimental-strip-types scripts/gen-hypr-rules.ts --check",
     "check:palette": "node scripts/check-palette.mjs",
