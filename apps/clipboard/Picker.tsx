@@ -598,12 +598,12 @@ function formatTs(ts: number): string {
   const d = new Date(ts)
   const pad = (n: number) => String(n).padStart(2, "0")
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  // Today's entries show the time alone; older ones carry dd/mm beside it so
+  // Today's entries show the time alone; older ones carry mm/dd beside it so
   // the list stays readable once history spans more than one day.
   const now = new Date()
   const today =
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate()
-  return today ? time : `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${time}`
+  return today ? time : `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${time}`
 }
