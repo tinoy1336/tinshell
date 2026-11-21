@@ -4,6 +4,8 @@
  * Shapes:
  *   <time> <from> (to|in|→|->) <to>   e.g. "9pm utc to est", "21:00 jst to utc"
  *   now [<from>] (to|in|→|->) <to>    e.g. "now to pst" (local tz), "now utc to pst"
+ *   <from> (to|in|→|->) <to>          no time at all → NOW: "local to tokyo"
+ *   (to|in|→|->) <to>                 "to tokyo" → now, from the local zone
  *
  * Time tokens: "9pm", "9:30 pm", "21:00" (24h), "now", and the named
  * wall-clock words "noon" and "midnight". Zone tokens:
@@ -636,74 +638,172 @@ function dayKey(info: ZoneInfo | null, date: Date): string {
   return fmt(info, date, true).split(",").slice(0, -1).join(",")
 }
 
-/** Parse "<time> <from> sep <to>" or "now [<from>] sep <to>". */
-function parseTimeQuery(q: string): Parsed | null {
-  const s = q.trim()
-
-  // now [<from>] sep <to> — from optional, defaults to the local timezone.
-  let m = s.match(/^now(?:\s+(.+?))?\s+(?:to|in|→|->)\s+(.+)$/i)
-  if (m) {
-    const to = resolveZoneInfo(m[2] ?? "")
-    if (!to) return null
-    const from = m[1] ? resolveZoneInfo(m[1]) : null
-    if (m[1] && !from) return null
-    return { date: new Date(), from, to }
-  }
-
-  // <named time> <from> sep <to> — noon and midnight are wall-clock times a
-  // user names instead of types; both are what the numeric branch below would
-  // build from 12:00 and 00:00.
-  m = s.match(/^(noon|midnight)\s+(.+?)\s+(?:to|in|→|->)\s+(.+)$/i)
-  if (m) {
-    const from = resolveZoneInfo(m[2] ?? "")
-    const to = resolveZoneInfo(m[3] ?? "")
-    if (!from || !to) return null
-    const h = m[1].toLowerCase() === "noon" ? 12 : 0
-    const now = new Date()
-    const y = now.getFullYear()
-    const mo = now.getMonth()
-    const d = now.getDate()
-    const date =
-      from === LOCAL
-        ? new Date(y, mo, d, h, 0)
-        : from.offset === undefined
-          ? zonedWallToUtc(from.zone, y, mo, d, h, 0)
-          : new Date(Date.UTC(y, mo, d, h, 0) - from.offset)
-    return { date, from, to }
-  }
-
-  // <time> <from> sep <to>
-  m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?\s+(.+?)\s+(?:to|in|→|->)\s+(.+)$/i)
-  if (!m) return null
-  const hour = parseInt(m[1] ?? "0", 10)
-  const min = m[2] ? parseInt(m[2], 10) : 0
-  const mer = m[3]?.toLowerCase().replace(/\./g, "")
-  if (min > 59) return null
-  let h = hour
-  if (mer) {
-    if (hour < 1 || hour > 12) return null
-    if (mer.startsWith("pm") && hour !== 12) h = hour + 12
-    if (mer.startsWith("am") && hour === 12) h = 0
-  } else if (hour > 23) {
-    return null
-  }
-  const from = resolveZoneInfo(m[4] ?? "")
-  if (!from) return null
-  const to = resolveZoneInfo(m[5] ?? "")
-  if (!to) return null
+/** The instant a wall clock in `from` denotes today. A null `from` is the
+ *  machine's own zone (the `local` token resolves to it). */
+function instantFor(from: ZoneInfo | null, h: number, min: number): Date {
   const now = new Date()
   const y = now.getFullYear()
   const mo = now.getMonth()
   const d = now.getDate()
-  let date: Date
-  if (from === LOCAL) {
-    date = new Date(y, mo, d, h, min) // local wall clock
-  } else if (from.offset === undefined) {
-    date = zonedWallToUtc(from.zone, y, mo, d, h, min)
-  } else {
-    date = new Date(Date.UTC(y, mo, d, h, min) - from.offset) // wall − offset
+  if (!from || from === LOCAL) return new Date(y, mo, d, h, min) // local wall clock
+  if (from.offset === undefined) return zonedWallToUtc(from.zone, y, mo, d, h, min)
+  return new Date(Date.UTC(y, mo, d, h, min) - from.offset) // wall − offset
+}
+
+/** A separator between the two sides of a conversion. `at` is accepted because
+ *  "9pm at tokyo" is how the question is often spoken; `=` because people type
+ *  an equation. */
+const SEP_RE = /\s+(?:to|in|at|→|->|=)\s+/
+
+/** A zone token: resolved after a trailing "time" word is stripped, so "china
+ *  time" and "china" are the same zone. */
+function zoneOf(part: string): ZoneInfo | null {
+  const t = part.trim().replace(/\s+time$/i, "")
+  return t ? resolveZoneInfo(t) : null
+}
+
+/** A wall clock named instead of typed: "9", "9:30", "9 pm", "noon",
+ *  "midnight". Returns hours/minutes, or null when the text is not one. */
+function clockOf(part: string): { h: number; min: number } | null {
+  const t = part.trim().toLowerCase()
+  if (t === "noon") return { h: 12, min: 0 }
+  if (t === "midnight") return { h: 0, min: 0 }
+  const m = t.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?$/)
+  if (!m) return null
+  const hour = parseInt(m[1] ?? "0", 10)
+  const min = m[2] ? parseInt(m[2], 10) : 0
+  const mer = m[3]?.replace(/\./g, "")
+  if (min > 59) return null
+  if (mer) {
+    if (hour < 1 || hour > 12) return null
+    if (mer.startsWith("pm") && hour !== 12) return { h: hour + 12, min }
+    if (mer.startsWith("am") && hour === 12) return { h: 0, min }
+    return { h: hour, min }
   }
-  return { date, from, to }
+  return hour > 23 ? null : { h: hour, min }
+}
+
+interface Left {
+  /** The wall clock the side names, if any. */
+  clock: { h: number; min: number } | null
+  /** The zone the side names, if any (`9pm tokyo` puts it on the right). */
+  zone: ZoneInfo | null
+}
+
+/**
+ * The side of a conversion before a separator: `<clock> <zone>`, `<clock>`,
+ * `<zone>`, `now`, or nothing. `now` only states that no clock was typed, which
+ * is already what a missing clock means.
+ */
+function leftSide(part: string): Left | null {
+  const t = part
+    .trim()
+    .replace(/^now\b\s*/i, "")
+    .trim()
+  if (!t) return { clock: null, zone: null }
+  const zone = zoneOf(t)
+  if (zone) return { clock: null, zone }
+  // `<clock> <zone>` and `<clock>`.
+  const words = t.split(/\s+/)
+  for (let i = words.length - 1; i >= 0; i--) {
+    const clock = clockOf(words.slice(0, i + 1).join(" "))
+    if (!clock) continue
+    const rest = words.slice(i + 1).join(" ")
+    const at = rest ? zoneOf(rest) : null
+    if (rest && !at) return null
+    return { clock, zone: at }
+  }
+  return /^now$/i.test(part.trim()) ? { clock: null, zone: null } : null
+}
+
+/** The instant a side denotes: its clock in its zone, or now. */
+function dateOfSide(side: Left): Date {
+  if (!side.clock) return new Date()
+  return instantFor(side.zone, side.clock.h, side.clock.min)
+}
+
+/**
+ * Parse a time-zone query. The shapes are built from three parts — a wall
+ * clock, a source zone and a target zone — so the grammar is written once and
+ * every combination the parts allow is answered:
+ *
+ *   <time> <from> SEP <to>    "9pm utc to est", "noon est to utc"
+ *   <time> SEP <to>           "9pm to utc" (from the local zone)
+ *   <time> in|at <zone>       "9pm in tokyo" (that clock THERE, answered here)
+ *   <from> SEP <to>           "local to tokyo", "tokyo to est" (read as now)
+ *   SEP <to>                  "to tokyo", "in jst" (now, from local)
+ *   now <from> SEP <to>       "now utc to pst"
+ *   <time> <zone>             "9pm tokyo" (that clock there, answered here)
+ *   <zone> time               "tokyo time" (now, from local)
+ *   SEP <to> after a phrase   "what time is it in tokyo", "current time in oslo"
+ *
+ * Direction decides which side a lone zone belongs to: `to`/`→`/`->`/`=`
+ * converts FROM the left INTO the right zone, while `in`/`at` names where the
+ * typed clock reads, so "9pm in tokyo" answers in the local zone and
+ * "9pm to tokyo" answers in Tokyo's.
+ *
+ * A part that does not resolve makes the whole query null: the time source
+ * only answers what it can date, and the combiner reads rows as its gate.
+ */
+function parseTimeQuery(q: string): Parsed | null {
+  // Spoken openers carry no information the grammar does not already have:
+  // "what time is it in tokyo" is "now in tokyo".
+  const s = q
+    .trim()
+    .replace(
+      /^(?:what(?:'s|’s)?\s+(?:the\s+)?time(?:\s+is\s+it)?|what\s+time\s+is\s+it|current\s+time|the\s+time|time)\s+(?:in|at|for)\s+/i,
+      "now in ",
+    )
+  if (!s) return null
+
+  const sep = s.match(SEP_RE)
+  if (sep?.index !== undefined) {
+    const left = s.slice(0, sep.index)
+    const right = s.slice(sep.index + sep[0].length)
+    const to = zoneOf(right)
+    if (!to) return null
+    if (!left.trim()) return { date: new Date(), from: LOCAL, to }
+    const side = leftSide(left)
+    if (!side) return null
+    // "<clock> in|at <zone>" reads the clock in THAT zone and answers here.
+    const directional = /^(?:to|→|->|=)$/i.test(sep[0].trim())
+    if (!directional && side.clock && !side.zone) {
+      return { date: instantFor(to, side.clock.h, side.clock.min), from: to, to: LOCAL }
+    }
+    return { date: dateOfSide(side), from: side.zone ?? LOCAL, to }
+  }
+
+  // A leading separator with no left side: "to tokyo", "in jst".
+  const leading = s.match(/^(?:to|in|at|→|->|=)\s+(.+)$/i)
+  if (leading) {
+    const to = zoneOf(leading[1] ?? "")
+    if (to) return { date: new Date(), from: LOCAL, to }
+  }
+
+  // No separator: a single-zone question. "tokyo time" and "now tokyo" ask
+  // what time it is there; nothing else without a separator is a time query,
+  // because a bare zone name is an app search.
+  const trailing = s.match(/^(.+?)\s+time$/i)
+  if (trailing) {
+    const to = zoneOf(trailing[1] ?? "")
+    if (to) return { date: new Date(), from: LOCAL, to }
+  }
+  const single = s.match(
+    /^(?:now|\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)?|noon|midnight)\s+(.+)$/i,
+  )
+  if (single) {
+    const zone = zoneOf(single[1] ?? "")
+    if (!zone) return null
+    const side = leftSide(s.slice(0, s.length - (single[1] ?? "").length))
+    if (!side) return null
+    // A typed clock with one zone means that clock THERE ("9pm tokyo"); a bare
+    // `now` with one zone asks what time it is there ("now tokyo").
+    if (side.clock) {
+      return { date: instantFor(zone, side.clock.h, side.clock.min), from: zone, to: LOCAL }
+    }
+    return { date: new Date(), from: LOCAL, to: zone }
+  }
+  return null
 }
 
 /** Convert a time-zone query to result rows (0 or 1). */

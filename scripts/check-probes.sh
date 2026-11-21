@@ -133,6 +133,7 @@ BUNDLED=(
   apps/dock/Overflow.probe.ts
   apps/files/navigate-path.probe.ts
   apps/launcher/sources/units.probe.ts
+  apps/launcher/sources/time.probe.ts
   apps/launcher/combiner.probe.ts
   apps/launcher/emoji.probe.ts
   apps/launcher/sources/bang-preview.probe.ts

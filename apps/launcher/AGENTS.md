@@ -382,6 +382,38 @@ constants, currency, and unit pairs the table omits. The reverse also holds: a
 row means the table recognised the spelling, and only then does the combiner
 suppress implicit qalc, so a conversion is one row and never two.
 
+## Time conversions
+
+`sources/time.ts` converts between zones with `Intl` only — no subprocess — so a
+time query answers on the keystroke, and its rows suppress the implicit calc
+(qalc mangles `9pm utc to est` into unit garbage). The grammar is built from
+three parts — a wall clock, a source zone, a target zone — and every combination
+those parts allow is answered:
+
+| Shape | Examples | Meaning |
+| --- | --- | --- |
+| `<time> <from> SEP <to>` | `9pm utc to est`, `noon est to utc` | convert that wall clock |
+| `<time> SEP <to>` | `9pm to utc` | the clock here → there |
+| `<time> in\|at <zone>` | `9pm in tokyo` | that clock THERE, answered here |
+| `<from> SEP <to>` / `SEP <to>` | `local to tokyo`, `to tokyo` | now, both ways |
+| `<time> <zone>` | `9pm tokyo` | that clock there, answered here |
+| `<zone> time` | `tokyo time` | now, from here |
+
+`SEP` is `to`, `in`, `at`, `→`, `->` or `=`. Direction decides which side a lone
+zone belongs to: `to`/`→`/`->`/`=` converts INTO the right zone, while `in`/`at`
+names where the typed clock reads — so `9pm in tokyo` answers in the local zone
+and `9pm to tokyo` answers in Tokyo's. Spoken openers (`what time is it in
+tokyo`, `current time in oslo`) normalize to `now in …`, and a trailing `time`
+word is not part of a zone name. A bare zone on its own (`tokyo`) is NOT a time
+query — it stays an application search.
+
+Zone tokens cover abbreviations, colloquial and regional names, countries,
+cities (about 200), fixed offsets (`utc+5:30`, `+2`) and any IANA name verbatim;
+`local` is the machine's own zone. A part that does not resolve makes the whole
+query null, so an unknown word falls through to the other sources instead of
+answering nonsense. `sources/time.probe.ts` pins the shapes, the refusals and
+the row structure (the values depend on the clock, the grammar does not).
+
 ## App rows and Exec field codes
 
 An app row launches the entry, never a bare `app.launch([])`: the row builds a
