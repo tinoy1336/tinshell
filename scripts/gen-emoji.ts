@@ -13,13 +13,19 @@
  * every tone buries the base entry. The `Component` group goes with them — it
  * holds the modifiers themselves.
  *
- * Keywords are DERIVED, never curated: the name's own words plus the tokens of
- * the CLDR subgroup label (subgroup `book-paper` gives 📚 the keywords `book`
- * and `paper`, which the name `books` alone does not).
+ * Keywords are DERIVED, never curated: the name's own words, the tokens of the
+ * CLDR subgroup label (subgroup `book-paper` gives 📚 the keywords `book` and
+ * `paper`, which the name `books` alone does not), and — when a CLDR annotations
+ * file is supplied — that locale's own keyword set for the glyph (`--annotations`).
+ * The annotations are what make `hello` reach 👋 and `party` reach 🎉: the names
+ * say "waving hand" and "party popper", while CLDR's keyword data is what every
+ * picker users compare against is built on.
  *
  * Usage:
  *   node --experimental-strip-types scripts/gen-emoji.ts --source <path|url>
  *     regenerate common/emoji/data.ts from that emoji-test.txt
+ *   ... --annotations <path|url>
+ *     merge the CLDR annotations for one locale into the keywords
  *   node --experimental-strip-types scripts/gen-emoji.ts --check --source <path|url>
  *     verify the committed table still matches that source (exit 1 when stale)
  *
@@ -86,7 +92,25 @@ function tokens(text: string): string[] {
     .filter((t) => t.length > 0 && !FILLERS.has(t))
 }
 
-function parse(source: string): Generated {
+/**
+ * CLDR annotations: `<annotation cp="👋">bye | hand | hello | hi | wave</annotation>`
+ * (the `type="tts"` line is the spoken name and is skipped). Annotations are
+ * keyed by the GLYPH, not by a codepoint attribute, so they join the table by
+ * the character itself.
+ */
+function annotations(source: string): Map<string, string[]> {
+  const out = new Map<string, string[]>()
+  const line = /<annotation cp="([^"]+)"(?: type="tts")?>([^<]*)<\/annotation>/g
+  for (const m of source.matchAll(line)) {
+    const [, glyph, body] = m
+    if (!body || m[0].includes('type="tts"')) continue
+    const words = tokens(body)
+    if (words.length) out.set(glyph, words)
+  }
+  return out
+}
+
+function parse(source: string, annotated: Map<string, string[]> = new Map()): Generated {
   const lines = source.split("\n")
   const versionLine = lines.find((l) => l.startsWith("# Version:"))
   if (!versionLine) throw new Error("no '# Version:' line — is this emoji-test.txt?")
@@ -117,7 +141,8 @@ function parse(source: string): Generated {
     if (!keepable(codepoints)) continue
 
     const keywords: string[] = []
-    for (const token of [...tokens(name), ...tokens(subgroup)]) {
+    const names = [...tokens(name), ...tokens(subgroup), ...(annotated.get(glyph) ?? [])]
+    for (const token of names) {
       if (!keywords.includes(token)) keywords.push(token)
     }
     entries.push({ glyph, name, keywords })
@@ -190,7 +215,17 @@ async function main(): Promise<void> {
     ? await (await fetch(source)).text()
     : readFileSync(source, "utf8")
 
-  const generated = parse(text)
+  const annAt = args.indexOf("--annotations")
+  const annPath = annAt === -1 ? null : args[annAt + 1]
+  const annotated = annPath
+    ? annotations(
+        /^https?:/.test(annPath)
+          ? await (await fetch(annPath)).text()
+          : readFileSync(annPath, "utf8"),
+      )
+    : new Map<string, string[]>()
+
+  const generated = parse(text, annotated)
 
   if (check) {
     const current = await committed()

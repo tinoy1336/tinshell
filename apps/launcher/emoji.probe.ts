@@ -14,6 +14,8 @@
  *   ags bundle --gtk 4 apps/launcher/emoji.probe.ts /tmp/emoji-probe.sh
  *   bash /tmp/emoji-probe.sh
  */
+
+import { searchEntries } from "@common/emoji/search"
 import { EMOJI_ROW_PITCH, emojiGridHeight, emojiScrollTop } from "./emoji"
 
 const checks: [string, unknown, unknown][] = []
@@ -32,6 +34,22 @@ check("the grid never scrolls past its last row", emojiScrollTop(23, 24, 1, 3, 0
 // ── the grid's visible area and the pitch it is counted in ──
 check("the grid keeps its height for 3 visible rows", emojiGridHeight(3), 3 * EMOJI_ROW_PITCH)
 check("the pitch is a plausible glyph row", EMOJI_ROW_PITCH > 20 && EMOJI_ROW_PITCH < 80, true)
+
+// ── the query layer: what the ranking must answer first ──
+// The table's own contents are the generator's business (scripts/gen-emoji.ts);
+// these pin the ORDER the picker shows, which is what a user reports as broken.
+const first = (q: string) => searchEntries(q, 60)[0]?.glyph
+check("a name answers its own query first", first("book"), "📚")
+check("a CLDR keyword answers the greeting", first("hello"), "👋")
+check("an exact keyword beats a longer name", first("thanks"), "🙏")
+check("a colon-wrapped query searches the same term", first(":cat:"), first("cat"))
+check("an empty query matches nothing", searchEntries("", 10).length, 0)
+check("a query with no match returns nothing", searchEntries("qxzjv", 10).length, 0)
+check(
+  "a scattered subsequence is not a match",
+  searchEntries("book", 60).some((e) => e.glyph === "🍾"),
+  false,
+)
 
 const failed = checks.filter(([, a, e]) => JSON.stringify(a) !== JSON.stringify(e))
 for (const [name, actual, expected] of checks) {

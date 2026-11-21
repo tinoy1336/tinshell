@@ -22,11 +22,14 @@
 
 /**
  * Score `text` against `query` (case-insensitive subsequence). Returns 0 when
- * query is not a subsequence of text, or a positive score otherwise. Bonuses:
- *  - prefix (query at text start): +100
- *  - contiguous matched run: per-char increasing bonus
- *  - word-boundary start (after space/sep): +15
- *  - earlier matches score higher than late ones
+ * query is not a subsequence of text, or a positive score otherwise.
+ *
+ * The score is TIERED (see TIER_* below), because the picker's feel comes from
+ * the kind of match, not from arithmetic on its position: the entry the query
+ * names outranks the entry that merely contains it at a word start, which
+ * outranks one that contains it mid-word, which outranks one that only spells
+ * the query out as a subsequence. Within a tier, an earlier match and a shorter
+ * text rank higher.
  *
  * CONTIGUITY GATE: a subsequence is a match only when its characters are
  * mostly contiguous AND it starts where a word starts. Without it any short
@@ -39,19 +42,44 @@
  * begins at a word boundary; a one- or two-character query is exempt from the
  * run rule, because any abbreviation that short is one run by construction.
  */
+/**
+ * Match-quality tiers. A whole-text match beats a prefix, a prefix beats a
+ * match at a word start, a word start beats one inside a word, and anything
+ * with the query as a literal substring beats a subsequence spelling it out.
+ * The gaps between tiers are large enough that position and length can only
+ * reorder WITHIN a tier.
+ */
+const TIER_EXACT = 4000
+const TIER_PREFIX = 3000
+const TIER_WORD = 2200
+const TIER_INSIDE = 1200
+const TIER_FUZZY = 500
+
 export function fuzzyScore(query: string, text: string): number {
   if (!query) return 0
   const q = query.toLowerCase()
   const t = text.toLowerCase()
   if (!t.includes(q[0])) return 0
 
-  // Fast path: exact substring (after case-fold) — strong signal.
-  if (t.includes(q)) {
-    const idx = t.indexOf(q)
-    return 200 - idx + (idx === 0 ? 100 : 0) + (idx > 0 && /[\s\-_.]/.test(t[idx - 1]) ? 30 : 0)
+  // ── Tiered scoring ──
+  // The tiers are what make a picker feel right: the entry the query NAMES
+  // outranks the entry it merely contains, which outranks the one it merely
+  // spells out as a subsequence. Each tier is separated by far more than the
+  // within-tier variations (position and length), so no amount of position luck
+  // lifts a weaker KIND of match over a stronger one.
+  const lengthPenalty = Math.min(200, Math.max(0, t.length - q.length) * 2)
+
+  if (t === q) return TIER_EXACT
+
+  const idx = t.indexOf(q)
+  if (idx >= 0) {
+    if (idx === 0) return TIER_PREFIX - lengthPenalty
+    if (/[\s\-_.:/(]/.test(t[idx - 1])) return TIER_WORD - lengthPenalty - Math.min(100, idx)
+    return TIER_INSIDE - lengthPenalty - Math.min(100, idx)
   }
 
-  // Subsequence walk.
+  // Subsequence walk — only for abbreviations and typos, and only past the
+  // contiguity gate below.
   let score = 0
   let qi = 0
   let prevMatchIdx = -2 // tracks contiguity
@@ -85,9 +113,10 @@ export function fuzzyScore(query: string, text: string): number {
   // long enough for the question to mean anything — a run of more than half.
   if (firstMatchIdx > 0 && !/[\s\-_.:/]/.test(t[firstMatchIdx - 1])) return 0
   if (q.length >= 3 && bestRun * 2 <= q.length) return 0
-  // penalty for length difference (prefer terse matches)
+  // penalty for length difference (prefer terse matches), then the tier floor
+  // keeps every subsequence hit UNDER a real substring match
   score -= Math.max(0, t.length - q.length) * 0.5
-  return Math.max(0, Math.round(score))
+  return Math.min(TIER_FUZZY, Math.max(1, Math.round(score)))
 }
 
 interface Scored<T> {
