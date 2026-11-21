@@ -49,6 +49,16 @@ check(
   true,
 )
 check("an early hit beats a late one", fuzzyScore("ab", "ab") > fuzzyScore("ab", "zab"), true)
+
+// ── the contiguity gate: characters sprinkled through a long text are not a match ──
+check(
+  "a scattered match over a long span scores 0",
+  fuzzyScore("book", "bottle with popping cork"),
+  0,
+)
+check("a scattered flag match scores 0", fuzzyScore("lamp", "flag: Sao Tome & Principe"), 0)
+check("a one-gap abbreviation still matches", fuzzyScore("sml", "smile") > 0, true)
+check("a two-gap abbreviation still matches", fuzzyScore("fx", "firefox") > 0, true)
 check("matching is case-insensitive", fuzzyScore("FIRE", "firefox"), fuzzyScore("fire", "firefox"))
 check(
   "matching is case-insensitive on the text side",

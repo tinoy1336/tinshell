@@ -27,6 +27,17 @@
  *  - contiguous matched run: per-char increasing bonus
  *  - word-boundary start (after space/sep): +15
  *  - earlier matches score higher than late ones
+ *
+ * CONTIGUITY GATE: a subsequence is a match only when its characters are
+ * mostly contiguous AND it starts where a word starts. Without it any short
+ * query is a subsequence of a large share of the corpus — `book` matches
+ * "bottle with popping cork" (its `oo` run lives inside "popping"), `lamp`
+ * matches flags (its `la` run lives inside "flag"), `laugh` matches "leftwards
+ * pushing hand" — and those hits score high enough to crowd the entries the
+ * query actually names. A real fuzzy match is mostly contiguous with a gap or
+ * two (`smil`+`e` against "smiling face" keeps a four-character run) and it
+ * begins at a word boundary; a one- or two-character query is exempt from the
+ * run rule, because any abbreviation that short is one run by construction.
  */
 export function fuzzyScore(query: string, text: string): number {
   if (!query) return 0
@@ -45,8 +56,11 @@ export function fuzzyScore(query: string, text: string): number {
   let qi = 0
   let prevMatchIdx = -2 // tracks contiguity
   let runLen = 0
+  let bestRun = 0
+  let firstMatchIdx = -1
   for (let ti = 0; ti < t.length && qi < q.length; ti++) {
     if (t[ti] === q[qi]) {
+      if (firstMatchIdx < 0) firstMatchIdx = ti
       // prefix bonus
       if (qi === 0 && ti === 0) score += 100
       // word-boundary bonus (previous char is separator)
@@ -56,9 +70,10 @@ export function fuzzyScore(query: string, text: string): number {
         runLen++
         score += 10 + runLen * 4
       } else {
-        runLen = 0
+        runLen = 1
         score += 5
       }
+      if (runLen > bestRun) bestRun = runLen
       // early-match bonus: earlier chars are worth more
       score += Math.max(0, 8 - ti)
       prevMatchIdx = ti
@@ -66,6 +81,10 @@ export function fuzzyScore(query: string, text: string): number {
     }
   }
   if (qi < q.length) return 0 // not a full subsequence
+  // Contiguity gate (see the header): a word-start anchor, and — for a query
+  // long enough for the question to mean anything — a run of more than half.
+  if (firstMatchIdx > 0 && !/[\s\-_.:/]/.test(t[firstMatchIdx - 1])) return 0
+  if (q.length >= 3 && bestRun * 2 <= q.length) return 0
   // penalty for length difference (prefer terse matches)
   score -= Math.max(0, t.length - q.length) * 0.5
   return Math.max(0, Math.round(score))
