@@ -178,6 +178,9 @@ export interface ColourInfo {
 const HEX_RE = /^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i
 const RGB_RE =
   /^rgba?\(\s*([0-9]{1,3})\s*[, ]\s*([0-9]{1,3})\s*[, ]\s*([0-9]{1,3})\s*(?:[,/]\s*([0-9.]+%?)\s*)?\)$/i
+/** A bare channel triplet — `255,255,255`, `52 152 219`, with an optional
+ *  fourth channel. Tools print colours in this form constantly. */
+const TRIPLET_RE = /^(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})(?:\s*[,/]\s*([0-9.]+%?))?$/
 
 function clampByte(n: number): number {
   return Math.max(0, Math.min(255, Math.round(n)))
@@ -246,7 +249,7 @@ export function parseColour(input: string): ColourInfo | null {
       if (digits.length === 8) a = parseInt(digits.slice(6, 8), 16) / 255
     }
   } else {
-    const m = RGB_RE.exec(text)
+    const m = RGB_RE.exec(text) ?? TRIPLET_RE.exec(text)
     if (!m) return null
     r = Number(m[1])
     g = Number(m[2])
@@ -775,8 +778,9 @@ export function shapeRows(input: string): { title: string; description: string; 
   if (!text) return []
 
   // A colour code is claimed only when it is SPELLED as one (`#rgb`, `#rrggbb`,
-  // `rgb(...)`) — a bare `fff` is a word search, not a colour.
-  if (text.startsWith("#") || /^rgba?\(/i.test(text)) {
+  // `rgb(...)`, or a channel triplet) — a bare `fff` is a word search, not a
+  // colour.
+  if (text.startsWith("#") || /^rgba?\(/i.test(text) || TRIPLET_RE.test(text)) {
     const colour = parseColour(text)
     if (colour) {
       const copy = colour.a < 1 ? colour.hexAlpha : colour.hex

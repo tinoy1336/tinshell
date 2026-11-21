@@ -5,7 +5,8 @@
  *   <time> <from> (to|in|→|->) <to>   e.g. "9pm utc to est", "21:00 jst to utc"
  *   now [<from>] (to|in|→|->) <to>    e.g. "now to pst" (local tz), "now utc to pst"
  *
- * Time tokens: "9pm", "9:30 pm", "21:00" (24h), "now". Zone tokens:
+ * Time tokens: "9pm", "9:30 pm", "21:00" (24h), "now", and the named
+ * wall-clock words "noon" and "midnight". Zone tokens:
  *   - abbreviations: est/edt, pst/pdt, cet/cest, ist, jst, bst, ... (~30)
  *   - US colloquial names: "eastern", "central", "mountain", "pacific", ...
  *   - country/region names: "china time", "kerala", "uk", "south africa", ...
@@ -647,6 +648,28 @@ function parseTimeQuery(q: string): Parsed | null {
     const from = m[1] ? resolveZoneInfo(m[1]) : null
     if (m[1] && !from) return null
     return { date: new Date(), from, to }
+  }
+
+  // <named time> <from> sep <to> — noon and midnight are wall-clock times a
+  // user names instead of types; both are what the numeric branch below would
+  // build from 12:00 and 00:00.
+  m = s.match(/^(noon|midnight)\s+(.+?)\s+(?:to|in|→|->)\s+(.+)$/i)
+  if (m) {
+    const from = resolveZoneInfo(m[2] ?? "")
+    const to = resolveZoneInfo(m[3] ?? "")
+    if (!from || !to) return null
+    const h = m[1].toLowerCase() === "noon" ? 12 : 0
+    const now = new Date()
+    const y = now.getFullYear()
+    const mo = now.getMonth()
+    const d = now.getDate()
+    const date =
+      from === LOCAL
+        ? new Date(y, mo, d, h, 0)
+        : from.offset === undefined
+          ? zonedWallToUtc(from.zone, y, mo, d, h, 0)
+          : new Date(Date.UTC(y, mo, d, h, 0) - from.offset)
+    return { date, from, to }
   }
 
   // <time> <from> sep <to>

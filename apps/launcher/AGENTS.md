@@ -205,7 +205,8 @@ subcommand list.
 
 `shapeRows(input)` in `sources/text-tools.ts` is the pure side of a BARE typed
 query that names a value rather than a word: a colour code spelled as one
-(`#ff0000`, `rgb(…)`), a JWT (three dot-separated segments whose first two
+(`#ff0000`, `rgb(…)`, or a bare channel triplet `255,255,255` / `52 152 219`),
+a JWT (three dot-separated segments whose first two
 decode to JSON objects — the decode is the test) and an IPv4 address or CIDR
 block (scope, integer/hex/binary, network/broadcast/mask/host count). It returns
 `{title, description, copy}` rows and is asserted by `text-tools.probe.ts`;
@@ -1282,4 +1283,24 @@ click-outside (Graphene bounds) / focus-loss — all via
   with exit 0 and an empty stderr. The answer is compared against what qalc
   makes of the same query with LESS of it (the source alone, and a compound
   target reduced to its first factor) and the row is dropped when they match,
-  so a half-read query shows no row instead of the source quantity back.
+  so a half-read query shows no row instead of the source quantity back. The
+  probes behind that comparison run with `-s "autoconversion 0"`: with qalc's
+  default a bare amount is converted to the local currency on its own, so
+  `10 usd` and `10 usd to cad` printed the same line and every real currency
+  conversion read as an ignored target.
+- **The query grammar accepts the shapes people type.** Amounts may be grouped
+  (`1,250.50`) or written in exponent form (`2.5e3`) — the grouping commas are
+  stripped before qalc sees them, because qalc reads `1,250` as a two-element
+  vector. A conversion may put the amount first (`10 usd to cad`) or the unit
+  first (`USD 10 to CAD`), and the separator is case-insensitive: qalc reads a
+  capitalised `To` as a unit of its own, so `10 Usd To Cad` used to answer
+  `5.787178702 TB·€²`. A bare pair (`usd to cad`) answers with the per-unit
+  rate, and a bare amount in a currency (`5 usd`) answers in the local one.
+  Spelled-out currency names (`dollars`, `euros`, `yen`, `francs`, …) become
+  their codes first — qalc decomposes `dollars` into base units otherwise —
+  while `pound` deliberately stays out of that table, because `10 pounds to kg`
+  is a weight.
+- **An answer that is not an answer is dropped.** A conversion whose result is
+  a compound unit the question never named is qalc decomposing a word it does
+  not know (`you to cat` → `B·t`), and an expression qalc could not finish comes
+  back echoed unchanged (`1/0` → `1 / 0`); both are rejected instead of shown.

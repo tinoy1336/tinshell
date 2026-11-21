@@ -46,7 +46,7 @@ import { log } from "./log"
 import { search as appsSearch } from "./sources/apps"
 import { cancelPreviews } from "./sources/bang-preview-fetch"
 import { bangs as bangsEval } from "./sources/bangs"
-import { calc as calcEval, unitRows } from "./sources/calc"
+import { calc as calcEval, looksLikeMonetaryAmount, looksLikeRate, unitRows } from "./sources/calc"
 import { paths as pathsEval } from "./sources/paths"
 import { shapeRows } from "./sources/text-tools"
 import { timeConvert } from "./sources/time"
@@ -101,12 +101,17 @@ function byPriority(list: Result[]): Result[] {
   return [...list].sort((a, b) => (PRIORITY[a.category] ?? 9) - (PRIORITY[b.category] ?? 9))
 }
 
+/** An amount the launcher accepts: grouped thousands, decimals, exponent form. */
+const AMOUNT = String.raw`[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?`
+
 /**
  * Does this query look like math? qalc happily "answers" arbitrary words
  * ("you" → 1E−24 B·u, "cat" → 10 ma·t) by treating them as units/variables,
  * so exit-code guarding isn't enough. Gate implicit calc on a real math
  * shape: starts with a digit/sign and contains an operator, or is a function
- * call (sqrt(...), sin, log), or a unit conversion ("<num> <unit> to ...").
+ * call (sqrt(...), sin, log), or is a unit conversion — `<amount> <unit> to
+ * <unit>`, the same with the amount after the unit (`USD 10 to CAD`), or a bare
+ * currency pair (`usd to cad`, which asks for the rate).
  */
 function looksLikeMath(q: string): boolean {
   const s = q.trim()
@@ -118,7 +123,14 @@ function looksLikeMath(q: string): boolean {
   // function call form: word(...)
   if (/^[a-z_]+\s*\(.*\)/i.test(s)) return true
   // unit conversion: "<number> <unit> (to|in|as) <unit>"
-  if (/^[0-9.\s]+\S+\s+(to|in|as)\s+\S+/i.test(s)) return true
+  if (new RegExp(`^${AMOUNT}\\s*\\S+\\s+(to|in|as)\\s+\\S+`, "i").test(s)) return true
+  // the same with the amount after the unit: "USD 10 to CAD"
+  if (new RegExp(`^\\S+\\s+${AMOUNT}\\s+(to|in|as)\\s+\\S+`, "i").test(s)) return true
+  // a bare currency pair, which asks for the rate ("usd to cad") — the same
+  // predicate that answers it decides whether the gate lets it through
+  if (looksLikeRate(s)) return true
+  // a bare amount in a currency ("5 usd"): qalc converts it to the local one
+  if (looksLikeMonetaryAmount(s)) return true
   return false
 }
 

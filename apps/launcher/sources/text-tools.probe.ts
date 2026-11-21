@@ -157,6 +157,9 @@ check("jsonSize of a scalar is 0", jsonSize(42), 0)
   check("parseColour rejects a word", parseColour("tealish"), null)
   check("parseColour rejects a 5-digit hex", parseColour("#12345"), null)
   check("parseColour rejects an out-of-range channel", parseColour("rgb(300,0,0)"), null)
+  check("parseColour reads a bare channel triplet", parseColour("52, 152, 219")?.hex, "#3498DB")
+  check("parseColour reads a space-separated triplet", parseColour("52 152 219")?.hex, "#3498DB")
+  check("parseColour rejects a triplet over 255", parseColour("255,256,10"), null)
   check("parseColour rejects an empty string", parseColour("   "), null)
 }
 
