@@ -34,8 +34,13 @@ corrode trust faster than missing ones.
 
 - **viewer** — a still rendered inline: `common/media/decode`'s
   `loadStill(path)` decodes the file straight into a `Gdk.Texture` the
-  `Gtk.Picture` binds. No GStreamer pipeline, no MPRIS, no transport. Animated
-  GIF/WebP show their first frame.
+  `Gtk.Picture` binds. No GStreamer pipeline, no MPRIS, no transport. An
+  animated GIF/WebP keeps its motion here: `common/media/animated`'s
+  `createAnimatedPlayer` decodes the frames through GdkPixbuf and hands each one
+  to the same picture as its paintable, so zoom, pan and the window chrome are
+  unchanged, and the clock stops when the file changes, the mode switches or the
+  window closes. `media debug viewer` reports `{mode, path, frames}` — the
+  headless read of whether an animation is actually advancing.
 - **transport** — audio/video played by this window's own GStreamer
   `playbin3` pipeline: `createMediaPipeline()` in `common/media/pipeline.ts`
   (the shared media layer) returns a self-contained instance (pipeline +

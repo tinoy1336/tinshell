@@ -86,7 +86,8 @@ import { scheduleUnload } from "@common/app/lazy"
 import { createCardFrame } from "@common/card/frame"
 import { listDirChildren } from "@common/fs/files"
 import { ignore, log } from "@common/log/logger"
-import { isStillImage } from "@common/media/classify"
+import { type AnimatedPlayer, createAnimatedPlayer } from "@common/media/animated"
+import { isStillImage, mediaKind } from "@common/media/classify"
 import { loadStill, surfaceFromTexture } from "@common/media/decode"
 import { NullIntrinsicPaintable } from "@common/media/paintable"
 import { createMediaPipeline } from "@common/media/pipeline"
@@ -133,6 +134,11 @@ export interface Surface {
   win: Gtk.Window
   media: MediaPipeline
   readonly mode: SurfaceMode
+  /** The file this surface shows (empty before any load). */
+  readonly path: string
+  /** Frames the viewer's animation clock has painted (0 when none runs) —
+   *  the headless read of "is it animating?". */
+  animationFrames(): number
   /** Load `path` (focus path for `open`), switching mode by its kind. */
   load(path: string): void
   /** Load `path` WITH its folder ring — the explicit multi-file action. */
@@ -525,6 +531,7 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
   let index = -1
   let zoom: Zoom = "fit"
   let stillSrc: Gdk.Paintable | null = null
+  let animation: AnimatedPlayer | null = null
   let imgW = 0
   let imgH = 0
   let preloadTimer = 0
@@ -532,6 +539,30 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
   let editing = false
 
   // ── helpers (function declarations: the widget block below wires them) ──
+
+  /** Stop the viewer's animation clock, if one is running. */
+  function stopAnimation(): void {
+    animation?.stop()
+    animation = null
+  }
+
+  /** Play `target`'s frames into the viewer's picture. The player hands each
+   *  decoded frame over as the picture's paintable, so zoom, pan and the window
+   *  chrome keep working exactly as they do for a still. `imgW`/`imgH` stay
+   *  taken from the first frame, which is the animation's own size. */
+  function startAnimation(target: string): void {
+    const cap = zoom === 1 ? null : stillCap()
+    const maxPx = cap ? Math.max(cap.w, cap.h) : Number.POSITIVE_INFINITY
+    animation = createAnimatedPlayer(
+      target,
+      (frame) => {
+        stillSrc = frame
+        applyZoom()
+      },
+      maxPx,
+    )
+    animation?.start()
+  }
 
   function fmt(sec: number | null): string {
     if (sec === null || Number.isNaN(sec)) return "0:00"
@@ -740,6 +771,7 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
   function showStill(target: string): void {
     path = target
     zoom = "fit"
+    stopAnimation()
     try {
       applyStillTexture(target)
     } catch (e) {
@@ -749,6 +781,7 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
       log(`media: cannot display ${target}: ${String(e)}`)
     }
     applyZoom()
+    if (mediaKind(target) === "animated-image") startAnimation(target)
     schedulePreload()
   }
 
@@ -761,6 +794,10 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
   function enterMode(kind: SurfaceMode): void {
     const switched = kind !== mode
     mode = kind
+    // An animated still belongs to the viewer it was playing in: leaving the
+    // mode (or re-entering it through showStill) stops its clock first, so two
+    // animations can never run against one picture.
+    if (switched) stopAnimation()
     stack.set_visible_child_name(mode)
     footer.visible = mode === "viewer" && !empty
     if (switched) refreshActive()
@@ -1288,6 +1325,10 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
     get mode() {
       return mode
     },
+    get path() {
+      return path
+    },
+    animationFrames: () => animation?.frames() ?? 0,
     load,
     ring: (target: string) => loadRing(target),
     step,
@@ -1339,6 +1380,7 @@ function createSurface(initial: CreateSurfaceOptions = {}): Surface {
   // ── clean up on window close ──
   win.connect("close-request", () => {
     torn = true
+    stopAnimation()
     cancelPreload()
     unsub()
     pipeline.shutdown()

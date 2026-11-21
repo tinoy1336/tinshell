@@ -77,6 +77,15 @@ register(["media", "ping"], (_t, res) => {
   res("pong")
 })
 
+// The viewer's headless read: which file it shows, its mode, and how many
+// animation frames it has painted (0 when the still is not animated or its
+// clock is stopped). Metadata only — never the file's content.
+register(["media", "debug", "viewer"], (_t, res) => {
+  const s = activeViewer()
+  if (!s) return res(JSON.stringify({ error: "no viewer window" }))
+  res(JSON.stringify({ mode: s.mode, path: s.path, frames: s.animationFrames() }))
+})
+
 register(["media", "open"], (tokens, res) => {
   // open [path|url] — focus the most-recent window else create one. No path
   // → just focus/show (the ensure-open.sh warm path sends `open` to focus —
