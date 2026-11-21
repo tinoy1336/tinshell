@@ -24,7 +24,7 @@ import { registerConfigCommands } from "@common/commands/config-commands"
 import { register } from "@common/commands/registry"
 import { captureState } from "./capture"
 import { get, reloadConfig, set } from "./config"
-import { gifDebug } from "./Picker"
+import { gifDebug, pickerSelectionDebug } from "./Picker"
 import {
   all,
   type ClipboardEntry,
@@ -41,6 +41,7 @@ let control: {
   show: () => void
   hide: () => void
   focusSearch: () => void
+  refresh: () => void
 } | null = null
 
 export function setControl(c: typeof control): void {
@@ -135,23 +136,30 @@ register(["clipboard", "entry"], (tokens, res) => {
 register(["clipboard", "clear"], (tokens, res) => {
   if (rejectArgs(tokens, res, USAGE.clear)) return
   clear()
+  control?.refresh?.()
   res("ok")
 })
 
 register(["clipboard", "delete"], (tokens, res) => {
   if (tokens.length !== 1) return res(`error: ${USAGE.delete}`)
-  res(remove(tokens[0]) ? "ok" : "error: no such entry")
+  const ok = remove(tokens[0])
+  // The card may be open: a request that mutates the history must not leave
+  // rows for entries that no longer exist.
+  if (ok) control?.refresh?.()
+  res(ok ? "ok" : "error: no such entry")
 })
 
 register(["clipboard", "pin"], (tokens, res) => {
   if (tokens.length !== 1) return res(`error: ${USAGE.pin}`)
   if (!pinned().has(tokens[0])) togglePin(tokens[0])
+  control?.refresh?.()
   res("ok")
 })
 
 register(["clipboard", "unpin"], (tokens, res) => {
   if (tokens.length !== 1) return res(`error: ${USAGE.unpin}`)
   if (pinned().has(tokens[0])) togglePin(tokens[0])
+  control?.refresh?.()
   res("ok")
 })
 
@@ -171,6 +179,7 @@ register(["clipboard", "debug"], (tokens, res) => {
       entries: all().length,
       pinned: [...pinned()].length,
       gif: gifDebug(),
+      selection: pickerSelectionDebug(),
     }),
   )
 })

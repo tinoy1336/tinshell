@@ -65,6 +65,9 @@ interface ClipboardControl {
   show(): void
   hide(): void
   focusSearch(): void
+  /** Rebuild the rows from the store (a request-path mutation while the card
+   *  is open must not leave it showing entries that no longer exist). */
+  refresh(): void
 }
 
 /** The control surface, set while Picker() builds its window; mount.ts hands
@@ -84,6 +87,14 @@ export function gifDebug(): { id: string; running: boolean; frames: number }[] {
     running: player.isRunning(),
     frames: player.frames(),
   }))
+}
+
+/** Diagnostic: the selection the picker currently holds. `clipboard debug`
+ *  reads it, so "the list moved but nothing looked selected" can be checked
+ *  without a screenshot. */
+let selectionProbe: (() => { index: number; id: string | null }) | null = null
+export function pickerSelectionDebug(): { index: number; id: string | null } | null {
+  return selectionProbe ? selectionProbe() : null
 }
 
 const PIN_GLYPH = "\uf4d8" // pin glyph (nerd font)
@@ -132,9 +143,16 @@ export default function Picker() {
 
   const [rows, setRows] = createState<ClipboardEntry[]>([])
   const [selected, setSelected] = createState(0)
+  /** The selected row's ENTRY ID — what the highlight is keyed on. */
+  const [selectedId, setSelectedId] = createState<string | null>(null)
   // Pinned ids cached per refresh — pinned() reads pinned.json per call; per-
   // row calls in the render path would hit the disk N× per frame.
   const [pinnedIds, setPinnedIds] = createState<Set<string>>(new Set())
+
+  selectionProbe = () => ({
+    index: selected.peek(),
+    id: selectedId.peek(),
+  })
 
   /** Rebuild the rows from the store. `preferred` is the row position the
    *  caller wants selected afterwards (deleting a row passes the position that
@@ -153,8 +171,14 @@ export default function Picker() {
     // Read the selection BEFORE the setter below: the re-set is what
     // invalidates the row highlight, so the target must be decided first.
     const target = preferred ?? selected.peek()
+    const clamped = next.length === 0 ? -1 : Math.min(Math.max(target, 0), next.length - 1)
     setSelected(-1)
-    setSelected(next.length === 0 ? -1 : Math.min(Math.max(target, 0), next.length - 1))
+    setSelected(clamped)
+    // The highlight follows the SELECTED ENTRY, not its position: a deletion
+    // leaves the index unchanged while naming a different entry, so an
+    // index-keyed highlight would not recompute (the value never changed) and
+    // the row that took the deleted one's place would render unselected.
+    setSelectedId(clamped >= 0 ? (next[clamped]?.id ?? null) : null)
     setRows(next)
     GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
       sizeToContent()
@@ -247,6 +271,7 @@ export default function Picker() {
     const n = rows.peek().length
     if (n === 0) return
     setSelected((cur) => (cur + delta + n) % n)
+    setSelectedId(rows.peek()[selected.peek()]?.id ?? null)
   }
 
   function sizeToContent(): void {
@@ -337,10 +362,10 @@ export default function Picker() {
     }
   }
 
-  function rowClass(index: Accessor<number>): Accessor<string> {
-    // Reads BOTH selected and index reactively (launcher pattern) so a row's
-    // highlight recomputes when the selected index or the row position moves.
-    return selected((s) => (s === index.peek() ? "row selected" : "row"))
+  function rowClass(r: ClipboardEntry): Accessor<string> {
+    // Keyed on the ENTRY, so a delete that leaves the index unchanged still
+    // moves the highlight to the row that took the removed one's place.
+    return selectedId((id) => (id === r.id ? "row selected" : "row"))
   }
 
   // ONE animation clock for the list: the selected row's player runs, every
@@ -376,6 +401,7 @@ export default function Picker() {
           show,
           hide,
           focusSearch: () => entry?.grab_focus_without_selecting(),
+          refresh: () => refreshRows(),
         }
         self.connect("realize", () => {
           self.get_surface?.()?.set_opaque_region?.(null)
@@ -416,11 +442,13 @@ export default function Picker() {
               // installed @girs Entry typing omits the signal (launcher ships
               // a TS error for the same prop; connect is type-safe).
               ref.connect("changed", () => {
-                setSelected(0)
                 const all = storeAll()
                 const p = pinned()
                 setPinnedIds(p)
-                setRows(computeRows(ref.get_text(), all, p))
+                const next = computeRows(ref.get_text(), all, p)
+                setSelected(0)
+                setSelectedId(next[0]?.id ?? null)
+                setRows(next)
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                   sizeToContent()
                   return GLib.SOURCE_REMOVE
@@ -452,13 +480,14 @@ export default function Picker() {
             <For each={rows} id={(r: ClipboardEntry) => r.id}>
               {(r: ClipboardEntry, index: any) => (
                 <box
-                  class={rowClass(index)}
+                  class={rowClass(r)}
                   spacing={10}
                   orientation={Gtk.Orientation.HORIZONTAL}
                   $={(self: Gtk.Box) => {
                     const rowClick = new Gtk.GestureClick()
                     rowClick.connect("pressed", (_c: any, n: number, px: number, py: number) => {
                       setSelected(index.peek())
+                      setSelectedId(r.id)
                       // A press that landed on one of the row's control buttons
                       // belongs to that control: each carries its own click
                       // handler, and this one hides the card on press, which
