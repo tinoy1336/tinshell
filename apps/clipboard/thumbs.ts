@@ -42,13 +42,13 @@ function hasThumb(id: string): boolean {
 /** Build the cached thumbnail for `id` if it is missing; true when a thumbnail
  *  exists afterwards. Sync by design — callers are the capture path (a one-off
  *  ~120 ms there is invisible) or the host's mount-time backfill. */
-export function ensureThumb(id: string): boolean {
+export function ensureThumb(id: string, ext: "png" | "gif" = "png"): boolean {
   const out = thumbPath(id)
   if (GLib.file_test(out, GLib.FileTest.IS_REGULAR)) return true
   if (attempted.has(id)) return false
   attempted.add(id)
   try {
-    const src = imagePath(id)
+    const src = imagePath(id, ext)
     if (!GLib.file_test(src, GLib.FileTest.IS_REGULAR)) return false
     const pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(src, THUMB_PX, THUMB_PX, true)
     const dir = GLib.path_get_dirname(out)
@@ -92,19 +92,22 @@ export function pruneThumbTextures(liveIds: Iterable<string>): void {
   for (const id of [...textures.keys()]) if (!live.has(id)) textures.delete(id)
 }
 
-/** Build the given ids' missing thumbnails in the background — one per idle
+/** Build the given entries' missing thumbnails in the background — one per idle
  *  tick, so a large legacy history never stalls the main loop for the whole
  *  batch — then report completion. Called once at mount by the host. */
-export function backfillThumbs(ids: string[], onDone?: () => void): void {
-  const missing = ids.filter((id) => !hasThumb(id))
+export function backfillThumbs(
+  items: { id: string; imageExt?: "png" | "gif" }[],
+  onDone?: () => void,
+): void {
+  const missing = items.filter((e) => !hasThumb(e.id))
   if (missing.length === 0) return
-  let i = 0
+  const i = 0
   const step = (): boolean => {
     if (i >= missing.length) {
       onDone?.()
       return GLib.SOURCE_REMOVE
     }
-    ensureThumb(missing[i++])
+    ensureThumb(missing[i].id, missing[i].imageExt ?? "png")
     return GLib.SOURCE_CONTINUE
   }
   GLib.idle_add(GLib.PRIORITY_LOW, step)

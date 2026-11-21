@@ -5,7 +5,8 @@
  *                    rebuilds the file; entries are small, ≤ clipboard.
  *                    maxEntries ≤ a few KB — sync writes, notes store.ts
  *                    precedent).
- *   img/<id>.png   — saved PNG for image entries.
+ *   img/<id>.png   — saved PNG for image entries (`.gif` when the copy was an
+ *                    animated GIF, which is kept as-is so it stays animated).
  *   thumbs/<id>.png — cached scaled PNG for image entries (see thumbs.ts).
  *   pinned.json    — JSON array of pinned entry ids.
  *
@@ -38,6 +39,9 @@ export interface ClipboardEntry {
   mime: "text" | "image"
   text?: string
   imagePath?: string
+  /** Image entries only: the blob's format. Absent on entries captured before
+   *  GIF support, which are all PNG. */
+  imageExt?: "png" | "gif"
   hash?: string
 }
 
@@ -168,9 +172,11 @@ export function newId(): string {
   return `${base}-${Math.floor(Math.random() * 0xffff).toString(36)}`
 }
 
-/** Absolute path of an image entry's PNG. */
-export function imagePath(id: string): string {
-  return GLib.build_filenamev([IMG_DIR, `${id}.png`])
+/** Absolute path of an image entry's blob; `png` unless the entry says
+ *  otherwise. An entry's own `imageExt` is part of its identity, so a GIF keeps
+ *  its bytes (and its animation) by being stored under `.gif`. */
+export function imagePath(id: string, ext: "png" | "gif" = "png"): string {
+  return GLib.build_filenamev([IMG_DIR, `${id}.${ext}`])
 }
 
 /** Absolute path of an image entry's cached thumbnail (built by thumbs.ts). */
@@ -187,7 +193,7 @@ export function thumbPath(id: string): string {
 export function payloadSize(e: ClipboardEntry): number {
   if (e.mime === "text") return new TextEncoder().encode(e.text ?? "").length
   try {
-    const info = Gio.File.new_for_path(imagePath(e.id)).query_info(
+    const info = Gio.File.new_for_path(imagePath(e.id, e.imageExt ?? "png")).query_info(
       "standard::size",
       Gio.FileQueryInfoFlags.NONE,
       null,
@@ -198,17 +204,21 @@ export function payloadSize(e: ClipboardEntry): number {
   }
 }
 
-/** Save an image entry's PNG bytes to disk. */
-export function saveImage(id: string, bytes: Uint8Array): boolean {
-  return writeFileSync(imagePath(id), bytes)
+/** Save an image entry's bytes to disk, under the extension its format needs. */
+export function saveImage(id: string, bytes: Uint8Array, ext: "png" | "gif" = "png"): boolean {
+  return writeFileSync(imagePath(id, ext), bytes)
 }
 
 export function deleteImage(id: string): void {
-  try {
-    GLib.remove(imagePath(id))
-  } catch (e) {
-    // Already gone (or never written) — the orphan-image GC is idempotent.
-    ignore("clipboard image delete", e)
+  // Both extensions: the caller may not know the format (a duplicate's blob, a
+  // trim, a failed append), and removing a file that is not there is harmless.
+  for (const ext of ["png", "gif"] as const) {
+    try {
+      GLib.remove(imagePath(id, ext))
+    } catch (e) {
+      // Already gone (or never written) — the orphan-image GC is idempotent.
+      ignore("clipboard image delete", e)
+    }
   }
   deleteThumb(id)
 }
@@ -337,13 +347,14 @@ export function gcImages(): number {
   return sweepOrphans(IMG_DIR, ids) + sweepOrphans(THUMB_DIR, ids)
 }
 
-/** Delete every `<id>.png` in `dir` whose id has no entry. A missing dir
- *  (no thumbnails built yet) is not an error. */
+/** Delete every `<id>.png` / `<id>.gif` in `dir` whose id has no entry. A
+ *  missing dir (no thumbnails built yet) is not an error. */
 function sweepOrphans(dir: string, ids: Set<string>): number {
   let removed = 0
   for (const info of listDirChildren(dir, "standard::name")) {
     const name = info.get_name()
-    if (!name.endsWith(".png") || ids.has(name.slice(0, -4))) continue
+    const m = /^(.+)\.(?:png|gif)$/.exec(name)
+    if (!m || ids.has(m[1] ?? "")) continue
     try {
       Gio.File.new_for_path(GLib.build_filenamev([dir, name])).delete(null)
       removed++

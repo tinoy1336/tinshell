@@ -127,6 +127,7 @@ BUNDLED=(
   common/media/divider.probe.ts
   common/scroll.probe.ts
   apps/clipboard/style.probe.ts
+  apps/clipboard/capture.probe.ts
   apps/clipboard/store.probe.ts
   apps/clipboard/commands.probe.ts
   apps/clipboard/preview.probe.ts

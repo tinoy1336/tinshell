@@ -48,37 +48,120 @@ function reclaimText(text: string): void {
   }
 }
 
-/** Re-claim an image from its saved PNG bytes (new_for_texture does NOT
- *  exist in the installed GDK — its constructors are new_for_bytes +
- *  new_for_value only). */
-function reclaimImage(pngBytes: Uint8Array): void {
+/** Re-claim an image from its saved bytes (new_for_texture does NOT exist in
+ *  the installed GDK — its constructors are new_for_bytes + new_for_value
+ *  only), under the mime the bytes actually are. */
+function reclaimImage(bytes: Uint8Array, kind: "png" | "gif"): void {
   try {
-    const provider = Gdk.ContentProvider.new_for_bytes("image/png", pngBytes)
+    const provider = Gdk.ContentProvider.new_for_bytes(`image/${kind}`, bytes)
     clip?.set_content(provider)
   } catch (e) {
     log(`re-claim image failed: ${(e as Error).message}`)
   }
 }
 
-/** Probe + persist the current selection. Called once per watch line
- *  (i.e. once per selection change). Text first (common case), then image.
- *  Async chain — probeText → probeImage → done; busy-flag drops overlap. */
+/** One probe kind: the plain-text flavour, or an image format. */
+export type ProbeKind = "text" | "png" | "gif"
+
+/**
+ * The probe order a selection's offered flavours imply — pure, so the rule is
+ * testable without a clipboard.
+ *
+ * Text comes first, because a text copy is the common case and the text flavour
+ * is what the picker stores. The exception is an image that offers NO plain
+ * text: Firefox's "Copy Image" puts `image/png` (or `image/gif`) beside
+ * `text/html` carrying only an `<img>` tag, and reading that text first stores
+ * markup instead of the picture. A GIF is preferred over the PNG beside it: a
+ * PNG of an animation is its first frame, so only the GIF keeps the motion.
+ */
+export function probeOrder(types: string[]): ProbeKind[] {
+  const has = (mime: string) => types.some((t) => t === mime)
+  const image = types.some((t) => t.startsWith("image/"))
+  if (types.some((t) => t.startsWith("text/plain"))) return ["text", "gif", "png"]
+  if (has("image/gif")) return ["gif", "png", "text"]
+  if (image) return ["png", "text"]
+  return ["text"]
+}
+
+/** Probe + persist the current selection. Called once per watch line (i.e. once
+ *  per selection change). The offered flavours decide which probe runs first
+ *  (`probeOrder`); a probe that finds nothing hands over to the other, and the
+ *  busy flag drops overlapping probes. */
 function handleProbe(): void {
   if (!running || probeBusy) return
   probeBusy = true
-  probeText()
+  listTypes((types) => {
+    if (!running) {
+      probeBusy = false
+      return
+    }
+    const order = probeOrder(types)
+    const step = (i: number): void => {
+      if (!running || i >= order.length) {
+        probeBusy = false
+        return
+      }
+      const kind = order[i] ?? "text"
+      const capture =
+        kind === "text"
+          ? captureText
+          : (done: (captured: boolean) => void) => captureImage(kind, done)
+      capture((captured) => {
+        if (captured) probeBusy = false
+        else step(i + 1)
+      })
+    }
+    step(0)
+  })
 }
 
-function probeText(): void {
+/** The selection's offered types (`wl-paste --list-types`), bounded the same way
+ *  every other probe is. A failed listing reads as no flavours, which falls back
+ *  to the text-first order. */
+function listTypes(done: (types: string[]) => void): void {
+  let sub: Gio.Subprocess
+  try {
+    sub = Gio.Subprocess.new(
+      ["timeout", "1", "wl-paste", "--list-types"],
+      Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE,
+    )
+  } catch {
+    done([])
+    return
+  }
+  sub.communicate_utf8_async(null, null, (_s: unknown, res: any) => {
+    try {
+      const [ok, out] = sub.communicate_utf8_finish(res)
+      if (!ok || sub.get_exit_status() !== 0 || !out) {
+        done([])
+        return
+      }
+      done(
+        out
+          .split("\n")
+          .map((t) => t.trim())
+          .filter((t) => t.length > 0),
+      )
+    } catch {
+      done([])
+    }
+  })
+}
+
+function captureText(done: (captured: boolean) => void): void {
   const now = GLib.get_monotonic_time()
   let sub: Gio.Subprocess
   try {
+    // No `--type`: wl-paste picks the best text flavour the selection offers,
+    // which is what a plain text copy wants. The ORDER decides whether an
+    // image is preferred (`probeOrder`), so this call never sees the HTML-only
+    // image selection in the first place.
     sub = Gio.Subprocess.new(
       ["timeout", "1", "wl-paste"],
       Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE,
     )
   } catch {
-    probeBusy = false
+    done(false)
     return
   }
   sub.communicate_utf8_async(null, null, (_s: unknown, res: any) => {
@@ -99,7 +182,7 @@ function probeText(): void {
       const hash = contentHash(text)
       if (hash === lastOwnFingerprint) {
         lastEvent = { at: now, kind: "echo", note: "own re-claim" }
-        probeBusy = false
+        done(true)
         return
       }
       // Timestamp backstop (fingerprint-first, backstop only):
@@ -108,7 +191,7 @@ function probeText(): void {
       // window is skipped (Klipper-style consecutive-identical dedupe).
       if (now - lastOwnAt < 500_000) {
         lastEvent = { at: now, kind: "echo", note: "timestamp backstop" }
-        probeBusy = false
+        done(true)
         return
       }
       // Guard BEFORE set_content — the echo must not re-append.
@@ -124,29 +207,29 @@ function probeText(): void {
         kind: stored.deduped ? "text-dup" : "text",
         note: text.slice(0, 40),
       }
-      probeBusy = false
+      done(true)
       return
     }
 
-    probeImage()
+    done(false)
   })
 }
 
-function probeImage(): void {
+function captureImage(kind: "png" | "gif", done: (captured: boolean) => void): void {
   const now = GLib.get_monotonic_time()
   if (!getConfig("persistImages", true)) {
     lastEvent = { at: now, kind: "skipped", note: "persistImages=false" }
-    probeBusy = false
+    done(false)
     return
   }
   let sub: Gio.Subprocess
   try {
     sub = Gio.Subprocess.new(
-      ["timeout", "1", "wl-paste", "--type", "image/png"],
+      ["timeout", "1", "wl-paste", "--type", `image/${kind}`],
       Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE,
     )
   } catch {
-    probeBusy = false
+    done(false)
     return
   }
   sub.communicate_async(null, null, (_s2: unknown, res2: any) => {
@@ -164,12 +247,12 @@ function probeImage(): void {
     } catch {
       pngBytes = null
     }
-    probeBusy = false
 
     if (pngBytes) {
       const hash = contentHash(pngBytes)
       if (hash === lastOwnFingerprint) {
         lastEvent = { at: now, kind: "echo", note: "own re-claim (image)" }
+        done(true)
         return
       }
       if (now - lastOwnAt < 500_000) {
@@ -178,6 +261,7 @@ function probeImage(): void {
           kind: "echo",
           note: "timestamp backstop (image)",
         }
+        done(true)
         return
       }
       lastOwnAt = now
@@ -185,37 +269,42 @@ function probeImage(): void {
       const id = newId()
       // saveImage ensures img/ exists (store's mkdir_with_parents) — the
       // first image capture must not fail on a missing dir.
-      if (!saveImage(id, pngBytes)) {
+      if (!saveImage(id, pngBytes, kind)) {
         lastEvent = { at: now, kind: "error", note: "saveImage" }
+        done(false)
         return
       }
       const stored = append({
         id,
         ts: Date.now(),
         mime: "image",
-        imagePath: `img/${id}.png`,
+        imagePath: `img/${id}.${kind}`,
+        imageExt: kind,
         hash,
       })
       if (!stored.ok) {
         deleteImage(id) // JSONL is the source of truth — no entry, no file
         lastEvent = { at: now, kind: "error", note: "store append failed" }
+        done(false)
         return
       }
       // Build the picker's thumbnail here, off the open path: the picker would
       // otherwise decode this full PNG every time it is shown. On a duplicate
       // this is the surviving row's id — its thumbnail is already there, and a
       // row that somehow has none gets it now.
-      ensureThumb(stored.id)
-      reclaimImage(pngBytes)
+      ensureThumb(stored.id, kind)
+      reclaimImage(pngBytes, kind)
       lastEvent = {
         at: now,
         kind: stored.deduped ? "image-dup" : "image",
         note: stored.id,
       }
+      done(true)
       return
     }
 
     lastEvent = { at: now, kind: "skipped", note: "unsupported mime" }
+    done(false)
   })
 }
 

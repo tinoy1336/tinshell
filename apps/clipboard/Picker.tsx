@@ -19,8 +19,9 @@ import { glyphButton } from "@common/card/header"
 import { copy as copyText } from "@common/clipboard"
 import { dispatch } from "@common/commands/registry"
 import { ignore } from "@common/log/logger"
+import { type AnimatedPlayer, createAnimatedPlayer } from "@common/media/animated"
 import { bindEscape, bindFocusLoss } from "@common/window/popup-dismiss"
-import { type Accessor, createState, For } from "ags"
+import { type Accessor, createEffect, createState, For } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
 import { get as getConfig } from "./config"
 import { CLIPBOARD_PICKER_NAMESPACE } from "./identity"
@@ -39,6 +40,26 @@ import { pruneThumbTextures, thumbTexture } from "./thumbs"
 
 const { NONE } = Astal.WindowAnchor
 
+/** Live GIF players, by entry id. One per animated entry, started ONLY while
+ *  that row is selected: a list of ten GIFs must not decode ten animations at
+ *  once, and every other row paints the cached thumbnail. */
+const gifPlayers = new Map<string, AnimatedPlayer>()
+
+/** Stop every player (the card is hidden). */
+function pauseAnimatedPlayers(): void {
+  for (const player of gifPlayers.values()) player.stop()
+}
+
+/** Drop players for entries that are no longer in the list. */
+function pruneAnimatedPlayers(liveIds: Iterable<string>): void {
+  const live = new Set(liveIds)
+  for (const [id, player] of gifPlayers) {
+    if (live.has(id)) continue
+    player.stop()
+    gifPlayers.delete(id)
+  }
+}
+
 interface ClipboardControl {
   toggle(): void
   show(): void
@@ -52,6 +73,17 @@ let controlHandle: ClipboardControl | null = null
 
 export function pickerControl(): ClipboardControl | null {
   return controlHandle
+}
+
+/** Diagnostic: the GIF players the picker holds. Metadata only — which entry,
+ *  whether its clock runs, how many frames it has painted — so the animation
+ *  wiring is readable without a screenshot. */
+export function gifDebug(): { id: string; running: boolean; frames: number }[] {
+  return [...gifPlayers].map(([id, player]) => ({
+    id,
+    running: player.isRunning(),
+    frames: player.frames(),
+  }))
 }
 
 const PIN_GLYPH = "\uf4d8" // pin glyph (nerd font)
@@ -115,6 +147,7 @@ export default function Picker() {
     // delete, a clear, an eviction) drops its texture here, so the cache is
     // bounded by the entry cap rather than by everything ever shown.
     pruneThumbTextures(all.map((e) => e.id))
+    pruneAnimatedPlayers(all.map((e) => e.id))
     setPinnedIds(p)
     const next = computeRows(entry ? entry.get_text() : "", all, p)
     // Read the selection BEFORE the setter below: the re-set is what
@@ -163,7 +196,7 @@ export default function Picker() {
    *  spawned window loads. */
   function previewRow(e: ClipboardEntry): void {
     if (!e.imagePath) return
-    previewEntry(imagePath(e.id), { dispatch, log, hide })
+    previewEntry(imagePath(e.id, e.imageExt ?? "png"), { dispatch, log, hide })
   }
 
   /** Remove the row at `index` (its leading delete button, or the Delete key on
@@ -189,6 +222,7 @@ export default function Picker() {
   }
 
   function hide(): void {
+    pauseAnimatedPlayers()
     win.visible = false
   }
 
@@ -308,6 +342,21 @@ export default function Picker() {
     // highlight recomputes when the selected index or the row position moves.
     return selected((s) => (s === index.peek() ? "row selected" : "row"))
   }
+
+  // ONE animation clock for the list: the selected row's player runs, every
+  // other player stops. This lives at component scope because `selected` and
+  // `rows` are what change — a per-row effect would read its own index (which
+  // never moves) and `win.visible` (a plain property, not a signal), so it
+  // would never re-evaluate when the selection moved.
+  createEffect(() => {
+    const list = rows()
+    const sel = selected()
+    const id = list[sel]?.id ?? null
+    for (const [entryId, player] of gifPlayers) {
+      if (entryId === id) player.start()
+      else player.stop()
+    }
+  })
 
   return (
     <window
@@ -478,12 +527,22 @@ export default function Picker() {
                         class="thumb"
                         valign={Gtk.Align.CENTER}
                         $={(pic: Gtk.Picture) => {
-                          // Cached thumbnail only — decoding the entry's full PNG
-                          // here cost ~47 ms per image row on EVERY open (see
-                          // thumbs.ts). A missing thumbnail just renders empty;
-                          // the host backfills those at mount.
+                          // Cached thumbnail first — decoding the entry's full
+                          // image here cost ~47 ms per image row on EVERY open
+                          // (see thumbs.ts). A GIF row then swaps in its decoded
+                          // frames, and only while that row is selected: ten
+                          // animations must never play at once.
                           const tex = thumbTexture(r.id)
                           if (tex) pic.set_paintable(tex)
+                          if (r.imageExt !== "gif") return
+                          // Build (or reuse) the player; the component-level
+                          // effect decides when it runs.
+                          if (!gifPlayers.has(r.id)) {
+                            const built = createAnimatedPlayer(imagePath(r.id, "gif"), (frame) =>
+                              pic.set_paintable(frame),
+                            )
+                            if (built) gifPlayers.set(r.id, built)
+                          }
                         }}
                       />
                       <label

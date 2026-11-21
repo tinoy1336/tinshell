@@ -29,11 +29,7 @@ export function clipboardMount(): void {
   // Entries captured before the thumbnail cache existed have none: build them
   // in the background here, so the picker's first open is already fast (see
   // thumbs.ts for why the picker must never decode an entry's full PNG).
-  backfillThumbs(
-    all()
-      .filter((e) => e.mime === "image")
-      .map((e) => e.id),
-  )
+  backfillThumbs(all().filter((e) => e.mime === "image"))
   Picker()
   setControl(pickerControl())
 }

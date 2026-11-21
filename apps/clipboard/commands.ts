@@ -24,6 +24,7 @@ import { registerConfigCommands } from "@common/commands/config-commands"
 import { register } from "@common/commands/registry"
 import { captureState } from "./capture"
 import { get, reloadConfig, set } from "./config"
+import { gifDebug } from "./Picker"
 import {
   all,
   type ClipboardEntry,
@@ -128,7 +129,7 @@ register(["clipboard", "entry"], (tokens, res) => {
   // The ONLY payload path: one named entry, behind an explicit flag. A text
   // entry prints verbatim; an image entry answers its absolute PNG path — the
   // bytes are never printed.
-  res(e.mime === "text" ? (e.text ?? "") : imagePath(e.id))
+  res(e.mime === "text" ? (e.text ?? "") : imagePath(e.id, e.imageExt ?? "png"))
 })
 
 register(["clipboard", "clear"], (tokens, res) => {
@@ -169,6 +170,7 @@ register(["clipboard", "debug"], (tokens, res) => {
       ...state,
       entries: all().length,
       pinned: [...pinned()].length,
+      gif: gifDebug(),
     }),
   )
 })

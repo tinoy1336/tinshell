@@ -238,6 +238,22 @@ No quit hook (state is cliphist/config-persisted).
   backstop for a selection we set ourselves, fingerprint-first). A genuine
   re-copy inside that window is skipped; outside it the hash rule pops the
   existing row to the front.
+- **The offered flavours decide what a capture reads first** (`probeOrder`, in
+  capture.ts). Text stays first, because a text copy is the common case, but a
+  selection that offers an `image/*` and NO `text/plain` is read as the image.
+  That is the Firefox "Copy Image" selection: it offers `image/png` beside
+  `text/html` whose payload is only an `<img src=…>` tag, so a text-first read
+  stored markup instead of the picture. `capture.probe.ts` pins the rule.
+- **GIFs are stored and pasted as GIFs.** A selection offering `image/gif` is
+  read as the GIF, ahead of the `image/png` beside it — a PNG of an animation is
+  its first frame, so only the GIF keeps the motion. The entry carries
+  `imageExt: "gif"` and its blob is `img/<id>.gif`; the picker row plays it with
+  the shared `common/media/animated` player (`Gtk.MediaFile` is not usable — this
+  GTK build has no media-file backend and constructing one aborts the process)
+  ONLY while that row is selected, one clock for the whole list, and every other
+  row paints the cached 96 px thumbnail exactly as a still does; the paste
+  re-claims `image/gif`. The thumbnail is still built from the GIF's first frame,
+  so an unselected row costs the same as a still.
 - Pins survive `clipboard clear` by design (they are the point of pinning).
 - The picker's rows are a GTK4 app, so every `Gtk.Button` starts with the default
   theme's chrome: `button:hover` (border + background-image + box-shadow) and the
