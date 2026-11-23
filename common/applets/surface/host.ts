@@ -65,9 +65,10 @@ export interface AppletSurfaceHost {
   /** Apply the surface extent: the row-axis band length × the grow-axis band
    *  height (layout.pillHeight — the band hosts open panels). */
   setExtent: (row: number, grow: number) => void
-  /** Apply the row-axis band start within the host. The dock moves its
-   *  window's row-start margin; an embedded strip container centres itself
-   *  and no-ops. */
+  /** Apply the row-axis band start within the host. The dock writes the
+   *  margin of the edge its row axis is anchored to (the band start itself for
+   *  a centred or start-aligned dock, the config margin for a flush-end one);
+   *  an embedded strip container centres itself and no-ops. */
   setRowStart: (start: number) => void
   /** Apply the pointer input region (null = clear). Returns true when the
    *  region is handled — set on the surface, or deliberately not applicable

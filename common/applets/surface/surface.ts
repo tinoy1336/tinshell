@@ -356,9 +356,9 @@ export function createAppletSurface(opts: AppletSurfaceOptions): AppletSurface {
     repositionAll()
   }
 
-  /** Apply the band: one extent change + one row-axis start write + a full
-   *  reposition (the host is anchored at the row-start edge, so the extent
-   *  extends/shrinks in the reading-order direction). */
+  /** Apply the band: one extent change + one row-axis margin write + a full
+   *  reposition. The host writes the margin of the edge its row axis is
+   *  anchored to, so the extent changes alone move the band's other edge. */
   function applyBand(start: number, len: number): void {
     bandStart = start
     bandLen = len

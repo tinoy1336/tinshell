@@ -20,10 +20,16 @@
  *   rowAxis — the axis applets stack along: "x" for top/bottom (a horizontal
  *     row), "y" for left/right (a vertical column).
  *
- *   anchor — WindowAnchor flags. ALWAYS two perpendicular edges (grow-edge +
- *     row-start edge). Without the row-start anchor, the compositor centres
- *     every window on one point and they stack. Corner (start/end) changes
- *     only the offset BASE, never the anchor.
+ *   anchor — WindowAnchor flags. ALWAYS two perpendicular edges: the
+ *     grow-edge and the ROW-AXIS edge the band RESTS against — the row-start
+ *     edge (LEFT for a horizontal row, TOP for a vertical one) for a centred
+ *     or start-aligned dock, the row-end edge (RIGHT / BOTTOM) for an
+ *     end-aligned one. Without the row-anchor the compositor centres every
+ *     window on one point and they stack. The resting edge is the anchored
+ *     one because a layer surface's margin is applied by the compositor
+ *     immediately while its new size lands one commit later: a band START
+ *     that moves away from the anchored edge would carry the whole row off
+ *     the screen for that frame (`rowEndAnchored` below).
  *
  *   rowAlign — centre | start | end. Plain edges centre; corner variants flush.
  *
@@ -135,59 +141,68 @@ export function dockGeometry(position: string, config: AppletConfig): DockGeomet
   }
   const rowAlign = corner ?? "center"
   const A = Astal.WindowAnchor
+  // The row-axis edge the band rests against — see the module header. A
+  // centred dock rests on neither edge; its band shrinks symmetrically about
+  // the middle, so the start edge only ever skews the row inboard.
+  const rowAnchorX = rowAlign === "end" ? A.RIGHT : A.LEFT
+  const rowAnchorY = rowAlign === "end" ? A.BOTTOM : A.TOP
 
   let g: DockGeometry
   switch (primary) {
     case "bottom":
-      // grows UP (value-max at top). Row is horizontal (x). Anchor bottom + left.
+      // grows UP (value-max at top). Row is horizontal (x). Anchor bottom +
+      // the row-axis edge the band rests against.
       g = {
         position,
         rotation: 0,
         growDir: -1,
         rowAxis: "x",
         growAxis: "y",
-        anchor: A.BOTTOM | A.LEFT,
+        anchor: A.BOTTOM | rowAnchorX,
         rowAlign,
         margin,
       }
       break
     case "top":
-      // grows DOWN (value-max at bottom). Row horizontal. Anchor top + left.
+      // grows DOWN (value-max at bottom). Row horizontal. Anchor top + the
+      // resting row-axis edge.
       g = {
         position,
         rotation: 0,
         growDir: 1,
         rowAxis: "x",
         growAxis: "y",
-        anchor: A.TOP | A.LEFT,
+        anchor: A.TOP | rowAnchorX,
         rowAlign,
         margin,
       }
       break
     case "left":
-      // grows RIGHT (value-max at right). Row vertical (y). Anchor left + top.
-      // Rotation +90° so the vertical pill paint faces right.
+      // grows RIGHT (value-max at right). Row vertical (y). Anchor left + the
+      // resting row-axis edge. Rotation +90° so the vertical pill paint faces
+      // right.
       g = {
         position,
         rotation: 90,
         growDir: 1,
         rowAxis: "y",
         growAxis: "x",
-        anchor: A.LEFT | A.TOP,
+        anchor: A.LEFT | rowAnchorY,
         rowAlign,
         margin,
       }
       break
     case "right":
-      // grows LEFT (value-max at left/0). Row vertical. Anchor right + top.
-      // Rotation -90° so the vertical pill paint faces left.
+      // grows LEFT (value-max at left/0). Row vertical. Anchor right + the
+      // resting row-axis edge. Rotation -90° so the vertical pill paint faces
+      // left.
       g = {
         position,
         rotation: -90,
         growDir: -1,
         rowAxis: "y",
         growAxis: "x",
-        anchor: A.RIGHT | A.TOP,
+        anchor: A.RIGHT | rowAnchorY,
         rowAlign,
         margin,
       }
@@ -203,7 +218,7 @@ export function dockGeometry(position: string, config: AppletConfig): DockGeomet
         growDir: -1,
         rowAxis: "x",
         growAxis: "y",
-        anchor: A.BOTTOM | A.LEFT,
+        anchor: A.BOTTOM | rowAnchorX,
         rowAlign,
         margin,
       }
@@ -217,6 +232,15 @@ export function dockGeometry(position: string, config: AppletConfig): DockGeomet
     rowAlign: g.rowAlign,
   })
   return g
+}
+
+/** Is the row axis anchored at its END edge — the edge a flush-end dock's
+ *  band rests against (RIGHT for a horizontal row, BOTTOM for a vertical
+ *  one)? Such a window carries its row-axis position in that edge's margin,
+ *  so the band grows and shrinks without the window moving. */
+export function rowEndAnchored(dg: DockGeometry): boolean {
+  const end = dg.rowAxis === "x" ? Astal.WindowAnchor.RIGHT : Astal.WindowAnchor.BOTTOM
+  return (dg.anchor & end) !== 0
 }
 
 /** Per-applet offset along the row axis, measured from the row-start edge

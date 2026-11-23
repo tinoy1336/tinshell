@@ -21,12 +21,20 @@
  * pillHeight 140, a 434px band); the geometry itself comes from the real
  * dockGeometry, so the position table is never re-stated here.
  *
+ * It also pins the ANCHOR of every position. The row axis anchors the edge the
+ * band RESTS against — the row start for a centred or start-aligned dock, the
+ * row end for a flush-end one — because a layer surface's margin is applied a
+ * commit before its new size lands: with a row-start anchor under an
+ * end-aligned layout the band's start margin moves away from the screen edge
+ * at every shrink and carries the whole row off it for one frame.
+ *
  * Run:
  *   ags bundle --gtk 4 common/applets/utils/row-region.probe.ts /tmp/row-region-probe.sh
  *   bash /tmp/row-region-probe.sh     # exit 1 on any violated invariant
  */
 import type { AppletConfig } from "@common/applets/config"
-import { dockGeometry, POSITIONS } from "@common/applets/layout"
+import { dockGeometry, POSITIONS, rowEndAnchored } from "@common/applets/layout"
+import { Astal } from "ags/gtk4"
 import {
   bandCaptureShape,
   type CaptureAxes,
@@ -189,6 +197,33 @@ for (const pos of POSITIONS) {
     `${tag} the open panel covers the gap the closed icon leaves (grow mid ${panelMid.toFixed(1)})`,
     panel.contains(beyondPoint.x, beyondPoint.y),
   )
+
+  // ── The anchor: exactly the grow edge the pill grows from, plus the ROW
+  // edge the band rests against (its end for a flush-end dock, its start
+  // otherwise) — and never both edges of one axis. ──
+  const A = Astal.WindowAnchor
+  const has = (edge: number): boolean => (g.anchor & edge) !== 0
+  const rowStartEdge = vertical ? A.TOP : A.LEFT
+  const rowEndEdge = vertical ? A.BOTTOM : A.RIGHT
+  const wantRowEdge = g.rowAlign === "end" ? rowEndEdge : rowStartEdge
+  const wantGrowEdge = {
+    bottom: A.BOTTOM,
+    top: A.TOP,
+    left: A.LEFT,
+    right: A.RIGHT,
+  }[pos.split("-")[0]] as number
+  const oppositeRowEdge = wantRowEdge === rowEndEdge ? rowStartEdge : rowEndEdge
+  const oppositeGrowEdge =
+    g.growAxis === "y"
+      ? wantGrowEdge === A.BOTTOM
+        ? A.TOP
+        : A.BOTTOM
+      : wantGrowEdge === A.RIGHT
+        ? A.LEFT
+        : A.RIGHT
+  check(`${tag} row axis anchors its resting edge`, has(wantRowEdge) && !has(oppositeRowEdge))
+  check(`${tag} rowEndAnchored agrees with rowAlign`, rowEndAnchored(g) === (g.rowAlign === "end"))
+  check(`${tag} grow edge follows the position`, has(wantGrowEdge) && !has(oppositeGrowEdge))
 }
 
 console.log()
@@ -198,6 +233,6 @@ if (failures.length > 0) {
   imports.system.exit(1)
 }
 console.log(
-  `OK — band and panel boxes land on the right axes at every one of the ${POSITIONS.length} positions`,
+  `OK — band and panel boxes land on the right axes, and every anchor sits on the edge its band rests against, at all ${POSITIONS.length} positions`,
 )
 imports.system.exit(0)

@@ -48,7 +48,13 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   `surface.settle()` at every animation/session completion applies any pending
   shrink — never per frame (per-frame resize = compositor pointer re-eval =
   swallowed clicks). The row-axis margin (band start) animates with
-  centre-aligned re-centres. In MOVE MODE the band is FROZEN
+  centre-aligned re-centres. A flush-end dock carries its row position in the
+  END edge's margin instead, so the window never moves while the band shrinks:
+  a layer surface's margin is applied by the compositor a commit before its
+  new size lands, and a moving start margin on a row-start anchor took the
+  whole row off the screen for one frame at the end of every overflow
+  retraction (`rowEndAnchored` in `common/applets/layout`; the anchor of all
+  12 positions is pinned by `common/applets/utils/row-region.probe.ts`). In MOVE MODE the band is FROZEN
   (`collapseToSlot` sets it, `setBandFrozen(false)` on exit): the
   ghost-fading entries must not re-extend the band over the collapsed slot.
   Parked (`setHiddenState(true)`) icons LEAVE the Gtk.Fixed — a parked icon
@@ -105,10 +111,13 @@ substrate (the layer-shell band here vs the greeter's embedded strip).
   monitor), `redrawAllDocks`, debug accessors.
 - `DockSurface.tsx` — the dock's LAYER-SHELL SUBSTRATE for the shared renderer
   (`common/applets/surface`): creates the one layer window per monitor, applies
-  the extent (band × pillHeight), the grow-axis minimum and the row-start
-  margin, installs the capture region's rect union as the wl_surface input
-  region (the same geometry the shared router enforces — see the capture lock
-  above), fades the surface in on map and
+  the extent (band × pillHeight), the grow-axis minimum and the row-axis
+  margin — the margin of the edge the row axis is ANCHORED to: the band start
+  for a centred or start-aligned dock, the config margin for a flush-end one
+  (`rowEndAnchored`, `common/applets/layout`) — installs the capture region's
+  rect union as the wl_surface input region (the same geometry the shared
+  router enforces — see the capture lock above), fades the surface in on map
+  and
   feeds the window's pointer controllers into the shared router. It implements
   `AppletSurfaceHost` and nothing else — the rendering lives in common. The
   window is created `Astal.Keymode.NONE` (keyboard interactivity NONE): see the

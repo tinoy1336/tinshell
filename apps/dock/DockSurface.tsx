@@ -7,10 +7,10 @@
  * specifics. This file owns exactly what a layer-shell band does differently
  * from an embedded strip:
  *   - the ONE layer window per monitor (namespace/class `dock-pill`), anchored
- *     at the configured grow-edge + row-start edge;
+ *     at the configured grow-edge + the row-axis edge the band rests against;
  *   - the window's default size (band × pillHeight), its grow-axis minimum
  *     (GTK's natural-size shrink must never take the empty fixed below
- *     iconSize) and its row-start margin;
+ *     iconSize) and its row-axis margin;
  *   - the wl_surface: input region application (the renderer's discs +
  *     panel-stadium union), opaque-region clear and the explicit commit
  *     repaint;
@@ -22,6 +22,7 @@
  */
 
 import type { DockGeometry } from "@common/applets/layout"
+import { rowEndAnchored } from "@common/applets/layout"
 import type { AppletSurfaceHost } from "@common/applets/surface/host"
 import { connectSurfacePointer } from "@common/applets/surface/host"
 import { type AppletSurface, createAppletSurface } from "@common/applets/surface/surface"
@@ -31,18 +32,39 @@ import { config } from "./config"
 import { fadeIn } from "./fade"
 import { DOCK_PILL_NAMESPACE } from "./identity"
 
-/** Apply the band start: the row-axis margin of the anchored edge (the window
- *  is anchored at the row-start edge, so the margin is what moves the band). */
+/** Apply the band position: the margin of the edge the row axis is ANCHORED
+ *  to. For a centred or start-aligned dock that edge is the row start, so the
+ *  margin is the live band start the row keeps moving; for an end-aligned one
+ *  it is the resting edge, so the margin is the config value and the band's
+ *  length alone decides where the window sits (`rowEndAnchored` — a moving
+ *  start margin on a row-start anchor carried the whole row off the screen
+ *  for the frame between that margin and the resized buffer). The opposite
+ *  edge's margin is cleared so the two never over-constrain. */
 function applySurfaceMargins(win: any, g: DockGeometry, start: number): void {
   const m = g.margin
+  const rowStart = Math.round(start)
   if (g.growAxis === "y") {
-    win.set_margin_left?.(Math.round(start))
+    // Row axis is x: the grow edge is top/bottom, the row edges left/right.
     if (g.growDir < 0) win.set_margin_bottom?.(m.bottom)
     else win.set_margin_top?.(m.top)
+    if (rowEndAnchored(g)) {
+      win.set_margin_right?.(m.right)
+      win.set_margin_left?.(0)
+    } else {
+      win.set_margin_left?.(rowStart)
+      win.set_margin_right?.(0)
+    }
   } else {
-    win.set_margin_top?.(Math.round(start))
+    // Row axis is y: the grow edge is left/right, the row edges top/bottom.
     if (g.growDir < 0) win.set_margin_right?.(m.right)
     else win.set_margin_left?.(m.left)
+    if (rowEndAnchored(g)) {
+      win.set_margin_bottom?.(m.bottom)
+      win.set_margin_top?.(0)
+    } else {
+      win.set_margin_top?.(rowStart)
+      win.set_margin_bottom?.(0)
+    }
   }
 }
 

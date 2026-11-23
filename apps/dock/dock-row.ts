@@ -59,6 +59,7 @@ import {
   dockGeometry,
   overflowCaretAngles,
   POSITIONS,
+  rowEndAnchored,
   rowOffsets,
 } from "@common/applets/layout"
 import type { AppletSurface } from "@common/applets/surface/surface"
@@ -434,13 +435,13 @@ export function createDockRow(
    *  edge) from config — the move-mode drag moves it freely. */
   function restoreGrowMargin(aw: AppletWindow<DockRow> | null): void {
     if (!aw) return
-    const m = dg.margin
+    const key = growMarginKey()
+    const v = Math.round(marginValue(key))
     const win = aw.window as any
-    if (dg.growAxis === "y") {
-      if (dg.growDir < 0) win.set_margin_bottom?.(m.bottom)
-      else win.set_margin_top?.(m.top)
-    } else if (dg.growDir < 0) win.set_margin_right?.(m.right)
-    else win.set_margin_left?.(m.left)
+    if (key === "left") win.set_margin_left?.(v)
+    else if (key === "right") win.set_margin_right?.(v)
+    else if (key === "top") win.set_margin_top?.(v)
+    else win.set_margin_bottom?.(v)
   }
 
   // ── Margin animation ──
@@ -1000,13 +1001,39 @@ export function createDockRow(
   // ── Move mode ──
 
   /** The two margins that position the window freely (the row-axis margin and
-   *  the grow-edge margin). The drag moves both so the window follows the
-   *  pointer in 2D. */
+   *  the grow-edge margin) — each on the edge its axis is ANCHORED to. The
+   *  row axis anchors the edge the band rests against, which is the row START
+   *  for a centred or start-aligned dock and the row END for a flush-end one.
+   *  The drag moves both so the window follows the pointer in 2D. */
   function freeMargins(): { xKey: "left" | "right"; yKey: "top" | "bottom" } {
-    if (dg.growAxis === "y") {
-      return { xKey: "left", yKey: dg.growDir < 0 ? "bottom" : "top" }
-    }
-    return { xKey: dg.growDir < 0 ? "right" : "left", yKey: "top" }
+    const rowKey = rowMarginKey()
+    const growKey = growMarginKey()
+    return dg.rowAxis === "x"
+      ? { xKey: rowKey as "left" | "right", yKey: growKey as "top" | "bottom" }
+      : { xKey: growKey as "left" | "right", yKey: rowKey as "top" | "bottom" }
+  }
+
+  /** The margin key carrying the window's row-axis position: the anchored
+   *  edge's margin, so the band can resize without the window moving. */
+  function rowMarginKey(): "left" | "right" | "top" | "bottom" {
+    const end = rowEndAnchored(dg)
+    if (dg.rowAxis === "x") return end ? "right" : "left"
+    return end ? "bottom" : "top"
+  }
+
+  /** The margin key pinning the window to its screen edge on the grow axis. */
+  function growMarginKey(): "left" | "right" | "top" | "bottom" {
+    if (dg.growAxis === "y") return dg.growDir < 0 ? "bottom" : "top"
+    return dg.growDir < 0 ? "right" : "left"
+  }
+
+  /** The configured margin for one edge. */
+  function marginValue(key: "left" | "right" | "top" | "bottom"): number {
+    const m = dg.margin
+    if (key === "left") return m.left
+    if (key === "right") return m.right
+    if (key === "top") return m.top
+    return m.bottom
   }
 
   function getFreeMargin(key: "left" | "right" | "top" | "bottom"): number {
@@ -1089,20 +1116,23 @@ export function createDockRow(
   }
 
   /** Inverse of overflowDiscCentreLive: the two free margins that place the
-   *  disc centre at (cx, cy). */
+   *  disc centre at (cx, cy). Each axis is measured from the edge its margin
+   *  is anchored to, so the row-axis value mirrors on that edge. */
   function freeMarginsForDiscCentre(cx: number, cy: number): { xVal: number; yVal: number } {
     const sz = config.layout.iconSize
     const [w, h] = windowDims(dg)
     const [dx, dy] = discOrigin(dg, w, h)
-    let xVal: number, yVal: number
-    if (dg.growAxis === "y") {
-      xVal = cx - dx - sz / 2
-      yVal = dg.growDir < 0 ? screenH - h + dy + sz / 2 - cy : cy - dy - sz / 2
-    } else {
-      yVal = cy - dy - sz / 2
-      xVal = dg.growDir < 0 ? screenW - w + dx + sz / 2 - cx : cx - dx - sz / 2
+    const rowEnd = rowEndAnchored(dg)
+    if (dg.rowAxis === "x") {
+      return {
+        xVal: rowEnd ? screenW - w + dx + sz / 2 - cx : cx - dx - sz / 2,
+        yVal: dg.growDir < 0 ? screenH - h + dy + sz / 2 - cy : cy - dy - sz / 2,
+      }
     }
-    return { xVal, yVal }
+    return {
+      xVal: dg.growDir < 0 ? screenW - w + dx + sz / 2 - cx : cx - dx - sz / 2,
+      yVal: rowEnd ? screenH - h + dy + sz / 2 - cy : cy - dy - sz / 2,
+    }
   }
 
   function cancelMoveFly(): void {
@@ -1355,7 +1385,7 @@ export function createDockRow(
   }
 
   /** The overflow window's current on-screen disc centre (the move drag's
-   *  release reference). */
+   *  release reference). Each axis is read from the edge its margin anchors. */
   function overflowDiscCentreLive(): { x: number; y: number } {
     const win = overflowWindow() as any
     const sz = config.layout.iconSize
@@ -1364,13 +1394,14 @@ export function createDockRow(
     const mt = win.get_margin_top?.() ?? 0
     const mr = win.get_margin_right?.() ?? 0
     const mb = win.get_margin_bottom?.() ?? 0
+    const rowEnd = rowEndAnchored(dg)
     let wx: number, wy: number
-    if (dg.growAxis === "y") {
-      wx = ml
+    if (dg.rowAxis === "x") {
+      wx = rowEnd ? screenW - mr - w : ml
       wy = dg.growDir < 0 ? screenH - mb - h : mt
     } else {
       wx = dg.growDir < 0 ? screenW - mr - w : ml
-      wy = mt
+      wy = rowEnd ? screenH - mb - h : mt
     }
     const [dx, dy] = discOrigin(dg, w, h)
     return { x: wx + dx + sz / 2, y: wy + dy + sz / 2 }
