@@ -439,7 +439,10 @@ greeter/
 ├── bundle.sh              ← the build BODY both scripts source (guard, outfile patch, GPU pins, stamp,
 │                             atomic replace of dist/*.sh) — not executable on its own
 ├── install.sh             ← ROOT deploy → /etc/greetd/ (rebuilds, refuses a payload whose stamp does not
-│                             match the sources, then installs bundle + stamp; via sudo, never automatically)
+│                             match the sources, then installs bundle + stamp; via sudo, never automatically).
+│                             Also installs boot/ and rebuilds the boot images unless --no-boot
+├── boot/                  ← the PRE-LOGIN splash: initramfs program, dracut module, its two units,
+│                             its dracut drop-ins and tinshell-boot-refresh — own spec: boot/AGENTS.md
 ├── dm-switch.sh           ← spare-TTY DM switch/rollback (NOT from the graphical session)
 ├── preview.sh             ← DEV windowed prototype launcher (login|lock card + dock, pinned to
 │                             workspace 10; TINSHELL_GREETER_PREVIEW=login|lock; never locks anything)
@@ -558,7 +561,11 @@ plus `ags bundle` compiling for both bundles.
   the stamp does not match — a stale login bundle cannot be deployed by
   accident. The matching `tinshell-greeter.sh.stamp.json` is installed beside it, so
   `npm run check:builds` reads the DEPLOYED copy, not just `dist/`.
-  Idempotent. Does NOT switch the DM. Config safety (root AGENTS.md,
+  Idempotent. Does NOT switch the DM. It ALSO installs `boot/` — the splash program and
+  sources, the dracut module, both units and the two drop-ins — and then runs
+  `tinshell-boot-refresh`, which compiles the program into the module and rebuilds the
+  initramfs, the unified kernel image and the GRUB menu (`--no-boot` skips all of it). That
+  half deploys nothing to `/etc/greetd/` and writes only where the boot reads. Config safety (root AGENTS.md,
   "Deploy writes to live config"): the LIVE
   `/etc/greetd/tinshell-greeter/config.json` is SEEDED from `config.defaults.json`
   only when ABSENT and otherwise PRESERVED (it holds the deployed dock values

@@ -1,0 +1,7 @@
+{
+  "fade": { "steps": 10, "stepMs": 60 },
+  "mark": { "top": 1112, "height": 88 },
+  "field": { "width": 600, "height": 68, "radius": 24, "edge": 2 },
+  "bullet": { "size": 12 },
+  "frame": { "left": 1080, "top": 720 }
+}

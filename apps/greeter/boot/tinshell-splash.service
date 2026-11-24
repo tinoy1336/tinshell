@@ -1,0 +1,33 @@
+[Unit]
+Description=The tinshell boot screen and its passphrase request
+Documentation=file:/home/tinoy/boot-screen.md
+# Started with the first units of the boot image, before anything asks for the
+# passphrase. The ordering below names this machine's root volume, which is the
+# only volume the splash is ever asked about.
+DefaultDependencies=no
+After=systemd-udevd.service systemd-journald.socket systemd-vconsole-setup.service
+Before=systemd-cryptsetup@cryptroot.service
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=simple
+# The program is started through a shell so that every way of not running — a
+# missing binary, an immediate crash, a clean early exit — ends with systemd's own
+# console agent asking. That agent is masked in this image so it cannot reset the
+# terminal while the splash owns it, which makes this the one path back to an
+# unlockable machine if the splash ever fails.
+ExecStart=/bin/sh -c '/usr/libexec/tinshell-splash/tinshell-splash; exec /usr/bin/systemd-tty-ask-password-agent --watch --console'
+Restart=no
+RestartSec=1
+SuccessExitStatus=0 1
+StandardInput=null
+StandardOutput=null
+StandardError=null
+# The screen and the terminal belong to this program while it runs; nothing else
+# may take them for a different session.
+SendSIGHUP=no
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=sysinit.target

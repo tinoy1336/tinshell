@@ -1,0 +1,25 @@
+[Unit]
+Description=The text passphrase prompt, for when the tinshell splash is masked
+Documentation=file:/home/tinoy/boot-screen.md
+# The escape hatch. The splash replaces systemd's own console prompt, and that
+# prompt's units are masked inside the boot image so they cannot reset the
+# terminal while the splash owns it. Masking the splash itself from the kernel
+# command line — systemd.mask=tinshell-splash.service — creates exactly this link in
+# /run, and this unit then starts the console prompt by hand, which is the only
+# way back into a machine whose splash does not work.
+DefaultDependencies=no
+ConditionPathExists=/run/systemd/system/tinshell-splash.service
+After=systemd-udevd.service
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/systemd-tty-ask-password-agent --watch --console
+Restart=no
+StandardInput=null
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=sysinit.target

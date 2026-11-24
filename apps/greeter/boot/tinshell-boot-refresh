@@ -1,0 +1,284 @@
+#!/bin/sh
+# tinshell-boot-refresh — rebuild what the tinshell boot screen is made of.
+#
+# The GRUB theme and the drop-in that names it come from this machine's declaration, installed
+# by host-apply; the splash's own program, sources and unit are installed beside this script by
+# apps/greeter/install.sh. The menu font, the splash's images, the initramfs and the menu are
+# derived from those files, so they are regenerated whenever the theme, the palette or
+# /etc/default/grub.d moves:
+#
+#   sudo tinshell-boot-refresh
+#
+# The font is generated rather than carried in the repository: GRUB_FONT in the boot drop-in
+# names the file written below, on the ESP, because grub-mkconfig cryptomounts the root
+# volume for any file it finds on it — a font there would put the passphrase prompt back in
+# the firmware's console, before GRUB's graphical terminal exists. The family and size are
+# this script's to choose; the theme names the same face, and the check at the end holds the
+# two together.
+#
+# This machine generates its initrds with dracut, so the rebuild is asked for through the
+# script that owns the kernels here. The unified kernel image the firmware can boot is built
+# from the same drop-ins and carries its own initramfs, so it is rebuilt too — a splash change
+# that reached only /boot would leave the UKI drawing the old images. grub-mkconfig then reads
+# the font and the theme path back into the menu.
+set -eu
+
+# --no-rebuild stops after the files are written, so what would ship can be
+# checked without replacing the images the next boot reads. It has to be read
+# HERE: the colour values below are taken with set --, which replaces the
+# positional parameters with the well's own colours.
+mode=${1:-}
+
+# The painted images are only an intermediate: they are converted to the raw pixels the program
+# reads, and nothing else needs them afterwards.
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+
+esp_dir=/efi
+font_dir="$esp_dir/grub/fonts"
+font_file="$font_dir/house-32.pf2"
+font_family="House Boot"
+font_size=32
+font_source=/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf
+theme_file=/boot/grub/themes/house/theme.txt
+
+# ASCII and Latin-1 for the boot text, the typographic quotes and dash grub's own messages
+# use, the bullet the passphrase field counts with, the arrows the key hints are made of and
+# the box-drawing characters a rule would be drawn with.
+font_range="0x20-0x7e,0xa0-0xff,0x2018-0x201d,0x2022-0x2022,0x2190-0x21ff,0x2500-0x257f,0x25cf-0x25cf"
+
+# The splash's own images, painted here and reduced to raw pixels further down:
+#
+#   mark.png    the mark the distribution ships, from the machine's declaration
+#   frame.png   the firmware's own boot frame, at the size and place the firmware left it
+#   field.png   the passphrase field's rounded well
+#   bullet.png  one passphrase bullet, a dot rather than a text glyph
+#
+# The sizes come from the splash's config (config.defaults.json), not from here: the config is
+# what the program is compiled with too, so the images and the picture around them agree.
+#
+# Each is written at the panel's own pixels — 2880 by 1800, which is twice the theme's reference
+# width of 1440 — so the splash draws it one to one instead of resizing it at boot. The script
+# plugin's resize drops pixels rather than blending them, which left the mark jagged; written at
+# the drawn size, no image is resampled at all.
+#
+# The frame is the one picture nothing here can derive from a vector: it comes from the boot
+# graphics image the firmware registers, kept on the ESP as bgrt-splash.bmp with the frame
+# flush to the bottom of a 720 by 450 canvas. It is drawn onto the panel by the program itself
+# once it commits the display, so the panel changes from the firmware's own framebuffer to the
+# same picture rather than to an empty one.
+mark_source=/usr/local/src/tinshell-splash/mark.svg
+mark_file=$scratch/mark.png
+frame_source=/efi/grub/bgrt-splash.bmp
+frame_file=$scratch/frame.png
+field_file=$scratch/field.png
+bullet_file=$scratch/bullet.png
+
+# The sizes and timings come from the splash's own config, the file the boot program is also
+# compiled from, so one edit moves both the images and the picture they are drawn into. It is
+# installed beside the sources it belongs to.
+splash_config=/usr/local/src/tinshell-splash/config.defaults.json
+[ -r "$splash_config" ] || {
+	echo "tinshell-boot-refresh: no splash config at $splash_config" >&2
+	exit 1
+}
+[ -r "$mark_source" ] || {
+	echo "tinshell-boot-refresh: no mark at $mark_source — is this machine's declaration installed?" >&2
+	exit 1
+}
+
+# The colours those images are painted in come from the palette the theme is rendered from,
+# never typed here: the same file the renderer reads. sudo resets HOME to root's, so the file
+# is resolved from the account that invoked this — the one whose dotfiles carry it — and only
+# then from the environment, in the order the renderer itself resolves it.
+invoking_home=$(getent passwd "${SUDO_USER:-${USER:-root}}" | cut -d: -f6)
+invoking_home=${invoking_home:-$HOME}
+palette=${COLOURWAY_PALETTE:-${XDG_CONFIG_HOME:-$invoking_home/.config}/colourway/palette.json}
+[ -r "$palette" ] || {
+	echo "tinshell-boot-refresh: no palette at $palette, so the splash images have no colours" >&2
+	exit 1
+}
+values=$(python3 - "$palette" "$splash_config" <<'PY'
+import json, sys
+
+palette = json.load(open(sys.argv[1]))
+boot = json.load(open(sys.argv[2]))
+
+
+def token(name):
+    group, key = name.split('.')
+    return palette['groups'][group][key]
+
+
+well = token('surface.input')['hex']
+text = token('text.primary')['hex']
+edge = token('border.strong')
+
+
+def channels(hex_colour):
+    return [int(hex_colour[at:at + 2], 16) for at in (1, 3, 5)]
+
+
+# The border token carries an opacity and a painter takes a colour, so it is laid over the
+# well's own fill here rather than left to the drawing step: an alpha handed to the stroke is
+# read against whatever is already on the canvas, which is not what the token means.
+alpha = edge.get('alpha', 0)
+edge = '#%02x%02x%02x' % tuple(
+    round(alpha * front + (1 - alpha) * behind)
+    for front, behind in zip(channels(edge['hex']), channels(well)))
+
+
+# Every value below is compiled into the program or painted into an image, so a value that
+# cannot be used is refused here rather than drawn and shipped.
+def whole(section, key, least):
+    value = boot[section][key]
+    if not isinstance(value, int) or isinstance(value, bool) or value < least:
+        raise SystemExit(
+            'tinshell-boot-refresh: %s.%s must be a whole number of at least %d, not %r'
+            % (section, key, least, value))
+    return value
+
+
+fade = (whole('fade', 'steps', 1), whole('fade', 'stepMs', 10))
+mark = (whole('mark', 'top', 0), whole('mark', 'height', 8))
+field = (whole('field', 'width', 8), whole('field', 'height', 8),
+         whole('field', 'radius', 0), whole('field', 'edge', 0))
+bullet = (whole('bullet', 'size', 4),)
+frame = (whole('frame', 'left', 0), whole('frame', 'top', 0))
+
+print(well, edge, text, *fade, *mark, *field, *bullet, *frame)
+PY
+)
+set -- $values
+well_colour=$1
+edge_colour=$2
+text_colour=$3
+fade_steps=$4
+fade_step_ms=$5
+mark_top=$6
+mark_height=$7
+field_width=$8
+field_height=$9
+shift 9
+field_radius=$1
+field_edge=$2
+bullet_size=$3
+frame_left=$4
+frame_top=$5
+
+# The ESP has to be the mounted ESP: an unmounted /efi is a directory on the root volume, and
+# a font written there would be found by grub-mkconfig on the encrypted volume instead — the
+# exact placement this font exists to avoid. A single stat is enough to trigger the automount.
+[ -d "$esp_dir" ] || {
+	echo "tinshell-boot-refresh: $esp_dir is not there" >&2
+	exit 1
+}
+if [ "$(stat -f -c %T "$esp_dir")" != msdos ]; then
+	echo "tinshell-boot-refresh: $esp_dir is not the ESP's vfat — is it mounted?" >&2
+	exit 1
+fi
+
+# The file's mode belongs to the vfat mount, not to this script: GRUB reads the FAT directly.
+mkdir -p "$font_dir"
+grub-mkfont -s "$font_size" -n "$font_family" -r "$font_range" -o "$font_file" "$font_source"
+
+# Every font the installed theme names has to be inside the file just written: the theme
+# would otherwise draw with a font GRUB never loaded, and the menu would come up empty.
+sed -n 's/.*"\([^"]* Regular [0-9][0-9]*\)".*/\1/p' "$theme_file" | sort -u |
+	while read -r named; do
+		if ! grep -qaF -- "$named" "$font_file"; then
+			echo "tinshell-boot-refresh: $theme_file names '$named' and $font_file does not carry it" >&2
+			exit 1
+		fi
+	done
+
+# The mark: rendered from the vector beside the theme, keeping the artwork's own colour and
+# its transparency, at the height the splash draws it. Its ground stays transparent, so the
+# field shows through around it.
+for tool in rsvg-convert magick; do
+	command -v "$tool" >/dev/null || {
+		echo "tinshell-boot-refresh: $tool is missing, so the splash mark cannot be drawn" >&2
+		exit 1
+	}
+done
+rsvg-convert -h "$mark_height" "$mark_source" -o "$mark_file"
+
+# The frame: the bottom 720 by 405 of the ESP's copy of the firmware image, kept pixel for
+# pixel. Its ground is already the black the theme paints the field with, so nothing is
+# repainted and the picture and the field agree by construction.
+[ -r "$frame_source" ] || {
+	echo "tinshell-boot-refresh: no firmware frame at $frame_source" >&2
+	exit 1
+}
+magick "$frame_source" -gravity south -crop 720x405+0+0 +repage -alpha off "PNG24:$frame_file"
+
+# The field: the rounded well the passphrase is typed into, painted as the strong border first
+# and the well's own fill inside it second, so the edge is exactly the configured inset rather
+# than a stroke half outside the shape. The inner radius keeps the fill one edge in from the
+# border's own curve.
+magick -size "${field_width}x${field_height}" xc:none \
+	-fill "$edge_colour" -draw "roundrectangle 0,0 $((field_width - 1)),$((field_height - 1)) $field_radius,$field_radius" \
+	-fill "$well_colour" -draw "roundrectangle $field_edge,$field_edge $((field_width - 1 - field_edge)),$((field_height - 1 - field_edge)) $((field_radius - field_edge)),$((field_radius - field_edge))" \
+	"PNG32:$field_file"
+
+# The bullet: a dot, in the tier the theme gives the entry's own text. The boot image carries no
+# face with that glyph, so a text glyph painted the missing-glyph box; an image cannot be missing
+# from a font. Sized to sit inside the slot the field allots it.
+bullet_geometry=$(python3 -c 'import sys; size = int(sys.argv[1]); centre = (size - 1) / 2; print(centre, centre, centre - (size - 2) / 2)' "$bullet_size")
+set -- $bullet_geometry
+magick -size "${bullet_size}x${bullet_size}" xc:none -fill "$text_colour" \
+	-draw "circle $1,$2 $1,$3" "PNG32:$bullet_file"
+
+# The splash program and its pixels. The boot image has no image decoder and no toolkit, so the
+# images are written here as raw RGBA with their size in the first eight bytes, and the program
+# is a static binary because the boot image carries no C library to link against.
+splash_module_dir=/usr/lib/dracut/modules.d/80tinshell-splash
+splash_source=/usr/local/src/tinshell-splash/tinshell-splash.c
+
+[ -r "$splash_source" ] || {
+	echo "tinshell-boot-refresh: no splash source at $splash_source" >&2
+	exit 1
+}
+
+write_rgba() {
+	magick "$1" -depth 8 "rgba:$2.pixels"
+	width=$(magick identify -format '%w' "$1")
+	height=$(magick identify -format '%h' "$1")
+	python3 - "$2.pixels" "$2" "$width" "$height" <<'PY'
+import struct, sys
+raw, out, width, height = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+data = open(raw, 'rb').read()
+if len(data) != width * height * 4:
+    raise SystemExit('tinshell-boot-refresh: unexpected pixel data for ' + out)
+with open(out, 'wb') as handle:
+    handle.write(struct.pack('<II', width, height))
+    handle.write(data)
+PY
+	rm -f "$2.pixels"
+}
+
+mkdir -p "$splash_module_dir"
+write_rgba "$mark_file" "$splash_module_dir/mark.rgba"
+write_rgba "$frame_file" "$splash_module_dir/frame.rgba"
+write_rgba "$field_file" "$splash_module_dir/well.rgba"
+write_rgba "$bullet_file" "$splash_module_dir/dot.rgba"
+
+# Static, so the boot image needs no libraries for it, and stripped, because the only copy of the
+# symbols would be one nobody can read a backtrace from during a boot. The timings and positions
+# come from the same config the images were painted from, so the program and its pictures agree
+# by construction.
+gcc -O2 -Wall -Wextra -static -s \
+	-DFADE_STEPS="$fade_steps" -DFADE_STEP_MS="$fade_step_ms" \
+	-DMARK_TOP_REF="$mark_top" -DFRAME_LEFT_REF="$frame_left" -DFRAME_TOP_REF="$frame_top" \
+	-o "$splash_module_dir/tinshell-splash" "$splash_source"
+
+# --no-rebuild stops after the files are written: used to check what would ship
+# without replacing the images the next boot reads.
+if [ "$mode" = "--no-rebuild" ]; then
+	echo "tinshell-boot-refresh: files written, boot images left alone (--no-rebuild)"
+	exit 0
+fi
+
+dracut-rebuild
+uki-rebuild
+grub-mkconfig -o /boot/grub/grub.cfg

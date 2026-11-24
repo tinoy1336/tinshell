@@ -131,6 +131,8 @@ AGENTS.md before touching anything.
     ├── files/       files browser (io.Astal.files)
     └── greeter/     greetd login/lock screens (boot-level, SEPARATE user+compositor —
                      NEVER part of shell; an island forever)
+        └── boot/    the initramfs passphrase screen drawn before the greeter — its own spec:
+                     apps/greeter/boot/AGENTS.md
 ```
 
 ## Apps

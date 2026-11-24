@@ -35,18 +35,21 @@ cd "$(dirname "$0")"
 
 FORCE=0
 NO_BUILD=0
+NO_BOOT=0
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=1 ;;
     --no-build) NO_BUILD=1 ;;
+    --no-boot) NO_BOOT=1 ;;
     -h | --help)
-      echo "usage: install.sh [--force] [--no-build]"
+      echo "usage: install.sh [--force] [--no-build] [--no-boot]"
       echo "  --force     re-seed /etc/greetd/tinshell-greeter/config.json from config.defaults.json, destroying its current contents"
       echo "  --no-build  deploy the bundle already in dist/ instead of rebuilding it (it is STILL refused when its stamp does not match the sources)"
+      echo "  --no-boot   deploy the greeter only, leaving the boot screen's files and the boot images as they are"
       exit 0
       ;;
     *)
-      echo "error: unknown argument '$arg' (only --force, --no-build)" >&2
+      echo "error: unknown argument '$arg' (only --force, --no-build, --no-boot)" >&2
       exit 1
       ;;
   esac
@@ -127,6 +130,31 @@ if id greeter >/dev/null 2>&1; then
   chown -R greeter:greeter /etc/greetd/tinshell-greeter.sh /etc/greetd/tinshell-greeter
 fi
 
+# ── boot screen ──────────────────────────────────────────────────────
+# The passphrase screen runs from the boot image, not from this bundle: its
+# program, pixels and boot images are compiled and packed by tinshell-boot-refresh,
+# which rebuilds the initramfs, the unified kernel image and the GRUB menu, so a
+# change here reaches the image the firmware actually boots only through it. The
+# dracut module carries the program and its pixels, which is why the module, its
+# two drop-ins and the two units are installed beside the greeter rather than
+# read from the tree at boot. The artwork it draws and the colours it paints in
+# are the machine's, not this tree's: the mark and the palette are installed by
+# the machine's own declaration, and the refresh refuses to run without them.
+if [ "$NO_BOOT" = 1 ]; then
+  echo "[deploy] --no-boot: the boot screen and its images are left as installed"
+else
+  install -Dm755 boot/tinshell-boot-refresh /usr/local/sbin/tinshell-boot-refresh
+  install -Dm644 boot/tinshell-splash.c /usr/local/src/tinshell-splash/tinshell-splash.c
+  install -Dm644 boot/config.defaults.json /usr/local/src/tinshell-splash/config.defaults.json
+  install -Dm644 boot/config.schema.json /usr/local/src/tinshell-splash/config.schema.json
+  install -Dm755 boot/module-setup.sh /usr/lib/dracut/modules.d/80tinshell-splash/module-setup.sh
+  install -Dm644 boot/tinshell-splash.service /usr/lib/systemd/system/tinshell-splash.service
+  install -Dm644 boot/tinshell-splash-fallback.service /usr/lib/systemd/system/tinshell-splash-fallback.service
+  install -Dm644 boot/50-tinshell-splash.conf /etc/dracut.conf.d/50-tinshell-splash.conf
+  install -Dm644 boot/zz-tinshell-splash.conf /etc/dracut.conf.d/zz-tinshell-splash.conf
+  /usr/local/sbin/tinshell-boot-refresh
+fi
+
 echo "greeter deployed:"
 echo "  /etc/greetd/tinshell-greeter.sh          (the bundle, runs as user greeter)"
 echo "  /etc/greetd/tinshell-greeter.sh.stamp.json (the sources it was built from — \`npm run check:builds\` reads it)"
@@ -136,4 +164,13 @@ echo "  /etc/greetd/config.toml             (greetd → greeter compositor)"
 echo "  /etc/greetd/greeter.lua             (greeter compositor config)"
 echo "  /etc/greetd/greeter-handoff.sh      (login handoff: freezes the last frame)"
 echo "  /etc/pam.d/greetd                   (+ gnome-keyring unlock)"
+if [ "$NO_BOOT" = 1 ]; then
+  echo "  boot screen                         (left as installed)"
+else
+  echo "  /usr/lib/dracut/modules.d/80tinshell-splash/   (the splash program and its pixels)"
+  echo "  /usr/lib/systemd/system/tinshell-splash.service (+ its fallback)"
+  echo "  /etc/dracut.conf.d/{50,zz}-tinshell-splash.conf"
+  echo "  /usr/local/{src,sbin}/tinshell-splash/, /usr/local/sbin/tinshell-boot-refresh"
+  echo "  initramfs, unified kernel image and GRUB menu rebuilt from them"
+fi
 echo "(config.json is seeded only when absent and otherwise preserved; --force re-seeds it)"
