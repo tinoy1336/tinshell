@@ -1,6 +1,5 @@
 [Unit]
 Description=The text passphrase prompt, for when the tinshell splash is masked
-Documentation=file:/home/tinoy/boot-screen.md
 # The escape hatch. The splash replaces systemd's own console prompt, and that
 # prompt's units are masked inside the boot image so they cannot reset the
 # terminal while the splash owns it. Masking the splash itself from the kernel

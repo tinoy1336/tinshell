@@ -1,6 +1,5 @@
 [Unit]
 Description=The tinshell boot screen and its passphrase request
-Documentation=file:/home/tinoy/boot-screen.md
 # Started with the first units of the boot image, before anything asks for the
 # passphrase. The ordering below names this machine's root volume, which is the
 # only volume the splash is ever asked about.
