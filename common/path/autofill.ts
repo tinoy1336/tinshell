@@ -14,6 +14,13 @@
  * ghost as a SELECTION (`set_selection_bounds(committedLen, text.length)`)
  * so the non-committed portion is visually distinct ("different shade").
  *
+ * The entry takes the DIRECTORY ENTRY's own casing, not the typed casing:
+ * completion matches case-insensitively, and where the typed path diverges in
+ * case the ghost starts at the DIVERGENCE and carries the real name, so
+ * `~/bio/chapter` completes to `~/bio/Chapter 1 - Exploring Life.pdf` with
+ * `Chapter 1 - Exploring Life.pdf` shaded. `committedLen` is therefore the
+ * common prefix — keyboarding on from a fill lands in the entry's casing.
+ *
  * PATTERN QUERIES: a typed path whose basename carries `*`/`?` (see
  * `isGlobQuery`) completes to the MATCHING entries of its parent directory,
  * newest first. A candidate does not extend a pattern, so its ghost is the
@@ -45,7 +52,7 @@ interface PathAutofillOpts {
   onTruncated?: (hidden: number) => void
 }
 
-interface PathAutofillResult {
+export interface PathAutofillResult {
   /** Full text to put in the entry (committed + ghost). */
   text: string
   /** Chars [0, committedLen) are committed; committedLen..text.length is the
@@ -89,23 +96,49 @@ export function createPathAutofill(opts: PathAutofillOpts): PathAutofill {
     publishNotice(0)
   }
 
-  // The ghost suffix to append to the committed entry text: the candidate's
-  // full path (trailing "/" for dirs) minus the already-committed (expanded)
-  // path. Preserves the user's "~"/relative display by only taking the SUFFIX.
-  const ghostFor = (committedPath: string, c: PathSuggestion): string => {
+  // The fill for a candidate: the whole entry text after a Tab, and the length
+  // of its committed prefix. The candidate's full path (trailing "/" for
+  // dirs) MINUS the already-committed (expanded) path, but cut back to the
+  // first character where the typed path and the entry's real name diverge in
+  // case, so the ghost carries the entry's own casing.
+  const fillFor = (
+    entryText: string,
+    committedPath: string,
+    c: PathSuggestion,
+  ): PathAutofillResult => {
     const full = c.path + (c.isDir ? "/" : "")
-    if (committedPath.trim() === "") return full // nothing committed: ghost = whole path
-    // canonicalize_filename strips trailing slashes — re-append so the slice
-    // starts AFTER the dir separator (no double slash in the result).
-    const expanded = expandPath(committedPath)
+    // The typed path's display form stays intact in the entry (a bang prefix,
+    // a "~"/relative start); only the part that disagrees with the entry is
+    // replaced by the ghost.
+    const start = committedPath === "" ? -1 : entryText.indexOf(committedPath)
+    const prefix = start > 0 ? entryText.slice(0, start) : ""
+    const display = start >= 0 ? committedPath : entryText
+    if (display.trim() === "") return { text: prefix + full, committedLen: prefix.length } // nothing committed: ghost = whole path
+    // canonicalize_filename strips trailing slashes — re-append so an equal
+    // prefix ends AFTER the dir separator (no double slash in the result).
+    const expanded = expandPath(display)
     const committedExpanded =
-      committedPath.endsWith("/") && !expanded.endsWith("/") ? `${expanded}/` : expanded
+      display.endsWith("/") && !expanded.endsWith("/") ? `${expanded}/` : expanded
     // Case-insensitive: a candidate's real casing may differ from what was
-    // typed (Pictures under ~/pict), and a case-sensitive test falls through to
-    // the name-append fallback, yielding ~/pictPictures/ instead of ~/Pictures/.
-    if (full.toLowerCase().startsWith(committedExpanded.toLowerCase()))
-      return full.slice(committedExpanded.length)
-    return c.name + (c.isDir ? "/" : "") // fallback if the expanded forms don't align
+    // typed (Chapter under chapter, Pictures under ~/pict), and a case-sensitive
+    // test falls through to the name-append fallback, yielding ~/pictPictures/.
+    if (full.toLowerCase().startsWith(committedExpanded.toLowerCase())) {
+      // Common prefix in EXPANDED space, then mapped back to the display path
+      // by distance from its END — both forms name the same typed suffix, so
+      // the tail lengths agree however the head differs ("~", "./", "..").
+      let common = 0
+      while (common < committedExpanded.length && committedExpanded[common] === full[common])
+        common++
+      const displayCut = Math.max(0, display.length - (committedExpanded.length - common))
+      return {
+        text: prefix + display.slice(0, displayCut) + full.slice(common),
+        committedLen: prefix.length + displayCut,
+      }
+    }
+    return {
+      text: prefix + display + c.name + (c.isDir ? "/" : ""), // fallback if the expanded forms don't align
+      committedLen: prefix.length + display.length,
+    }
   }
 
   // The REPLACE-PREVIEW for a pattern query: the whole matched path, not a
@@ -180,12 +213,10 @@ export function createPathAutofill(opts: PathAutofillOpts): PathAutofill {
         log(`[autofill] onTab -> ${JSON.stringify(preview.text)} (pattern preview)`)
         return preview
       }
-      const committedPath = opts.extract(committed) ?? ""
-      const ghost = ghostFor(committedPath, c)
-      const fullText = committed + ghost
-      lastApplied = fullText
-      log(`[autofill] onTab -> ${JSON.stringify(fullText)}`)
-      return { text: fullText, committedLen: committed.length }
+      const filled = fillFor(committed, opts.extract(committed) ?? "", c)
+      lastApplied = filled.text
+      log(`[autofill] onTab -> ${JSON.stringify(filled.text)}`)
+      return filled
     },
 
     onAccept(text: string): PathAutofillResult | null {
@@ -209,8 +240,9 @@ export function createPathAutofill(opts: PathAutofillOpts): PathAutofill {
           return { text, committedLen: text.length }
         }
         const committed = baseText ?? text
-        const ghost = ghostFor(opts.extract(committed) ?? "", c)
-        const newCommitted = committed + ghost // dir ghost already ends with "/"
+        // Accept commits the fill literally — the entry keeps the entry's own
+        // casing, and a dir fill already ends with "/" so the next Tab descends.
+        const newCommitted = fillFor(committed, opts.extract(committed) ?? "", c).text
         // baseText = null: force the NEXT Tab to recompute from the locked-in
         // dir (its children), i.e. descend. lastApplied keeps the guard happy
         // so the caller's set_text is not mistaken for a user edit.

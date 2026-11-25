@@ -117,6 +117,7 @@ BUNDLED=(
   common/applets/backend-protocol.probe.ts
   common/applets/host/transport.probe.ts
   common/path/complete.probe.ts
+  common/path/autofill.probe.ts
   common/config/loader.probe.ts
   common/fs/files.probe.ts
   common/applets/shared/value-tick.probe.ts
